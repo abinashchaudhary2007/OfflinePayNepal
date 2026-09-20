@@ -95,6 +95,23 @@ export async function getUserByEmail(email) {
   return all.find(u => u.email?.toLowerCase() === email?.toLowerCase()) || null;
 }
 
+export function isDummyAccount(user) {
+  if (!user) return true;
+  const id = (user.id || '').toLowerCase();
+  const email = (user.email || '').toLowerCase();
+  return (
+    id.startsWith('user-abinash-') ||
+    id.startsWith('user-anshu-') ||
+    id.startsWith('user-demo-') ||
+    id.startsWith('user-admin-') ||
+    id === 'user_anshu_01' ||
+    id === 'user_demo_02' ||
+    id === 'user_admin_03' ||
+    email.includes('offlinepay.demo') ||
+    email.includes('offlinepay.local')
+  );
+}
+
 export async function getAllUsers() {
   const db = await getDB();
 
@@ -108,8 +125,18 @@ export async function getAllUsers() {
     }
   }
 
-  const users = await db.getAll('users');
-  return users;
+  const allUsers = await db.getAll('users');
+  const validUsers = [];
+  for (const u of allUsers) {
+    if (isDummyAccount(u)) {
+      await db.delete('users', u.id).catch(() => {});
+      if (u.wallet?.id) await db.delete('wallet', u.wallet.id).catch(() => {});
+    } else {
+      validUsers.push(u);
+    }
+  }
+
+  return validUsers;
 }
 
 // ─── Wallet ───────────────────────────────────

@@ -21,7 +21,7 @@ const STEPS = { SELECT: 'select', AMOUNT: 'amount', CONFIRM: 'confirm', SUCCESS:
 
 function SendMoney() {
   const { currentUser } = useAuth();
-  const { wallet, device, authorization, createOfflineTransaction, createOnlineTransaction, refreshTransactions, TX_STATUS } = useWallet();
+  const { wallet, device, authorization, transactions, createOfflineTransaction, createOnlineTransaction, refreshTransactions, TX_STATUS } = useWallet();
   const { isOffline } = useOfflineSimulation();
   const navigate = useNavigate();
 
@@ -55,7 +55,7 @@ function SendMoney() {
   const receivers = directoryUsers.filter(u => u.id !== currentUser?.id && u.role !== 'admin');
   const filteredReceivers = receivers.filter(u => {
     const q = search.toLowerCase().trim();
-    if (!q) return true;
+    if (!q) return false;
     return (
       (u.name && u.name.toLowerCase().includes(q)) ||
       (u.email && u.email.toLowerCase().includes(q)) ||
@@ -63,6 +63,21 @@ function SendMoney() {
       (u.id && u.id.toLowerCase().includes(q))
     );
   });
+
+  // Most recent transaction recipient (only 1)
+  const recentSentTx = (transactions || []).find(tx => tx.senderId === currentUser?.id);
+  let recentRecipient = null;
+  if (recentSentTx) {
+    const matched = directoryUsers.find(u => u.id === recentSentTx.receiverId);
+    recentRecipient = {
+      id: recentSentTx.receiverId,
+      name: recentSentTx.receiverName || matched?.name || 'Recent Contact',
+      email: matched?.email || recentSentTx.receiverName,
+      phone: matched?.phone || '',
+      avatar: (recentSentTx.receiverName || 'U').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+      avatarColor: matched?.avatarColor || '#4F46E5',
+    };
+  }
 
   const handleSelectReceiver = (user) => {
     setReceiver(user);
@@ -139,36 +154,88 @@ function SendMoney() {
         {/* STEP 1: Select Receiver */}
         {step === STEPS.SELECT && (
           <Card>
-            <CardHeader title="Select Receiver" />
+            <CardHeader title="Select Receiver" subtitle="Send to a recent contact or search registered accounts" />
             <Input
               id="receiver-search"
-              placeholder="Search by name, email, or user ID..."
+              placeholder="Search by name, email, or phone..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               leftIcon={<Search size={15} />}
             />
-            <div className="space-y-2 mt-3">
-              {filteredReceivers.map(user => (
-                <button
-                  key={user.id}
-                  onClick={() => handleSelectReceiver(user)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--color-gray-100)] hover:border-[var(--color-indigo-300)] hover:bg-indigo-50 transition-all text-left group"
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                    style={{ background: user.avatarColor }}>
-                    {user.avatar}
+
+            {/* When searching: show filtered search results */}
+            {search.trim().length > 0 ? (
+              <div className="space-y-2 mt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-gray-400)] px-1">
+                  Search Results ({filteredReceivers.length})
+                </p>
+                {filteredReceivers.map(user => (
+                  <button
+                    key={user.id}
+                    onClick={() => handleSelectReceiver(user)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--color-gray-100)] hover:border-[var(--color-indigo-300)] hover:bg-indigo-50/50 transition-all text-left group"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ background: user.avatarColor || '#4F46E5' }}
+                    >
+                      {user.avatar || 'U'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--color-gray-800)]">{user.name}</p>
+                      <p className="text-xs text-[var(--color-gray-400)] truncate">{user.email || user.phone}</p>
+                    </div>
+                    <ChevronRight size={16} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-500)]" />
+                  </button>
+                ))}
+                {filteredReceivers.length === 0 && (
+                  <div className="text-center py-6 text-sm text-[var(--color-gray-400)]">
+                    No registered user found matching "{search}"
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--color-gray-800)]">{user.name}</p>
-                    <p className="text-xs text-[var(--color-gray-400)] truncate">{user.email}</p>
+                )}
+              </div>
+            ) : (
+              /* When not searching: show ONLY the 1 recent transaction recipient (if exists) */
+              recentRecipient ? (
+                <div className="mt-4 pt-2">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-gray-400)]">
+                      Recent Recipient
+                    </p>
+                    <span className="text-[10px] text-[var(--color-gray-400)]">Last transaction</span>
                   </div>
-                  <ChevronRight size={16} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-500)]" />
-                </button>
-              ))}
-              {filteredReceivers.length === 0 && (
-                <p className="text-center text-sm text-[var(--color-gray-400)] py-4">No users found</p>
-              )}
-            </div>
+                  <button
+                    onClick={() => handleSelectReceiver(recentRecipient)}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-[var(--color-gray-200)] hover:border-[var(--color-indigo-400)] hover:bg-indigo-50/50 transition-all text-left group bg-white shadow-xs"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                      style={{ background: recentRecipient.avatarColor || '#4F46E5' }}
+                    >
+                      {recentRecipient.avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--color-gray-900)] group-hover:text-[var(--color-indigo-700)]">
+                        {recentRecipient.name}
+                      </p>
+                      <p className="text-xs text-[var(--color-gray-400)] truncate">
+                        {recentRecipient.email || recentRecipient.phone || 'Recent contact'}
+                      </p>
+                    </div>
+                    <ChevronRight size={16} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-500)]" />
+                  </button>
+                </div>
+              ) : (
+                /* Empty state when no transactions yet */
+                <div className="text-center py-8 px-4 text-sm mt-2">
+                  <Search size={22} className="mx-auto mb-2 text-[var(--color-gray-300)]" />
+                  <p className="font-semibold text-[var(--color-gray-700)]">Search to select a recipient</p>
+                  <p className="text-xs text-[var(--color-gray-400)] mt-1">
+                    Type a registered name, email, or phone number above.
+                  </p>
+                </div>
+              )
+            )}
           </Card>
         )}
 

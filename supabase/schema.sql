@@ -225,31 +225,7 @@ create policy "Security events full access"
   with check (true);
 
 -- ==============================================================================
--- 11. SEED DATA (INITIAL DEMO ACCOUNTS & WALLETS)
--- ==============================================================================
-insert into public.profiles (id, email, phone_number, full_name, role)
-values
-  ('user_anshu_01', 'anshu@offlinepay.local', '+977-9841234567', 'Anshu Tamang', 'user'),
-  ('user_demo_02',  'demo@offlinepay.local',  '+977-9800000000', 'Demo User',    'user'),
-  ('user_admin_03', 'admin@offlinepay.local', '+977-9811111111', 'Admin User',   'admin')
-on conflict (id) do update set
-  full_name = excluded.full_name,
-  email = excluded.email,
-  phone_number = excluded.phone_number,
-  role = excluded.role;
-
-insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
-values
-  ('wallet_anshu_01', 'user_anshu_01', 8450.00, 2500.00, 2500.00, 'NPR'),
-  ('wallet_demo_02',  'user_demo_02',  5000.00, 1500.00, 1500.00, 'NPR'),
-  ('wallet_admin_03', 'user_admin_03', 99999.00, 10000.00, 10000.00, 'NPR')
-on conflict (user_id) do update set
-  balance = excluded.balance,
-  offline_limit = excluded.offline_limit,
-  offline_reserve = excluded.offline_reserve;
-
--- ==============================================================================
--- 12. ATOMIC DOUBLE-ENTRY TRANSACTION RPC
+-- 11. ATOMIC DOUBLE-ENTRY TRANSACTION RPC
 -- ==============================================================================
 create or replace function public.transfer_funds_atomic(
   p_sender_id text,

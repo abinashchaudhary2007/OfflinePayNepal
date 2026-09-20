@@ -85,8 +85,21 @@ export async function syncProfilesFromSupabase() {
       return [];
     }
 
-    // Merge into local IndexedDB users store
+    // Delete any old mock seed profiles from remote Supabase if still present
+    supabase.from('profiles').delete().in('id', ['user_anshu_01', 'user_demo_02', 'user_admin_03']).then(() => {}).catch(() => {});
+
+    // Merge into local IndexedDB users store (skipping dummy accounts)
     for (const p of profiles) {
+      const email = (p.email || '').toLowerCase();
+      const id = (p.id || '').toLowerCase();
+      if (
+        id.startsWith('user-abinash-') || id.startsWith('user-anshu-') || id.startsWith('user-demo-') || id.startsWith('user-admin-') ||
+        id === 'user_anshu_01' || id === 'user_demo_02' || id === 'user_admin_03' ||
+        email.includes('offlinepay.demo') || email.includes('offlinepay.local')
+      ) {
+        continue;
+      }
+
       const name = p.full_name || p.email?.split('@')[0] || 'User';
       const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
       await saveUser({
