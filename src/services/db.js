@@ -105,6 +105,12 @@ export async function saveUser(user) {
   const db = await getDB();
   await initSeedData();
   await db.put('users', user);
+
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    import('./supabaseSync.js').then(({ pushProfileToSupabase }) => {
+      pushProfileToSupabase(user).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 export async function getUser(id) {
@@ -123,13 +129,28 @@ export async function getUserByEmail(email) {
 export async function getAllUsers() {
   const db = await getDB();
   await initSeedData();
-  return db.getAll('users');
+  const users = await db.getAll('users');
+
+  // Opportunistically sync remote Supabase profiles in background if online
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    import('./supabaseSync.js').then(({ syncProfilesFromSupabase }) => {
+      syncProfilesFromSupabase().catch(() => {});
+    }).catch(() => {});
+  }
+
+  return users;
 }
 
 // ─── Wallet ───────────────────────────────────
 export async function saveWallet(wallet) {
   const db = await getDB();
   await db.put('wallet', wallet);
+
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    import('./supabaseSync.js').then(({ pushWalletToSupabase }) => {
+      pushWalletToSupabase(wallet).catch(() => {});
+    }).catch(() => {});
+  }
 }
 
 export async function getWallet(id) {
@@ -183,6 +204,32 @@ export async function getDevice(deviceId) {
 export async function saveTransaction(tx) {
   const db = await getDB();
   await db.put('transactions', tx);
+
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    import('../lib/supabase.js').then(({ supabase, isSupabaseConfigured }) => {
+      if (isSupabaseConfigured() && supabase) {
+        supabase.from('transactions').upsert({
+          id: tx.id,
+          transaction_ref: tx.transactionRef || tx.id,
+          sender_id: tx.senderId,
+          sender_name: tx.senderName || '',
+          receiver_id: tx.receiverId,
+          receiver_name: tx.receiverName || '',
+          amount: tx.amount,
+          type: tx.type || 'PAYMENT',
+          payment_type: tx.paymentType || 'OFFLINE_QR',
+          status: tx.status || 'SETTLED',
+          signature: tx.signature || null,
+          nonce: tx.nonce || null,
+          sequence_counter: tx.sequenceCounter || 0,
+          offline_auth_id: tx.offlineAuthId || null,
+          payload: tx,
+          settled_at: tx.settledAt || new Date().toISOString(),
+          created_at: tx.timestamp || new Date().toISOString()
+        }, { onConflict: 'id' }).then(() => {}).catch(() => {});
+      }
+    }).catch(() => {});
+  }
 }
 
 export async function getTransaction(id) {
