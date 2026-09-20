@@ -16,6 +16,8 @@ import {
   saveAuthorization, getActiveAuthorization, updateAuthorization,
   getPendingSyncItems, addToSyncQueue, updateSyncItem, removeSyncItem,
   getSecurityEvents, saveSecurityEvent, checkAndSaveNonce,
+  executeAtomicOnlinePayment, executeAtomicOfflineCreation, executeAtomicOfflineAcceptance,
+  getAllUsers, getUser,
 } from '../services/db';
 import {
   generateDeviceKeyPair, loadDeviceKeys, signTransaction,
@@ -212,27 +214,40 @@ export function WalletProvider({ children }) {
     senderId, senderName, receiverId, receiverName,
     amount, note = '', deviceId, authorizationId, counter,
   }) => {
+    const parsedAmount = Math.round(parseFloat(amount) * 100) / 100;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) throw new Error('Amount must be greater than 0');
+    if (senderId === receiverId) throw new Error('Sender and receiver cannot be the same account.');
     if (!authorization) throw new Error('No active offline authorization');
     if (authorization.status !== 'ACTIVE') throw new Error('Authorization is not active');
     if (new Date(authorization.expiresAt) < new Date()) throw new Error('Authorization has expired');
-    if (amount > authorization.remainingAmount) throw new Error(`Amount exceeds offline limit. Remaining: Rs. ${authorization.remainingAmount}`);
-    if (amount > authorization.maxSingleTransaction) throw new Error(`Amount exceeds max single transaction limit of Rs. ${authorization.maxSingleTransaction}`);
-    if (amount <= 0) throw new Error('Amount must be greater than 0');
+    if (parsedAmount > authorization.remainingAmount) {
+      throw new Error(`Amount exceeds offline limit. Remaining: Rs. ${authorization.remainingAmount}`);
+    }
+    if (parsedAmount > authorization.maxSingleTransaction) {
+      throw new Error(`Amount exceeds max single transaction limit of Rs. ${authorization.maxSingleTransaction}`);
+    }
 
-    // Double-spend check
-    const ds = await checkDoubleSpend(senderId, deviceId, amount, authorization.remainingAmount);
+    // Double-spend check against pending offline records
+    const ds = await checkDoubleSpend(senderId, deviceId, parsedAmount, authorization.remainingAmount);
     if (ds.detected) throw new Error(`Double-spend detected. Pending offline: Rs. ${ds.pendingAmount}`);
+
+    // Load actual persistent sender wallet
+    const actualSenderWallet = await getWalletByUserId(senderId);
+    if (!actualSenderWallet) throw new Error('Sender wallet not found');
+    if (actualSenderWallet.availableBalance < parsedAmount) {
+      throw new Error('Insufficient balance.');
+    }
 
     const txId = generateTransactionId();
     const nonce = generateNonce();
     const timestamp = new Date().toISOString();
 
-    // Build signable payload
+    // Build canonical signable payload
     const payload = buildSignablePayload({
       id: txId,
       senderId,
       receiverId,
-      amount,
+      amount: parsedAmount,
       currency: 'NPR',
       timestamp,
       nonce,
@@ -241,7 +256,7 @@ export function WalletProvider({ children }) {
       deviceId,
     });
 
-    // Sign
+    // Sign with P-256 device key
     let signature = 'DEMO_SIG';
     try {
       signature = await signTransaction(deviceId, payload);
@@ -249,13 +264,14 @@ export function WalletProvider({ children }) {
       console.warn('[wallet] Could not sign — using demo signature:', e.message);
     }
 
+    const sanitizedNote = typeof note === 'string' ? note.slice(0, 140).trim() : '';
     const tx = {
       id: txId,
       senderId,
       senderName,
       receiverId,
       receiverName,
-      amount,
+      amount: parsedAmount,
       currency: 'NPR',
       status: TX_STATUS.OFFLINE_PENDING,
       method: 'OFFLINE_QR',
@@ -267,89 +283,64 @@ export function WalletProvider({ children }) {
       settledAt: null,
       authorizationId,
       signature,
-      note,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      note: sanitizedNote,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
 
-    // Save to IndexedDB
-    await saveTransaction(tx);
+    const updatedDevice = device ? {
+      ...device,
+      transactionCounter: counter,
+      lastSeen: timestamp,
+    } : null;
 
-    // Update authorization remaining amount
-    const updatedAuth = {
-      ...authorization,
-      remainingAmount: authorization.remainingAmount - amount,
-      updatedAt: new Date().toISOString(),
-    };
-    await updateAuthorization(authorization.id, updatedAuth);
-    setAuthorization(updatedAuth);
-
-    // Update wallet offline spent
-    const updatedWallet = {
-      ...wallet,
-      offlineSpent: (wallet.offlineSpent || 0) + amount,
-      offlineRemaining: updatedAuth.remainingAmount,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveWallet(updatedWallet);
-    setWallet(updatedWallet);
-
-    // Update device counter
-    if (device) {
-      const updatedDevice = { ...device, transactionCounter: counter, lastSeen: new Date().toISOString() };
-      await saveDevice(updatedDevice);
-      setDevice(updatedDevice);
-    }
-
-    // Add to sync queue
-    await addToSyncQueue({
-      id: txId,
-      type: 'TRANSACTION',
-      status: 'PENDING',
-      transactionId: txId,
-      attempts: 0,
-      createdAt: new Date().toISOString(),
+    // Atomically debit sender wallet, update authorization, save transaction, and queue sync
+    const { updatedSenderWallet, updatedAuth } = await executeAtomicOfflineCreation({
+      senderId,
+      amount: parsedAmount,
+      transaction: tx,
+      authorization,
+      device: updatedDevice,
     });
+
+    setWallet(updatedSenderWallet);
+    setAuthorization(updatedAuth);
+    if (updatedDevice) setDevice(updatedDevice);
     setPendingSyncCount(c => c + 1);
 
-    // Refresh transactions list
     await refreshTransactions();
-
     return tx;
-  }, [authorization, wallet, device, refreshTransactions]);
+  }, [authorization, device, refreshTransactions]);
 
   // ─── Create & Settle Online Transaction ──────────────────
   const createOnlineTransaction = useCallback(async ({
     senderId, senderName, receiverId, receiverName,
     amount, note = '', deviceId = null,
   }) => {
-    // 1. Strict validation
+    // 1. Strict amount and account validation
     const parsedAmount = Math.round(parseFloat(amount) * 100) / 100;
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       throw new Error('Invalid payment amount. Must be greater than 0.');
-    }
-    if (!wallet) {
-      throw new Error('Wallet not initialized. Please try again.');
-    }
-    if (wallet.availableBalance < parsedAmount) {
-      throw new Error('Insufficient balance.');
     }
     if (senderId === receiverId) {
       throw new Error('Sender and receiver cannot be the same account.');
     }
 
-    // 2. Generate transaction ID & cryptographic nonce
+    // 2. Load persistent sender wallet and validate balance
+    const actualSenderWallet = await getWalletByUserId(senderId);
+    if (!actualSenderWallet) {
+      throw new Error('Sender wallet not found.');
+    }
+    if (actualSenderWallet.availableBalance < parsedAmount) {
+      throw new Error('Insufficient balance.');
+    }
+
+    // 3. Cryptographic identifier generation
     const txId = generateTransactionId();
     const nonce = generateNonce();
     const timestamp = new Date().toISOString();
+    const newCounter = (device?.transactionCounter || 0) + 1;
 
-    // 3. Register nonce for replay prevention
-    const nonceOk = await checkAndSaveNonce(nonce);
-    if (!nonceOk) {
-      throw new Error('Replay prevention check failed: nonce already used.');
-    }
-
-    // 4. Create settled transaction record
     const sanitizedNote = typeof note === 'string' ? note.slice(0, 140).trim() : '';
     const tx = {
       id: txId,
@@ -363,7 +354,7 @@ export function WalletProvider({ children }) {
       method: 'ONLINE',
       deviceId: deviceId || device?.id || null,
       nonce,
-      counter: (device?.transactionCounter || 0) + 1,
+      counter: newCounter,
       timestamp,
       settledAt: timestamp,
       authorizationId: null,
@@ -373,37 +364,8 @@ export function WalletProvider({ children }) {
       updatedAt: timestamp,
     };
 
-    // 5. Save transaction to persistent ledger
-    await saveTransaction(tx);
-
-    // 6. Deduct from sender's wallet balance
-    const updatedSenderWallet = {
-      ...wallet,
-      availableBalance: Math.round((wallet.availableBalance - parsedAmount) * 100) / 100,
-      totalSent: Math.round(((wallet.totalSent || 0) + parsedAmount) * 100) / 100,
-      updatedAt: timestamp,
-    };
-    await saveWallet(updatedSenderWallet);
-    setWallet(updatedSenderWallet);
-
-    // 7. Credit receiver's wallet in local ledger if exists
-    try {
-      const receiverWallet = await getWalletByUserId(receiverId);
-      if (receiverWallet) {
-        const updatedReceiverWallet = {
-          ...receiverWallet,
-          availableBalance: Math.round((receiverWallet.availableBalance + parsedAmount) * 100) / 100,
-          totalReceived: Math.round(((receiverWallet.totalReceived || 0) + parsedAmount) * 100) / 100,
-          updatedAt: timestamp,
-        };
-        await saveWallet(updatedReceiverWallet);
-      }
-    } catch (err) {
-      console.warn('[wallet] Could not credit local receiver wallet:', err);
-    }
-
-    // 8. Log security event for audit trail
-    await logSecurityEvent({
+    const secEvent = {
+      id: `SEC-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       userId: senderId,
       deviceId: deviceId || device?.id || 'ONLINE',
       eventType: 'ONLINE_PAYMENT_SETTLED',
@@ -411,49 +373,56 @@ export function WalletProvider({ children }) {
       description: `Online transfer of Rs. ${parsedAmount} to ${receiverName} settled`,
       status: 'SETTLED',
       relatedTxId: txId,
+      createdAt: timestamp,
+    };
+
+    // 4. Atomically debit sender and credit receiver in IndexedDB
+    const { updatedSenderWallet } = await executeAtomicOnlinePayment({
+      senderId,
+      receiverId,
+      amount: parsedAmount,
+      transaction: tx,
+      securityEvent: secEvent,
     });
 
-    // 9. Update transaction counter if device present
+    setWallet(updatedSenderWallet);
+
+    // 5. Advance device transaction counter
     if (device) {
       const updatedDevice = {
         ...device,
-        transactionCounter: (device.transactionCounter || 0) + 1,
+        transactionCounter: newCounter,
         lastSeen: timestamp,
       };
       await saveDevice(updatedDevice);
       setDevice(updatedDevice);
     }
 
-    // 10. Refresh transaction and security lists
     await refreshTransactions();
     await refreshSecurityEvents();
 
     return tx;
-  }, [wallet, device, refreshTransactions, refreshSecurityEvents]);
+  }, [device, refreshTransactions, refreshSecurityEvents]);
 
   // ─── Accept Incoming Offline Payment (Receiver) ──────────
   const acceptIncomingPayment = useCallback(async (incomingTx) => {
-    // Store the received transaction as OFFLINE_PENDING
     const tx = {
       ...incomingTx,
       status: TX_STATUS.OFFLINE_PENDING,
       updatedAt: new Date().toISOString(),
     };
-    await saveTransaction(tx);
+
+    // Atomically credit receiver wallet in IndexedDB and save transaction
+    const updatedReceiverWallet = await executeAtomicOfflineAcceptance({
+      receiverId: incomingTx.receiverId,
+      transaction: tx,
+    });
+
+    setWallet(updatedReceiverWallet);
     await refreshTransactions();
 
-    // Update wallet balance (optimistically — will be confirmed on sync)
-    const updatedWallet = {
-      ...wallet,
-      availableBalance: wallet.availableBalance + incomingTx.amount,
-      totalReceived: (wallet.totalReceived || 0) + incomingTx.amount,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveWallet(updatedWallet);
-    setWallet(updatedWallet);
-
     return tx;
-  }, [wallet, refreshTransactions]);
+  }, [refreshTransactions]);
 
   // ─── Synchronization Engine ──────────────────────────────
   const syncTransactions = useCallback(async (currentUser) => {
@@ -478,6 +447,13 @@ export function WalletProvider({ children }) {
           continue;
         }
 
+        // Idempotency: if already settled, remove and continue
+        if (tx.status === TX_STATUS.SETTLED) {
+          await removeSyncItem(item.id);
+          settled++;
+          continue;
+        }
+
         // Load sender's public key for verification
         let senderPublicKey = null;
         const senderKeys = await loadDeviceKeys(tx.deviceId);
@@ -491,23 +467,14 @@ export function WalletProvider({ children }) {
         const result = await verifyTransaction(tx, senderPublicKey, expectedCounter);
 
         if (result.valid) {
-          // Settle transaction
+          // Mark transaction SETTLED
           await updateTransactionStatus(tx.id, TX_STATUS.SETTLED, {
             settledAt: new Date().toISOString(),
             syncedAt: new Date().toISOString(),
           });
 
-          // Deduct from sender wallet
-          if (tx.senderId === currentUser.id) {
-            const updatedWallet = {
-              ...wallet,
-              availableBalance: Math.max(0, (wallet?.availableBalance || 0) - tx.amount),
-              totalSent: (wallet?.totalSent || 0) + tx.amount,
-              updatedAt: new Date().toISOString(),
-            };
-            await saveWallet(updatedWallet);
-            setWallet(updatedWallet);
-          }
+          // Note: Sender was debited upon creation, receiver credited upon acceptance.
+          // No duplicate deduction or addition is made here to maintain money conservation.
 
           // Update device counter
           if (txDevice && tx.counter) {
@@ -519,10 +486,24 @@ export function WalletProvider({ children }) {
           await removeSyncItem(item.id);
           settled++;
         } else {
+          // Verification failed: mark REJECTED
           await updateTransactionStatus(tx.id, TX_STATUS.REJECTED, {
             rejectionReason: result.event,
             rejectedAt: new Date().toISOString(),
           });
+
+          // Refund sender if sender is the one syncing
+          if (tx.senderId === currentUser.id && wallet) {
+            const refundedWallet = {
+              ...wallet,
+              availableBalance: Math.round(((wallet?.availableBalance || 0) + tx.amount) * 100) / 100,
+              totalSent: Math.max(0, Math.round(((wallet?.totalSent || 0) - tx.amount) * 100) / 100),
+              updatedAt: new Date().toISOString(),
+            };
+            await saveWallet(refundedWallet);
+            setWallet(refundedWallet);
+          }
+
           await removeSyncItem(item.id);
           rejected++;
         }

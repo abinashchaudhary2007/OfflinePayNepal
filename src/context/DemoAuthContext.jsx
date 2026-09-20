@@ -5,8 +5,9 @@
  * 
  * DEMO SYSTEM — simulated money only.
  */
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { DEMO_USERS } from '../data/mockData';
+import { getUserByEmail, getUser, saveUser, saveWallet, initSeedData } from '../services/db';
 
 const DemoAuthContext = createContext(null);
 
@@ -15,14 +16,31 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
   const [isLoading, setIsLoading]     = useState(false);
   const [error, setError]             = useState(null);
 
-  // Simulate login with demo accounts
+  // Initialize seed users on provider mount
+  useEffect(() => {
+    initSeedData().catch(console.error);
+  }, []);
+
+  // Login with persistent store + demo accounts fallback
   const login = useCallback(async (email, password) => {
     setIsLoading(true);
     setError(null);
 
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 400));
 
-    const user = DEMO_USERS.find(u => u.email === email);
+    // Look up in persistent IndexedDB users first
+    let user = null;
+    try {
+      user = await getUserByEmail(email);
+    } catch (err) {
+      console.warn('[auth] Error checking DB for user:', err);
+    }
+
+    // Fallback to static mock data
+    if (!user) {
+      user = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
+    }
+
     if (!user) {
       setError('No account found with this email address.');
       setIsLoading(false);
@@ -45,9 +63,19 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
   const quickLogin = useCallback(async (userId) => {
     setIsLoading(true);
     setError(null);
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 200));
 
-    const user = DEMO_USERS.find(u => u.id === userId);
+    let user = null;
+    try {
+      user = await getUser(userId);
+    } catch (err) {
+      console.warn('[auth] Error fetching quick user from DB:', err);
+    }
+
+    if (!user) {
+      user = DEMO_USERS.find(u => u.id === userId);
+    }
+
     if (user) {
       setCurrentUser(user);
       onLogin?.(user);
@@ -56,40 +84,64 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
     return { success: !!user, user };
   }, [onLogin]);
 
-  // Simulate registration — creates a new demo user
+  // Register — creates and persists a new user with initial wallet
   const register = useCallback(async ({ name, email, phone, password }) => {
     setIsLoading(true);
     setError(null);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 500));
 
-    const exists = DEMO_USERS.find(u => u.email === email);
-    if (exists) {
+    // Duplicate check in DB and mock data
+    let existsInDb = false;
+    try {
+      existsInDb = !!(await getUserByEmail(email));
+    } catch {
+      existsInDb = false;
+    }
+    const existsInMock = DEMO_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
+
+    if (existsInDb || existsInMock) {
       setError('An account with this email already exists.');
       setIsLoading(false);
       return { success: false };
     }
 
+    const timestamp = Date.now();
+    const newUserId = `user-reg-${timestamp}`;
+    const newWalletId = `wallet-reg-${timestamp}`;
+
+    const newWallet = {
+      id: newWalletId,
+      userId: newUserId,
+      availableBalance: 1000.00,
+      offlineLimit: 0,
+      offlineSpent: 0,
+      offlineRemaining: 0,
+      currency: 'NPR',
+      totalReceived: 1000.00,
+      totalSent: 0,
+      updatedAt: new Date().toISOString(),
+    };
+
     const newUser = {
-      id: `user-new-${Date.now()}`,
-      name,
-      email,
-      phone,
-      avatar: name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+      id: newUserId,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      avatar: name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U',
       avatarColor: '#4F46E5',
       role: 'user',
-      wallet: {
-        id: `wallet-new-${Date.now()}`,
-        availableBalance: 1000.00,
-        offlineLimit: 0,
-        offlineSpent: 0,
-        offlineRemaining: 0,
-        currency: 'NPR',
-        totalReceived: 1000.00,
-        totalSent: 0,
-      },
+      wallet: newWallet,
       device: null,
       createdAt: new Date().toISOString(),
     };
+
+    // Persist user and wallet to IndexedDB
+    try {
+      await saveUser(newUser);
+      await saveWallet(newWallet);
+    } catch (err) {
+      console.error('[auth] Failed to persist new user to IndexedDB:', err);
+    }
 
     setCurrentUser(newUser);
     setIsLoading(false);

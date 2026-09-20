@@ -3,7 +3,7 @@
  * Full send money flow: select receiver → enter amount → online or offline payment.
  * Offline path: sign transaction → generate QR payload → navigate to QR display.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, FileText, Wifi, WifiOff, ChevronRight, Search } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -15,6 +15,7 @@ import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { DEMO_USERS } from '../data/mockData';
+import { getAllUsers } from '../services/db';
 import { formatCurrency } from '../utils/formatting';
 
 const STEPS = { SELECT: 'select', AMOUNT: 'amount', CONFIRM: 'confirm', SUCCESS: 'success' };
@@ -34,13 +35,36 @@ function SendMoney() {
   const [error, setError] = useState('');
   const [createdTx, setCreatedTx] = useState(null);
   const [search, setSearch] = useState('');
+  const [directoryUsers, setDirectoryUsers] = useState([]);
 
-  // Available receivers: all demo users except self
-  const receivers = DEMO_USERS.filter(u => u.id !== currentUser?.id && u.role !== 'admin');
-  const filteredReceivers = receivers.filter(u =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  // Load real registered users from IndexedDB
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDirectory() {
+      try {
+        const users = await getAllUsers();
+        if (isMounted) setDirectoryUsers(users);
+      } catch (err) {
+        console.warn('[send] Could not load users from DB, falling back to mock:', err);
+        if (isMounted) setDirectoryUsers(DEMO_USERS);
+      }
+    }
+    loadDirectory();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Available receivers: all registered users except self and admin
+  const receiversList = directoryUsers.length > 0 ? directoryUsers : DEMO_USERS;
+  const receivers = receiversList.filter(u => u.id !== currentUser?.id && u.role !== 'admin');
+  const filteredReceivers = receivers.filter(u => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (u.name && u.name.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.id && u.id.toLowerCase().includes(q))
+    );
+  });
 
   const handleSelectReceiver = (user) => {
     setReceiver(user);
@@ -120,7 +144,7 @@ function SendMoney() {
             <CardHeader title="Select Receiver" />
             <Input
               id="receiver-search"
-              placeholder="Search by name or email..."
+              placeholder="Search by name, email, or user ID..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               leftIcon={<Search size={15} />}

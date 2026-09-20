@@ -5,9 +5,10 @@
  * DEMO SYSTEM — simulated money only.
  */
 import { openDB } from 'idb';
+import { DEMO_USERS } from '../data/mockData';
 
 const DB_NAME    = 'offlinepay-nepal';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -15,6 +16,11 @@ export function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
+        // Users store
+        if (!db.objectStoreNames.contains('users')) {
+          const userStore = db.createObjectStore('users', { keyPath: 'id' });
+          userStore.createIndex('email', 'email', { unique: false });
+        }
         // Wallet store
         if (!db.objectStoreNames.contains('wallet')) {
           db.createObjectStore('wallet', { keyPath: 'id' });
@@ -61,6 +67,65 @@ export function getDB() {
   return dbPromise;
 }
 
+// ─── Seed Data ─────────────────────────────────
+let seedPromise = null;
+export async function initSeedData() {
+  if (!seedPromise) {
+    seedPromise = (async () => {
+      try {
+        const db = await getDB();
+        const existingUsers = await db.getAll('users');
+        if (existingUsers.length === 0) {
+          const tx = db.transaction(['users', 'wallet'], 'readwrite');
+          for (const user of DEMO_USERS) {
+            await tx.objectStore('users').put(user);
+            if (user.wallet) {
+              const existingWallet = await tx.objectStore('wallet').get(user.wallet.id);
+              if (!existingWallet) {
+                await tx.objectStore('wallet').put({
+                  ...user.wallet,
+                  userId: user.id,
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            }
+          }
+          await tx.done;
+        }
+      } catch (err) {
+        console.warn('[db] Seed data initialization warning:', err);
+      }
+    })();
+  }
+  return seedPromise;
+}
+
+// ─── Users ─────────────────────────────────────
+export async function saveUser(user) {
+  const db = await getDB();
+  await initSeedData();
+  await db.put('users', user);
+}
+
+export async function getUser(id) {
+  const db = await getDB();
+  await initSeedData();
+  return db.get('users', id);
+}
+
+export async function getUserByEmail(email) {
+  const db = await getDB();
+  await initSeedData();
+  const all = await db.getAll('users');
+  return all.find(u => u.email?.toLowerCase() === email?.toLowerCase()) || null;
+}
+
+export async function getAllUsers() {
+  const db = await getDB();
+  await initSeedData();
+  return db.getAll('users');
+}
+
 // ─── Wallet ───────────────────────────────────
 export async function saveWallet(wallet) {
   const db = await getDB();
@@ -79,8 +144,23 @@ export async function getAllWallets() {
 
 export async function getWalletByUserId(userId) {
   const db = await getDB();
+  await initSeedData();
   const all = await db.getAll('wallet');
-  return all.find(w => w.userId === userId) || null;
+  const found = all.find(w => w.userId === userId);
+  if (found) return found;
+
+  // Fallback to checking users store if wallet not yet materialized
+  const user = await getUser(userId);
+  if (user?.wallet) {
+    const initialWallet = {
+      ...user.wallet,
+      userId: user.id,
+      updatedAt: new Date().toISOString(),
+    };
+    await db.put('wallet', initialWallet);
+    return initialWallet;
+  }
+  return null;
 }
 
 // ─── Devices ──────────────────────────────────
@@ -208,4 +288,244 @@ export async function saveKeyMaterial(deviceId, material) {
 export async function getKeyMaterial(deviceId) {
   const db = await getDB();
   return db.get('key_material', deviceId);
+}
+
+// ─── Atomic Multi-Store Operations ─────────────
+
+/**
+ * executeAtomicOnlinePayment
+ * Atomically validates sender balance, debits sender, credits receiver,
+ * saves settled transaction, and registers nonce in a single readwrite transaction.
+ */
+export async function executeAtomicOnlinePayment({
+  senderId,
+  receiverId,
+  amount,
+  transaction,
+  securityEvent = null,
+}) {
+  const db = await getDB();
+  await initSeedData();
+
+  const idbTx = db.transaction(['wallet', 'transactions', 'nonces', 'security_events', 'users'], 'readwrite');
+
+  // 1. Replay prevention check
+  const nonceStore = idbTx.objectStore('nonces');
+  const existingNonce = await nonceStore.get(transaction.nonce);
+  if (existingNonce) {
+    idbTx.abort();
+    throw new Error('Replay protection check failed: nonce already used.');
+  }
+  await nonceStore.put({ nonce: transaction.nonce, usedAt: new Date().toISOString() });
+
+  // 2. Load sender wallet
+  const walletStore = idbTx.objectStore('wallet');
+  const allWallets = await walletStore.getAll();
+  let senderWallet = allWallets.find(w => w.userId === senderId);
+  if (!senderWallet) {
+    const senderUser = await idbTx.objectStore('users').get(senderId);
+    if (senderUser?.wallet) {
+      senderWallet = {
+        ...senderUser.wallet,
+        userId: senderId,
+        updatedAt: new Date().toISOString(),
+      };
+      await walletStore.put(senderWallet);
+    } else {
+      idbTx.abort();
+      throw new Error('Sender wallet not found.');
+    }
+  }
+
+  // 3. Amount & balance validation
+  const parsedAmount = Math.round(Number(amount) * 100) / 100;
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    idbTx.abort();
+    throw new Error('Invalid payment amount. Must be greater than 0.');
+  }
+  if (senderWallet.availableBalance < parsedAmount) {
+    idbTx.abort();
+    throw new Error('Insufficient balance.');
+  }
+
+  // 4. Load or initialize receiver wallet
+  let receiverWallet = allWallets.find(w => w.userId === receiverId);
+  if (!receiverWallet) {
+    const receiverUser = await idbTx.objectStore('users').get(receiverId);
+    receiverWallet = {
+      id: receiverUser?.wallet?.id || `wallet-${receiverId}`,
+      userId: receiverId,
+      availableBalance: receiverUser?.wallet?.availableBalance || 0,
+      offlineLimit: 0,
+      offlineSpent: 0,
+      offlineRemaining: 0,
+      currency: 'NPR',
+      totalReceived: 0,
+      totalSent: 0,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  // 5. Atomic Debit & Credit
+  const updatedSenderWallet = {
+    ...senderWallet,
+    availableBalance: Math.round((senderWallet.availableBalance - parsedAmount) * 100) / 100,
+    totalSent: Math.round(((senderWallet.totalSent || 0) + parsedAmount) * 100) / 100,
+    updatedAt: transaction.timestamp,
+  };
+  await walletStore.put(updatedSenderWallet);
+
+  const updatedReceiverWallet = {
+    ...receiverWallet,
+    availableBalance: Math.round((receiverWallet.availableBalance + parsedAmount) * 100) / 100,
+    totalReceived: Math.round(((receiverWallet.totalReceived || 0) + parsedAmount) * 100) / 100,
+    updatedAt: transaction.timestamp,
+  };
+  await walletStore.put(updatedReceiverWallet);
+
+  // 6. Save settled transaction
+  await idbTx.objectStore('transactions').put(transaction);
+
+  // 7. Save security audit event
+  if (securityEvent) {
+    await idbTx.objectStore('security_events').put(securityEvent);
+  }
+
+  await idbTx.done;
+  return { updatedSenderWallet, updatedReceiverWallet };
+}
+
+/**
+ * executeAtomicOfflineCreation
+ * Atomically validates sender balance, debits spendable availableBalance,
+ * updates offlineSpent & offlineRemaining, decrements authorization remaining,
+ * advances device counter, saves OFFLINE_PENDING transaction, and queues sync.
+ */
+export async function executeAtomicOfflineCreation({
+  senderId,
+  amount,
+  transaction,
+  authorization,
+  device = null,
+}) {
+  const db = await getDB();
+  await initSeedData();
+
+  const idbTx = db.transaction(['wallet', 'authorizations', 'devices', 'transactions', 'sync_queue', 'users'], 'readwrite');
+
+  const walletStore = idbTx.objectStore('wallet');
+  const allWallets = await walletStore.getAll();
+  let senderWallet = allWallets.find(w => w.userId === senderId);
+  if (!senderWallet) {
+    const senderUser = await idbTx.objectStore('users').get(senderId);
+    if (senderUser?.wallet) {
+      senderWallet = {
+        ...senderUser.wallet,
+        userId: senderId,
+        updatedAt: new Date().toISOString(),
+      };
+      await walletStore.put(senderWallet);
+    } else {
+      idbTx.abort();
+      throw new Error('Sender wallet not found.');
+    }
+  }
+
+  const parsedAmount = Math.round(Number(amount) * 100) / 100;
+  if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    idbTx.abort();
+    throw new Error('Amount must be greater than 0.');
+  }
+  if (senderWallet.availableBalance < parsedAmount) {
+    idbTx.abort();
+    throw new Error('Insufficient balance.');
+  }
+
+  // Update sender wallet: debit spendable balance and reflect offline spending
+  const updatedSenderWallet = {
+    ...senderWallet,
+    availableBalance: Math.round((senderWallet.availableBalance - parsedAmount) * 100) / 100,
+    offlineSpent: Math.round(((senderWallet.offlineSpent || 0) + parsedAmount) * 100) / 100,
+    offlineRemaining: Math.round((authorization.remainingAmount - parsedAmount) * 100) / 100,
+    totalSent: Math.round(((senderWallet.totalSent || 0) + parsedAmount) * 100) / 100,
+    updatedAt: transaction.timestamp,
+  };
+  await walletStore.put(updatedSenderWallet);
+
+  // Update authorization remaining
+  const updatedAuth = {
+    ...authorization,
+    remainingAmount: Math.round((authorization.remainingAmount - parsedAmount) * 100) / 100,
+    updatedAt: transaction.timestamp,
+  };
+  await idbTx.objectStore('authorizations').put(updatedAuth);
+
+  // Update device counter
+  if (device) {
+    await idbTx.objectStore('devices').put(device);
+  }
+
+  // Save transaction (OFFLINE_PENDING)
+  await idbTx.objectStore('transactions').put(transaction);
+
+  // Add to sync queue
+  await idbTx.objectStore('sync_queue').put({
+    id: transaction.id,
+    type: 'TRANSACTION',
+    status: 'PENDING',
+    transactionId: transaction.id,
+    attempts: 0,
+    createdAt: transaction.timestamp,
+  });
+
+  await idbTx.done;
+  return { updatedSenderWallet, updatedAuth };
+}
+
+/**
+ * executeAtomicOfflineAcceptance
+ * Atomically credits receiver wallet and saves accepted OFFLINE_PENDING transaction.
+ */
+export async function executeAtomicOfflineAcceptance({
+  receiverId,
+  transaction,
+}) {
+  const db = await getDB();
+  await initSeedData();
+
+  const idbTx = db.transaction(['wallet', 'transactions', 'users'], 'readwrite');
+
+  const walletStore = idbTx.objectStore('wallet');
+  const allWallets = await walletStore.getAll();
+  let receiverWallet = allWallets.find(w => w.userId === receiverId);
+  if (!receiverWallet) {
+    const receiverUser = await idbTx.objectStore('users').get(receiverId);
+    receiverWallet = {
+      id: receiverUser?.wallet?.id || `wallet-${receiverId}`,
+      userId: receiverId,
+      availableBalance: receiverUser?.wallet?.availableBalance || 0,
+      offlineLimit: 0,
+      offlineSpent: 0,
+      offlineRemaining: 0,
+      currency: 'NPR',
+      totalReceived: 0,
+      totalSent: 0,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  const parsedAmount = Math.round(Number(transaction.amount) * 100) / 100;
+  const updatedReceiverWallet = {
+    ...receiverWallet,
+    availableBalance: Math.round((receiverWallet.availableBalance + parsedAmount) * 100) / 100,
+    totalReceived: Math.round(((receiverWallet.totalReceived || 0) + parsedAmount) * 100) / 100,
+    updatedAt: new Date().toISOString(),
+  };
+  await walletStore.put(updatedReceiverWallet);
+
+  // Save transaction as OFFLINE_PENDING
+  await idbTx.objectStore('transactions').put(transaction);
+
+  await idbTx.done;
+  return updatedReceiverWallet;
 }

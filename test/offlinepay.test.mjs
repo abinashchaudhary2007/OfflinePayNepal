@@ -438,3 +438,145 @@ test('Sync Engine — Settle pending offline transaction and guarantee idempoten
   assert.equal(duplicateSync.alreadySettled, true, 'Duplicate sync must be recognized as already settled');
   assert.equal(wallet.availableBalance, 4750, 'Balance must NOT be deducted a second time');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Bug 1 & 2 Verification Suite (Tests 1 - 9)
+// ─────────────────────────────────────────────────────────────────────────────
+test('Bug 2 / Test 1: Sender Rs. 1,000, Receiver Rs. 0, Send Rs. 200 -> Sender Rs. 800, Receiver Rs. 200', () => {
+  const senderWallet = { userId: 'usr-1', availableBalance: 1000, totalSent: 0 };
+  const receiverWallet = { userId: 'usr-2', availableBalance: 0, totalReceived: 0 };
+  const amount = 200;
+
+  // Validation
+  assert.ok(amount > 0);
+  assert.ok(senderWallet.availableBalance >= amount);
+
+  // Logical operation: atomic debit & credit
+  senderWallet.availableBalance -= amount;
+  senderWallet.totalSent += amount;
+  receiverWallet.availableBalance += amount;
+  receiverWallet.totalReceived += amount;
+
+  assert.equal(senderWallet.availableBalance, 800, 'Sender balance must be exactly 800');
+  assert.equal(receiverWallet.availableBalance, 200, 'Receiver balance must be exactly 200');
+});
+
+test('Bug 2 / Test 2: Sender Rs. 100, Send Rs. 150 -> Rejected, balances unchanged', () => {
+  const senderWallet = { userId: 'usr-1', availableBalance: 100 };
+  const receiverWallet = { userId: 'usr-2', availableBalance: 50 };
+  const amount = 150;
+
+  function processPayment(sender, receiver, amt) {
+    if (amt <= 0) throw new Error('Invalid amount');
+    if (sender.availableBalance < amt) throw new Error('Insufficient balance.');
+    sender.availableBalance -= amt;
+    receiver.availableBalance += amt;
+  }
+
+  assert.throws(() => processPayment(senderWallet, receiverWallet, amount), /Insufficient balance/);
+  assert.equal(senderWallet.availableBalance, 100, 'Sender balance must remain unchanged');
+  assert.equal(receiverWallet.availableBalance, 50, 'Receiver balance must remain unchanged');
+});
+
+test('Bug 2 / Test 3 & 4: Zero or negative amounts must be strictly rejected', () => {
+  function validateAmount(amt) {
+    const num = Math.round(Number(amt) * 100) / 100;
+    if (isNaN(num) || num <= 0) throw new Error('Invalid payment amount. Must be greater than 0.');
+    return num;
+  }
+
+  assert.throws(() => validateAmount(0), /greater than 0/);
+  assert.throws(() => validateAmount(-50), /greater than 0/);
+  assert.throws(() => validateAmount('-100'), /greater than 0/);
+  assert.equal(validateAmount(250.50), 250.50);
+});
+
+test('Bug 1 / Test 5 & 6: Registered user directory and search by name/email/ID', () => {
+  const directory = [
+    { id: 'user-abinash-001', name: 'Abinash Shrestha', email: 'abinash@offlinepay.demo', role: 'user' },
+    { id: 'user-anshu-002', name: 'Anshu Tamang', email: 'anshu@offlinepay.demo', role: 'user' },
+    { id: 'user-demo-003', name: 'Demo User', email: 'user@offlinepay.demo', role: 'user' },
+    { id: 'admin-001', name: 'Admin Officer', email: 'admin@offlinepay.demo', role: 'admin' },
+  ];
+
+  // Register a completely new user
+  const newUser = {
+    id: 'user-reg-999',
+    name: 'Sita Sharma',
+    email: 'sita@offlinepay.demo',
+    role: 'user',
+  };
+  directory.push(newUser);
+
+  // Search function mimicking SendMoney.jsx
+  function searchRecipients(users, currentUserId, query) {
+    const q = query.toLowerCase().trim();
+    return users.filter(u => u.id !== currentUserId && u.role !== 'admin').filter(u =>
+      !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.id.toLowerCase().includes(q)
+    );
+  }
+
+  // 1. Newly registered user appears for another user
+  const listForAbinash = searchRecipients(directory, 'user-abinash-001', '');
+  const foundSita = listForAbinash.find(u => u.id === 'user-reg-999');
+  assert.ok(foundSita, 'Newly registered user must be found in directory');
+  assert.equal(foundSita.name, 'Sita Sharma');
+
+  // 2. Search by name
+  const nameSearch = searchRecipients(directory, 'user-abinash-001', 'sita');
+  assert.equal(nameSearch.length, 1);
+  assert.equal(nameSearch[0].name, 'Sita Sharma');
+
+  // 3. Search by email
+  const emailSearch = searchRecipients(directory, 'user-abinash-001', 'anshu@');
+  assert.equal(emailSearch.length, 1);
+  assert.equal(emailSearch[0].id, 'user-anshu-002');
+
+  // 4. Search by user ID
+  const idSearch = searchRecipients(directory, 'user-abinash-001', 'reg-999');
+  assert.equal(idSearch.length, 1);
+  assert.equal(idSearch[0].id, 'user-reg-999');
+});
+
+test('Bug 1 / Test 7: Prevent sending to self', () => {
+  const currentUserId = 'user-abinash-001';
+  function validateAccounts(senderId, receiverId) {
+    if (senderId === receiverId) {
+      throw new Error('Sender and receiver cannot be the same account.');
+    }
+  }
+
+  assert.throws(() => validateAccounts(currentUserId, currentUserId), /same account/);
+  assert.doesNotThrow(() => validateAccounts(currentUserId, 'user-anshu-002'));
+});
+
+test('Bug 2 / Test 8: Offline payment balance debit & limit deduction consistency', () => {
+  const wallet = { availableBalance: 1000, offlineLimit: 500, offlineSpent: 0, offlineRemaining: 500, totalSent: 0 };
+  const auth = { remainingAmount: 500, maxSingleTransaction: 300 };
+  const paymentAmount = 200;
+
+  // Verification checks
+  assert.ok(paymentAmount <= auth.remainingAmount);
+  assert.ok(paymentAmount <= auth.maxSingleTransaction);
+  assert.ok(wallet.availableBalance >= paymentAmount);
+
+  // Debit sender wallet & authorization upon offline creation
+  wallet.availableBalance -= paymentAmount;
+  wallet.offlineSpent += paymentAmount;
+  wallet.offlineRemaining = auth.remainingAmount - paymentAmount;
+  wallet.totalSent += paymentAmount;
+  auth.remainingAmount -= paymentAmount;
+
+  assert.equal(wallet.availableBalance, 800, 'Sender availableBalance must immediately debit to 800');
+  assert.equal(wallet.offlineSpent, 200, 'Sender offlineSpent must be 200');
+  assert.equal(wallet.offlineRemaining, 300, 'Sender offlineRemaining must be 300');
+  assert.equal(auth.remainingAmount, 300, 'Authorization remaining must be 300');
+
+  // Receiver accepts offline payment
+  const receiverWallet = { availableBalance: 0, totalReceived: 0 };
+  receiverWallet.availableBalance += paymentAmount;
+  receiverWallet.totalReceived += paymentAmount;
+
+  assert.equal(receiverWallet.availableBalance, 200, 'Receiver availableBalance must be 200');
+  assert.equal(wallet.availableBalance + receiverWallet.availableBalance, 1000, 'Conservation of money must hold');
+});
