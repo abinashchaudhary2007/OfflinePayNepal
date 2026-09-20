@@ -14,7 +14,6 @@ import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
-import { DEMO_USERS } from '../data/mockData';
 import { getAllUsers } from '../services/db';
 import { formatCurrency } from '../utils/formatting';
 
@@ -37,7 +36,7 @@ function SendMoney() {
   const [search, setSearch] = useState('');
   const [directoryUsers, setDirectoryUsers] = useState([]);
 
-  // Load real registered users from IndexedDB
+  // Load real registered users from IndexedDB / Supabase
   useEffect(() => {
     let isMounted = true;
     async function loadDirectory() {
@@ -45,8 +44,7 @@ function SendMoney() {
         const users = await getAllUsers();
         if (isMounted) setDirectoryUsers(users);
       } catch (err) {
-        console.warn('[send] Could not load users from DB, falling back to mock:', err);
-        if (isMounted) setDirectoryUsers(DEMO_USERS);
+        console.warn('[send] Could not load users from DB:', err);
       }
     }
     loadDirectory();
@@ -54,14 +52,14 @@ function SendMoney() {
   }, []);
 
   // Available receivers: all registered users except self and admin
-  const receiversList = directoryUsers.length > 0 ? directoryUsers : DEMO_USERS;
-  const receivers = receiversList.filter(u => u.id !== currentUser?.id && u.role !== 'admin');
+  const receivers = directoryUsers.filter(u => u.id !== currentUser?.id && u.role !== 'admin');
   const filteredReceivers = receivers.filter(u => {
     const q = search.toLowerCase().trim();
     if (!q) return true;
     return (
       (u.name && u.name.toLowerCase().includes(q)) ||
       (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.phone && u.phone.toLowerCase().includes(q)) ||
       (u.id && u.id.toLowerCase().includes(q))
     );
   });

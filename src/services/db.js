@@ -5,7 +5,6 @@
  * DEMO SYSTEM — simulated money only.
  */
 import { openDB } from 'idb';
-import { DEMO_USERS } from '../data/mockData';
 
 const DB_NAME    = 'offlinepay-nepal';
 const DB_VERSION = 2;
@@ -67,43 +66,15 @@ export function getDB() {
   return dbPromise;
 }
 
-// ─── Seed Data ─────────────────────────────────
-let seedPromise = null;
+// ─── Ensure DB Initialized ─────────────────────
 export async function initSeedData() {
-  if (!seedPromise) {
-    seedPromise = (async () => {
-      try {
-        const db = await getDB();
-        const existingUsers = await db.getAll('users');
-        if (existingUsers.length === 0) {
-          const tx = db.transaction(['users', 'wallet'], 'readwrite');
-          for (const user of DEMO_USERS) {
-            await tx.objectStore('users').put(user);
-            if (user.wallet) {
-              const existingWallet = await tx.objectStore('wallet').get(user.wallet.id);
-              if (!existingWallet) {
-                await tx.objectStore('wallet').put({
-                  ...user.wallet,
-                  userId: user.id,
-                  updatedAt: new Date().toISOString(),
-                });
-              }
-            }
-          }
-          await tx.done;
-        }
-      } catch (err) {
-        console.warn('[db] Seed data initialization warning:', err);
-      }
-    })();
-  }
-  return seedPromise;
+  await getDB();
+  return Promise.resolve();
 }
 
 // ─── Users ─────────────────────────────────────
 export async function saveUser(user) {
   const db = await getDB();
-  await initSeedData();
   await db.put('users', user);
 
   if (typeof navigator !== 'undefined' && navigator.onLine) {
@@ -115,29 +86,29 @@ export async function saveUser(user) {
 
 export async function getUser(id) {
   const db = await getDB();
-  await initSeedData();
   return db.get('users', id);
 }
 
 export async function getUserByEmail(email) {
   const db = await getDB();
-  await initSeedData();
   const all = await db.getAll('users');
   return all.find(u => u.email?.toLowerCase() === email?.toLowerCase()) || null;
 }
 
 export async function getAllUsers() {
   const db = await getDB();
-  await initSeedData();
-  const users = await db.getAll('users');
 
-  // Opportunistically sync remote Supabase profiles in background if online
+  // Sync latest profiles from Supabase if online
   if (typeof navigator !== 'undefined' && navigator.onLine) {
-    import('./supabaseSync.js').then(({ syncProfilesFromSupabase }) => {
-      syncProfilesFromSupabase().catch(() => {});
-    }).catch(() => {});
+    try {
+      const { syncProfilesFromSupabase } = await import('./supabaseSync.js');
+      await syncProfilesFromSupabase();
+    } catch (err) {
+      console.warn('[db] Profile sync in getAllUsers:', err);
+    }
   }
 
+  const users = await db.getAll('users');
   return users;
 }
 
@@ -439,6 +410,24 @@ export async function executeAtomicOnlinePayment({
   }
 
   await idbTx.done;
+
+  // 8. Remote Supabase atomic transfer in background if online
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    import('./supabaseSync.js').then(({ executeRemoteAtomicTransfer }) => {
+      executeRemoteAtomicTransfer({
+        senderId,
+        receiverId,
+        amount: parsedAmount,
+        txRef: transaction.id,
+        senderName: transaction.senderName,
+        receiverName: transaction.receiverName,
+        note: transaction.note,
+        nonce: transaction.nonce,
+        paymentType: 'ONLINE'
+      }).catch(err => console.warn('[db] Remote atomic payment sync warning:', err));
+    }).catch(() => {});
+  }
+
   return { updatedSenderWallet, updatedReceiverWallet };
 }
 

@@ -27,7 +27,6 @@ import {
   TX_STATUS, verifyTransaction, settleTransaction,
   buildSignablePayload, logSecurityEvent, checkDoubleSpend,
 } from '../services/ledger';
-import { DEMO_USERS } from '../data/mockData';
 
 const WalletContext = createContext(null);
 
@@ -65,14 +64,7 @@ export function WalletProvider({ children }) {
 
     // Load transactions
     const txs = await getTransactionsByUser(user.id);
-    if (txs.length === 0) {
-      // Seed mock transactions for demo users
-      await seedDemoTransactions(user.id);
-      const seeded = await getTransactionsByUser(user.id);
-      setTransactions(seeded);
-    } else {
-      setTransactions(txs);
-    }
+    setTransactions(txs);
 
     // Load device
     const devices = await getDevicesByUser(user.id);
@@ -590,23 +582,3 @@ export function useWallet() {
   return ctx;
 }
 
-// ─── Seed demo transactions for first-time users ─────────
-async function seedDemoTransactions(userId) {
-  const user = DEMO_USERS.find(u => u.id === userId);
-  if (!user) return;
-
-  // Seed transactions relevant to this user from mock data
-  const { MOCK_TRANSACTIONS } = await import('../data/mockData');
-  const relevant = MOCK_TRANSACTIONS.filter(tx => tx.senderId === userId || tx.receiverId === userId);
-
-  for (const tx of relevant) {
-    const existing = await getTransaction(tx.id);
-    if (!existing) {
-      await saveTransaction({
-        ...tx,
-        createdAt: tx.timestamp,
-        updatedAt: tx.timestamp,
-      });
-    }
-  }
-}

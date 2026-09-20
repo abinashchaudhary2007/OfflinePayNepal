@@ -1,117 +1,332 @@
 /**
- * DemoAuthContext.jsx — Demo authentication context.
- * Uses in-memory state with mock demo users.
- * On login/register, triggers wallet initialization via WalletContext.
- * 
- * DEMO SYSTEM — simulated money only.
+ * DemoAuthContext.jsx — Real Supabase Authentication + Offline Session Management.
+ * Supports online Supabase email/password auth and seamless offline authentication
+ * via IndexedDB credential caching and persistent sessions.
  */
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { DEMO_USERS } from '../data/mockData';
-import { getUserByEmail, getUser, saveUser, saveWallet, initSeedData } from '../services/db';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getUserByEmail, getUser, saveUser, saveWallet, getWalletByUserId } from '../services/db';
 
 const DemoAuthContext = createContext(null);
 
+const ACTIVE_USER_STORAGE_KEY = 'offlinepay_active_user_id';
+
+/**
+ * Hash password locally with SHA-256 for secure offline credential validation
+ */
+async function hashPassword(password) {
+  if (!password) return '';
+  const enc = new TextEncoder().encode(password);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function DemoAuthProvider({ children, onLogin, onLogout }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading]     = useState(false);
+  const [isLoading, setIsLoading]     = useState(true);
   const [error, setError]             = useState(null);
 
-  // Initialize seed users on provider mount
+  // ─── Initialize session from Supabase or local offline storage ───
   useEffect(() => {
-    initSeedData().catch(console.error);
+    let isMounted = true;
+
+    async function initSession() {
+      try {
+        // 1. Try Supabase Auth session if online
+        if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user && isMounted) {
+            const sbUser = session.user;
+            let localUser = await getUser(sbUser.id);
+            if (!localUser) {
+              // Fetch profile from Supabase
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', sbUser.id)
+                .single();
+
+              const userName = profile?.full_name || sbUser.user_metadata?.full_name || sbUser.email.split('@')[0];
+              localUser = {
+                id: sbUser.id,
+                name: userName,
+                email: sbUser.email,
+                phone: profile?.phone_number || sbUser.user_metadata?.phone || '',
+                role: profile?.role || 'user',
+                avatar: userName.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U',
+                avatarColor: '#4F46E5',
+                createdAt: profile?.created_at || new Date().toISOString(),
+              };
+              await saveUser(localUser);
+            }
+
+            // Ensure wallet is initialized
+            let wallet = await getWalletByUserId(localUser.id);
+            if (!wallet) {
+              wallet = {
+                id: `wallet-${localUser.id}`,
+                userId: localUser.id,
+                availableBalance: 1000.00,
+                offlineLimit: 0,
+                offlineSpent: 0,
+                offlineRemaining: 0,
+                currency: 'NPR',
+                totalReceived: 1000.00,
+                totalSent: 0,
+                updatedAt: new Date().toISOString(),
+              };
+              await saveWallet(wallet);
+            }
+            localUser.wallet = wallet;
+
+            setCurrentUser(localUser);
+            localStorage.setItem(ACTIVE_USER_STORAGE_KEY, localUser.id);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // 2. Fallback: Restore active session from IndexedDB when offline
+        const savedUserId = localStorage.getItem(ACTIVE_USER_STORAGE_KEY);
+        if (savedUserId && isMounted) {
+          const localUser = await getUser(savedUserId);
+          if (localUser) {
+            const wallet = await getWalletByUserId(localUser.id);
+            if (wallet) localUser.wallet = wallet;
+            setCurrentUser(localUser);
+          }
+        }
+      } catch (err) {
+        console.warn('[auth] Session initialization check:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    initSession();
+
+    // Listen to Supabase auth events
+    if (isSupabaseConfigured()) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          if (isMounted) {
+            setCurrentUser(null);
+            localStorage.removeItem(ACTIVE_USER_STORAGE_KEY);
+          }
+        }
+      });
+      return () => {
+        isMounted = false;
+        subscription?.unsubscribe();
+      };
+    }
+
+    return () => { isMounted = false; };
   }, []);
 
-  // Login with persistent store + demo accounts fallback
+  // ─── Login (Supabase + Offline fallback) ────────────────────────
   const login = useCallback(async (email, password) => {
     setIsLoading(true);
     setError(null);
 
-    await new Promise(r => setTimeout(r, 400));
+    const cleanEmail = email.trim().toLowerCase();
 
-    // Look up in persistent IndexedDB users first
-    let user = null;
-    try {
-      user = await getUserByEmail(email);
-    } catch (err) {
-      console.warn('[auth] Error checking DB for user:', err);
-    }
-
-    // Fallback to static mock data
-    if (!user) {
-      user = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-    }
-
-    if (!user) {
-      setError('No account found with this email address.');
+    if (!cleanEmail) {
+      setError('Please enter your email address.');
       setIsLoading(false);
       return { success: false };
     }
-
     if (!password || password.length < 6) {
       setError('Password must be at least 6 characters.');
       setIsLoading(false);
       return { success: false };
     }
 
-    setCurrentUser(user);
-    setIsLoading(false);
-    onLogin?.(user);
-    return { success: true, user };
-  }, [onLogin]);
+    const hashedInput = await hashPassword(password);
 
-  // Quick demo login
-  const quickLogin = useCallback(async (userId) => {
-    setIsLoading(true);
-    setError(null);
-    await new Promise(r => setTimeout(r, 200));
+    // Online path: Authenticate with Supabase
+    if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { data, error: sbError } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
-    let user = null;
+        if (!sbError && data?.user) {
+          const sbUser = data.user;
+          let user = await getUser(sbUser.id);
+
+          if (!user) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', sbUser.id)
+              .single();
+
+            const userName = profile?.full_name || sbUser.user_metadata?.full_name || cleanEmail.split('@')[0];
+            user = {
+              id: sbUser.id,
+              name: userName,
+              email: cleanEmail,
+              phone: profile?.phone_number || sbUser.user_metadata?.phone || '',
+              role: profile?.role || 'user',
+              avatar: userName.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U',
+              avatarColor: '#4F46E5',
+              passwordHash: hashedInput,
+              createdAt: profile?.created_at || new Date().toISOString(),
+            };
+            await saveUser(user);
+          } else {
+            // Update cached password hash for offline access
+            user.passwordHash = hashedInput;
+            await saveUser(user);
+          }
+
+          let wallet = await getWalletByUserId(user.id);
+          if (!wallet) {
+            wallet = {
+              id: `wallet-${user.id}`,
+              userId: user.id,
+              availableBalance: 1000.00,
+              offlineLimit: 0,
+              offlineSpent: 0,
+              offlineRemaining: 0,
+              currency: 'NPR',
+              totalReceived: 1000.00,
+              totalSent: 0,
+              updatedAt: new Date().toISOString(),
+            };
+            await saveWallet(wallet);
+          }
+          user.wallet = wallet;
+
+          setCurrentUser(user);
+          localStorage.setItem(ACTIVE_USER_STORAGE_KEY, user.id);
+          setIsLoading(false);
+          onLogin?.(user);
+          return { success: true, user };
+        } else if (sbError && sbError.message !== 'Failed to fetch') {
+          // Real auth failure from Supabase
+          setError(sbError.message || 'Invalid email or password.');
+          setIsLoading(false);
+          return { success: false };
+        }
+      } catch (err) {
+        console.warn('[auth] Supabase online login failed, trying offline cache:', err);
+      }
+    }
+
+    // Offline / Local fallback: Authenticate from IndexedDB
     try {
-      user = await getUser(userId);
+      const localUser = await getUserByEmail(cleanEmail);
+      if (!localUser) {
+        setError('No account found with this email address.');
+        setIsLoading(false);
+        return { success: false };
+      }
+
+      // Check stored password hash
+      if (localUser.passwordHash && localUser.passwordHash !== hashedInput) {
+        setError('Incorrect password.');
+        setIsLoading(false);
+        return { success: false };
+      }
+
+      let wallet = await getWalletByUserId(localUser.id);
+      if (!wallet) {
+        wallet = {
+          id: `wallet-${localUser.id}`,
+          userId: localUser.id,
+          availableBalance: 1000.00,
+          offlineLimit: 0,
+          offlineSpent: 0,
+          offlineRemaining: 0,
+          currency: 'NPR',
+          totalReceived: 1000.00,
+          totalSent: 0,
+          updatedAt: new Date().toISOString(),
+        };
+        await saveWallet(wallet);
+      }
+      localUser.wallet = wallet;
+
+      setCurrentUser(localUser);
+      localStorage.setItem(ACTIVE_USER_STORAGE_KEY, localUser.id);
+      setIsLoading(false);
+      onLogin?.(localUser);
+      return { success: true, user: localUser };
     } catch (err) {
-      console.warn('[auth] Error fetching quick user from DB:', err);
+      console.error('[auth] Offline login error:', err);
+      setError('An error occurred during authentication.');
+      setIsLoading(false);
+      return { success: false };
     }
-
-    if (!user) {
-      user = DEMO_USERS.find(u => u.id === userId);
-    }
-
-    if (user) {
-      setCurrentUser(user);
-      onLogin?.(user);
-    }
-    setIsLoading(false);
-    return { success: !!user, user };
   }, [onLogin]);
 
-  // Register — creates and persists a new user with initial wallet
+  // ─── Register (Supabase + IndexedDB persistence) ───────────────
   const register = useCallback(async ({ name, email, phone, password }) => {
     setIsLoading(true);
     setError(null);
-    await new Promise(r => setTimeout(r, 500));
 
-    // Duplicate check in DB and mock data
-    let existsInDb = false;
-    try {
-      existsInDb = !!(await getUserByEmail(email));
-    } catch {
-      existsInDb = false;
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim();
+
+    if (!cleanName || !cleanEmail || !cleanPhone || !password) {
+      setError('Please fill out all required fields.');
+      setIsLoading(false);
+      return { success: false };
     }
-    const existsInMock = DEMO_USERS.some(u => u.email.toLowerCase() === email.toLowerCase());
 
-    if (existsInDb || existsInMock) {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      setIsLoading(false);
+      return { success: false };
+    }
+
+    const hashedInput = await hashPassword(password);
+
+    // Duplicate check in local IndexedDB
+    const existing = await getUserByEmail(cleanEmail);
+    if (existing) {
       setError('An account with this email already exists.');
       setIsLoading(false);
       return { success: false };
     }
 
-    const timestamp = Date.now();
-    const newUserId = `user-reg-${timestamp}`;
-    const newWalletId = `wallet-reg-${timestamp}`;
+    let assignedUserId = `user-${Date.now()}`;
+
+    // Online registration via Supabase Auth
+    if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { data, error: sbError } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: cleanName,
+              phone: cleanPhone,
+            },
+          },
+        });
+
+        if (sbError) {
+          setError(sbError.message);
+          setIsLoading(false);
+          return { success: false };
+        }
+
+        if (data?.user?.id) {
+          assignedUserId = data.user.id;
+        }
+      } catch (err) {
+        console.warn('[auth] Supabase register warning:', err);
+      }
+    }
 
     const newWallet = {
-      id: newWalletId,
-      userId: newUserId,
+      id: `wallet-${assignedUserId}`,
+      userId: assignedUserId,
       availableBalance: 1000.00,
       offlineLimit: 0,
       offlineSpent: 0,
@@ -123,19 +338,19 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
     };
 
     const newUser = {
-      id: newUserId,
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      avatar: name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U',
+      id: assignedUserId,
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      avatar: cleanName.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U',
       avatarColor: '#4F46E5',
       role: 'user',
+      passwordHash: hashedInput,
       wallet: newWallet,
       device: null,
       createdAt: new Date().toISOString(),
     };
 
-    // Persist user and wallet to IndexedDB
     try {
       await saveUser(newUser);
       await saveWallet(newWallet);
@@ -144,12 +359,46 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
     }
 
     setCurrentUser(newUser);
+    localStorage.setItem(ACTIVE_USER_STORAGE_KEY, newUser.id);
     setIsLoading(false);
     onLogin?.(newUser);
     return { success: true, user: newUser };
   }, [onLogin]);
 
-  const logout = useCallback(() => {
+  // ─── Quick login for developer testing ─────────────────────────
+  const quickLogin = useCallback(async (userId) => {
+    setIsLoading(true);
+    setError(null);
+
+    let user = await getUser(userId);
+    if (!user) {
+      user = await getUserByEmail(userId);
+    }
+
+    if (user) {
+      const wallet = await getWalletByUserId(user.id);
+      if (wallet) user.wallet = wallet;
+      setCurrentUser(user);
+      localStorage.setItem(ACTIVE_USER_STORAGE_KEY, user.id);
+      onLogin?.(user);
+      setIsLoading(false);
+      return { success: true, user };
+    }
+
+    setIsLoading(false);
+    return { success: false };
+  }, [onLogin]);
+
+  // ─── Logout ───────────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('[auth] Error signing out of Supabase:', err);
+      }
+    }
+    localStorage.removeItem(ACTIVE_USER_STORAGE_KEY);
     setCurrentUser(null);
     setError(null);
     onLogout?.();

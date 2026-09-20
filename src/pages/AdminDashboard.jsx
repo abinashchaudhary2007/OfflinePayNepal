@@ -9,15 +9,15 @@ import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
-import { DEMO_USERS, MOCK_ADMIN_STATS } from '../data/mockData';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/formatting';
-import { getAllTransactions, getSecurityEvents } from '../services/db';
+import { getAllTransactions, getSecurityEvents, getAllUsers } from '../services/db';
 
 function AdminDashboard() {
   const { isAdmin, currentUser } = useAuth();
   const { transactions: contextTxs, securityEvents: contextEvents } = useWallet();
   const [allTxs, setAllTxs] = useState([]);
   const [allEvents, setAllEvents] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
@@ -26,6 +26,8 @@ function AdminDashboard() {
       setAllTxs(txs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)));
       const events = await getSecurityEvents();
       setAllEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+      const users = await getAllUsers();
+      setAllUsers(users);
     })();
   }, [contextTxs, contextEvents]);
 
@@ -43,8 +45,8 @@ function AdminDashboard() {
 
   // Compute live stats
   const stats = {
-    totalUsers:          DEMO_USERS.length,
-    activeDevices:       DEMO_USERS.filter(u => u.device?.status === 'ACTIVE').length,
+    totalUsers:          allUsers.length,
+    activeDevices:       allUsers.filter(u => u.device?.status === 'ACTIVE').length,
     totalTransactions:   allTxs.length,
     offlineTransactions: allTxs.filter(tx => tx.method === 'OFFLINE_QR').length,
     pendingSync:         allTxs.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'SYNCING').length,
@@ -145,14 +147,14 @@ function AdminDashboard() {
         {activeTab === 'users' && (
           <Card padding={false}>
             <div className="p-4 border-b border-[var(--color-gray-100)]">
-              <p className="font-bold text-[var(--color-gray-900)]">Demo Users ({DEMO_USERS.length})</p>
+              <p className="font-bold text-[var(--color-gray-900)]">Registered Users ({allUsers.length})</p>
             </div>
             <div className="divide-y divide-[var(--color-gray-50)]">
-              {DEMO_USERS.map(user => (
+              {allUsers.map(user => (
                 <div key={user.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                    style={{ background: user.avatarColor }}>
-                    {user.avatar}
+                    style={{ background: user.avatarColor || '#4F46E5' }}>
+                    {user.avatar || 'U'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-[var(--color-gray-800)] truncate">{user.name}</p>
@@ -160,10 +162,13 @@ function AdminDashboard() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs font-semibold text-[var(--color-gray-700)]">{formatCurrency(user.wallet?.availableBalance || 0)}</p>
-                    <Badge status={user.device?.status || 'PENDING'} />
+                    <Badge status={user.device?.status || 'ACTIVE'} />
                   </div>
                 </div>
               ))}
+              {allUsers.length === 0 && (
+                <p className="text-sm text-center text-[var(--color-gray-400)] py-8">No registered users found</p>
+              )}
             </div>
           </Card>
         )}

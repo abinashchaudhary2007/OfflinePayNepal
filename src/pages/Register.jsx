@@ -4,10 +4,9 @@ import { Mail, Lock, User, Phone, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useAuth } from '../context/DemoAuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { DemoBadge } from '../components/ui/Badge';
 
 /**
- * Register page — Create a demo account.
+ * Register page — Create a user wallet account.
  */
 function Register() {
   const { register, isLoading, error, clearError } = useAuth();
@@ -76,12 +75,12 @@ function Register() {
 
         <div className="relative z-10">
           <h2 className="text-3xl font-black text-white mb-4">
-            Create your
+            Next-generation
             <br />
-            demo wallet.
+            digital payments.
           </h2>
           <p className="text-white/60 text-base leading-relaxed mb-6">
-            Start with a Rs. 1,000 demo balance and explore all offline payment features.
+            Get started with an offline-ready digital wallet backed by device-level cryptographic security.
           </p>
           <ul className="space-y-3">
             {features.map((f, i) => (
@@ -98,10 +97,9 @@ function Register() {
             className="p-4 rounded-xl"
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}
           >
-            <p className="text-white/60 text-xs mb-1">Starting demo balance</p>
+            <p className="text-white/60 text-xs mb-1">Prototype sandbox grant</p>
             <p className="text-white text-2xl font-bold">Rs. 1,000.00</p>
           </div>
-          <DemoBadge />
         </div>
       </div>
 
@@ -112,21 +110,21 @@ function Register() {
           <Link to="/" className="lg:hidden flex items-center gap-2 no-underline mb-6">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold"
-              style={{ background: 'linear-gradient(135deg, var(--color-navy-900), var(--color-indigo-600))' }}
+              style={{ background: 'var(--color-navy-900)' }}
             >
               OP
             </div>
             <span className="font-bold text-lg text-[var(--color-navy-900)]">OfflinePay Nepal</span>
           </Link>
 
-          <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)] mb-1">Create account</h1>
-          <p className="text-[var(--color-gray-500)] mb-5 sm:mb-6 text-sm">Set up your demo wallet — no real money involved.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--color-gray-900)] mb-1">Create an account</h1>
+          <p className="text-[var(--color-gray-500)] mb-6 text-sm">Fill in your details to set up your secure digital wallet.</p>
 
           {/* Server error */}
           {error && (
             <div
-              className="flex items-center gap-2 p-3 rounded-xl text-sm mb-5"
-              style={{ background: 'var(--color-red-100)', color: 'var(--color-red-600)' }}
+              className="flex items-center gap-2 p-3 rounded-lg text-sm mb-5 border border-red-200"
+              style={{ background: 'var(--color-red-50)', color: 'var(--color-red-700)' }}
               role="alert"
             >
               {error}
@@ -203,17 +201,13 @@ function Register() {
               rightIcon={<ArrowRight size={18} />}
               id="register-submit-btn"
             >
-              Create Demo Account
+              Create Account
             </Button>
           </form>
 
-          {/* Demo disclaimer */}
-          <div
-            className="mt-5 p-3 rounded-xl text-xs text-center"
-            style={{ background: 'var(--color-amber-100)', color: 'var(--color-amber-700)' }}
-          >
-            🎭 This is a demo account. Starting balance of Rs. 1,000 is simulated fictional money.
-          </div>
+          <p className="mt-5 text-xs text-center text-[var(--color-gray-400)]">
+            By creating an account, your device will generate a local ECDSA P-256 cryptographic key pair for signing offline transactions securely.
+          </p>
 
           <p className="text-center text-sm text-[var(--color-gray-500)] mt-5">
             Already have an account?{' '}

@@ -2,22 +2,21 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { formatCurrency, formatRelativeTime, formatTxIdShort } from '../../utils/formatting';
-import { MOCK_TRANSACTIONS } from '../../data/mockData';
 import { useAuth } from '../../context/DemoAuthContext';
+import { useWallet } from '../../context/WalletContext';
 import { Card, CardHeader } from '../ui/Card';
 
 /**
- * RecentTransactionsPreview — Shows last 4 transactions on the dashboard.
+ * RecentTransactionsPreview — Shows latest real transactions on the dashboard.
  * Fully responsive: stacks cleanly on mobile, table-like on desktop.
  */
 function RecentTransactionsPreview() {
   const { currentUser } = useAuth();
+  const { transactions } = useWallet();
   const userId = currentUser?.id;
 
-  // Filter relevant transactions for this user
-  const userTxs = MOCK_TRANSACTIONS
-    .filter(tx => tx.senderId === userId || tx.receiverId === userId)
-    .slice(0, 4);
+  // Real transactions for this user
+  const userTxs = (transactions || []).slice(0, 4);
 
   return (
     <Card>

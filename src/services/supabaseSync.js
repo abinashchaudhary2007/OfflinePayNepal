@@ -87,13 +87,17 @@ export async function syncProfilesFromSupabase() {
 
     // Merge into local IndexedDB users store
     for (const p of profiles) {
+      const name = p.full_name || p.email?.split('@')[0] || 'User';
+      const initials = name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
       await saveUser({
         id: p.id,
-        name: p.full_name || p.email?.split('@')[0],
-        email: p.phone_number || p.email,
-        phone: p.phone_number,
+        name,
+        email: p.email || '',
+        phone: p.phone_number || '',
         role: p.role || 'user',
-        createdAt: p.created_at,
+        avatar: initials,
+        avatarColor: '#4F46E5',
+        createdAt: p.created_at || new Date().toISOString(),
       });
     }
 
@@ -172,5 +176,45 @@ export async function pushSecurityEventToSupabase(event) {
   } catch (err) {
     console.warn('[supabaseSync] Failed to push security event:', err);
     return false;
+  }
+}
+
+/**
+ * Execute server-side atomic double-entry transfer via Supabase RPC
+ */
+export async function executeRemoteAtomicTransfer({
+  senderId,
+  receiverId,
+  amount,
+  txRef,
+  senderName = '',
+  receiverName = '',
+  note = '',
+  nonce = null,
+  paymentType = 'ONLINE'
+}) {
+  if (!canSyncWithSupabase()) return { success: false, offline: true };
+
+  try {
+    const { data, error } = await supabase.rpc('transfer_funds_atomic', {
+      p_sender_id: senderId,
+      p_receiver_id: receiverId,
+      p_amount: Number(amount),
+      p_tx_ref: txRef,
+      p_sender_name: senderName,
+      p_receiver_name: receiverName,
+      p_note: note,
+      p_nonce: nonce,
+      p_payment_type: paymentType
+    });
+
+    if (error) {
+      console.warn('[supabaseSync] Remote atomic transfer error:', error);
+      return { success: false, error: error.message };
+    }
+    return data;
+  } catch (err) {
+    console.warn('[supabaseSync] Remote transfer exception:', err);
+    return { success: false, error: err.message };
   }
 }

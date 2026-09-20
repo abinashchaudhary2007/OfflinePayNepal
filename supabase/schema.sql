@@ -247,3 +247,137 @@ on conflict (user_id) do update set
   balance = excluded.balance,
   offline_limit = excluded.offline_limit,
   offline_reserve = excluded.offline_reserve;
+
+-- ==============================================================================
+-- 12. ATOMIC DOUBLE-ENTRY TRANSACTION RPC
+-- ==============================================================================
+create or replace function public.transfer_funds_atomic(
+  p_sender_id text,
+  p_receiver_id text,
+  p_amount numeric,
+  p_tx_ref text,
+  p_sender_name text default '',
+  p_receiver_name text default '',
+  p_note text default '',
+  p_nonce text default null,
+  p_payment_type text default 'ONLINE'
+)
+returns jsonb
+language plpgsql
+security definer
+as $$
+declare
+  v_sender_wallet record;
+  v_receiver_wallet record;
+  v_tx_id text;
+begin
+  -- 1. Strict validation
+  if p_amount <= 0 then
+    return jsonb_build_object('success', false, 'error', 'Amount must be greater than 0');
+  end if;
+
+  if p_sender_id = p_receiver_id then
+    return jsonb_build_object('success', false, 'error', 'Sender and receiver cannot be the same');
+  end if;
+
+  -- 2. Idempotency check: if transaction_ref already settled, return success
+  if exists (select 1 from public.transactions where transaction_ref = p_tx_ref and status = 'SETTLED') then
+    return jsonb_build_object('success', true, 'already_settled', true, 'transaction_ref', p_tx_ref);
+  end if;
+
+  -- 3. Anti-replay nonce check
+  if p_nonce is not null then
+    if exists (select 1 from public.nonces where nonce = p_nonce) then
+      return jsonb_build_object('success', false, 'error', 'Replay detected: nonce already used');
+    end if;
+  end if;
+
+  -- 4. Lock sender wallet
+  select * into v_sender_wallet
+  from public.wallets
+  where user_id = p_sender_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('success', false, 'error', 'Sender wallet not found');
+  end if;
+
+  if v_sender_wallet.balance < p_amount then
+    return jsonb_build_object('success', false, 'error', 'Insufficient balance');
+  end if;
+
+  -- 5. Lock or create receiver wallet
+  select * into v_receiver_wallet
+  from public.wallets
+  where user_id = p_receiver_id
+  for update;
+
+  if not found then
+    insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+    values ('wallet_' || p_receiver_id, p_receiver_id, 0.00, 0.00, 0.00, 'NPR')
+    returning * into v_receiver_wallet;
+  end if;
+
+  -- 6. Atomic Debit & Credit
+  update public.wallets
+  set balance = balance - p_amount, updated_at = now()
+  where user_id = p_sender_id;
+
+  update public.wallets
+  set balance = balance + p_amount, updated_at = now()
+  where user_id = p_receiver_id;
+
+  -- 7. Record Nonce
+  if p_nonce is not null then
+    insert into public.nonces (nonce, transaction_id, used_at)
+    values (p_nonce, p_tx_ref, now())
+    on conflict (nonce) do nothing;
+  end if;
+
+  -- 8. Record Ledger Entry
+  v_tx_id := coalesce(p_tx_ref, 'tx_' || gen_random_uuid()::text);
+  insert into public.transactions (
+    id, transaction_ref, sender_id, sender_name, receiver_id, receiver_name,
+    amount, type, payment_type, status, nonce, payload, settled_at, created_at
+  )
+  values (
+    v_tx_id, p_tx_ref, p_sender_id, p_sender_name, p_receiver_id, p_receiver_name,
+    p_amount, 'PAYMENT', p_payment_type, 'SETTLED', p_nonce,
+    jsonb_build_object('note', p_note, 'transferred_at', now()),
+    now(), now()
+  )
+  on conflict (transaction_ref) do update set
+    status = 'SETTLED',
+    settled_at = now();
+
+  return jsonb_build_object(
+    'success', true,
+    'transaction_id', v_tx_id,
+    'sender_new_balance', v_sender_wallet.balance - p_amount,
+    'receiver_new_balance', v_receiver_wallet.balance + p_amount
+  );
+end;
+$$;
+
+-- Helper to auto-create wallet when a new profile is created
+create or replace function public.handle_new_profile_wallet()
+returns trigger as $$
+begin
+  insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+  values (
+    'wallet_' || new.id,
+    new.id,
+    1000.00, -- Prototype starting balance
+    0.00,
+    0.00,
+    'NPR'
+  )
+  on conflict (user_id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists trigger_create_wallet_for_profile on public.profiles;
+create trigger trigger_create_wallet_for_profile
+  after insert on public.profiles
+  for each row execute function public.handle_new_profile_wallet();
