@@ -88,28 +88,26 @@ function Dashboard() {
         {/* ─── Status Cards ─── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 stagger-children">
           <StatusCard
-            title="Device Status"
+            title="Device"
             value={device?.status || 'Not registered'}
             badge={device?.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING'}
             icon={<Shield size={18} color="var(--color-indigo-600)" />}
           />
           <StatusCard
             title="Offline Auth"
-            value={authorization?.status || 'None'}
+            value={authorization?.status === 'ACTIVE' ? `Rs. ${authorization.remainingAmount?.toLocaleString() || 0}` : 'None'}
             badge={authorization?.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING'}
             icon={<CheckCircle2 size={18} color="var(--color-emerald-600)" />}
-            sub={authorization ? `Expires ${formatRelativeTime(authorization.expiresAt)}` : 'Get authorization first'}
           />
           <StatusCard
             title="Pending Sync"
             value={`${pendingSyncCount} item${pendingSyncCount !== 1 ? 's' : ''}`}
             badge={pendingSyncCount > 0 ? 'PENDING' : 'ACTIVE'}
             icon={<Clock size={18} color={pendingSyncCount > 0 ? 'var(--color-amber-600)' : 'var(--color-emerald-600)'} />}
-            sub={pendingSyncCount > 0 ? 'Awaiting internet' : 'All synced'}
           />
           <StatusCard
-            title="Security Events"
-            value={`${securityEvents.length} events`}
+            title="Security"
+            value={securityEvents.some(e => e.severity === 'HIGH') ? 'Alert' : 'Normal'}
             badge={securityEvents.some(e => e.severity === 'HIGH') ? 'REJECTED' : 'ACTIVE'}
             icon={<AlertTriangle size={18} color={securityEvents.some(e => e.severity === 'HIGH') ? 'var(--color-red-500)' : 'var(--color-emerald-600)'} />}
           />

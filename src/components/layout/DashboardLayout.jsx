@@ -23,9 +23,9 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-gray-50)' }}>
-      {/* Demo banner — always visible */}
+      {/* Demo banner */}
       <div className="demo-banner">
-        🎭 DEMO WALLET — SIMULATED MONEY ONLY — NO REAL TRANSACTIONS
+        OfflinePay Nepal · Prototype Demo
       </div>
 
       {/* Offline banner */}

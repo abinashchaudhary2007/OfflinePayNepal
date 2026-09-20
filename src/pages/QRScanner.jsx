@@ -182,12 +182,9 @@ function QRScanner() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-lg space-y-5 animate-fade-in">
+      <div className="max-w-md mx-auto space-y-5 animate-fade-in">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Scan Payment QR</h1>
-          <p className="text-[var(--color-gray-500)] text-sm mt-1">
-            Scan the sender's QR code to receive an offline payment
-          </p>
+          <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Scan QR</h1>
         </div>
 
         {/* IDLE: Start scanning */}
@@ -198,9 +195,9 @@ function QRScanner() {
                 style={{ background: 'var(--color-indigo-100)' }}>
                 <QrCode size={40} color="var(--color-indigo-600)" />
               </div>
-              <h2 className="font-bold text-[var(--color-gray-900)] mb-2">Ready to Scan</h2>
-              <p className="text-sm text-[var(--color-gray-500)] mb-5">
-                Ask the sender to display their offline payment QR code, then tap the button below.
+              <h2 className="font-bold text-[var(--color-gray-900)] mb-1">Ready to Scan</h2>
+              <p className="text-xs text-[var(--color-gray-500)] mb-4">
+                Point your camera at the sender's payment QR code
               </p>
               <Button block size="lg" variant="primary" onClick={startScanner} leftIcon={<QrCode size={18} />}>
                 Open Camera Scanner

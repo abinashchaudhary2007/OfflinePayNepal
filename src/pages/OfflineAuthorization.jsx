@@ -55,30 +55,18 @@ function OfflineAuthorization() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-5 animate-fade-in">
+      <div className="max-w-4xl space-y-5 animate-fade-in">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Offline Authorization</h1>
-          <p className="text-[var(--color-gray-500)] text-sm mt-1">
-            Get authorized spending limit for payments without internet
-          </p>
         </div>
 
-        {/* How it works */}
+        {/* Info callout */}
         <div
-          className="p-4 rounded-2xl text-sm"
+          className="p-3.5 rounded-2xl text-xs flex items-center gap-2.5 text-[var(--color-indigo-700)]"
           style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}
         >
-          <div className="flex items-start gap-3">
-            <Shield size={18} color="var(--color-indigo-600)" className="flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-[var(--color-indigo-700)] mb-1">How Offline Authorization Works</p>
-              <p className="text-xs text-[var(--color-gray-600)] leading-relaxed">
-                While online, you set aside a spending limit. This authorization is cryptographically signed
-                and stored locally. You can then make payments offline — up to your authorized limit.
-                The authorization expires after 24 hours for security.
-              </p>
-            </div>
-          </div>
+          <Shield size={16} className="text-[var(--color-indigo-600)] flex-shrink-0" />
+          <span>Set an offline spending limit while connected. Valid for 24 hours.</span>
         </div>
 
         {/* Device check */}
@@ -95,7 +83,7 @@ function OfflineAuthorization() {
         {/* Current Authorization */}
         {authorization && (
           <Card>
-            <CardHeader title="Current Authorization" subtitle="Your active offline spending limit" />
+            <CardHeader title="Current Authorization" />
 
             <div className="space-y-3 mb-4">
               <div className="grid grid-cols-2 gap-3">
@@ -156,7 +144,6 @@ function OfflineAuthorization() {
           <Card>
             <CardHeader
               title={authorization ? 'Renew Authorization' : 'Get Offline Authorization'}
-              subtitle="Set your offline spending limits"
             />
 
             <div className="space-y-4">

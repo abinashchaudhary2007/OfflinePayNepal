@@ -39,11 +39,8 @@ function Wallet() {
       <div className="max-w-6xl space-y-6 animate-fade-in">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[var(--color-gray-900)] tracking-tight">
-            My Wallet
+            Wallet
           </h1>
-          <p className="text-[var(--color-gray-500)] text-xs sm:text-sm mt-1">
-            Simulated wallet balance & offline allowances
-          </p>
         </div>
 
         {/* Desktop 2-column layout */}
@@ -84,7 +81,6 @@ function Wallet() {
               <Card>
                 <CardHeader
                   title="Offline Authorization"
-                  subtitle="Pre-authorized offline allowance"
                   action={
                     <Link to="/offline-authorization" className="text-xs text-[var(--color-indigo-600)] font-semibold no-underline hover:underline">
                       Manage

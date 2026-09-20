@@ -117,7 +117,7 @@ function SendMoney() {
         {/* STEP 1: Select Receiver */}
         {step === STEPS.SELECT && (
           <Card>
-            <CardHeader title="Select Receiver" subtitle="Who would you like to send money to?" />
+            <CardHeader title="Select Receiver" />
             <Input
               id="receiver-search"
               placeholder="Search by name or email..."
@@ -243,7 +243,7 @@ function SendMoney() {
         {/* STEP 3: Confirm */}
         {step === STEPS.CONFIRM && receiver && (
           <Card>
-            <CardHeader title="Confirm Payment" subtitle="Review details before sending" />
+            <CardHeader title="Confirm Payment" />
             <div className="space-y-3 mb-5">
               <ConfirmRow label="To" value={receiver.name} />
               <ConfirmRow label="Amount" value={formatCurrency(parseFloat(amount))} highlight />

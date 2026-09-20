@@ -34,9 +34,6 @@ function Security() {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[var(--color-gray-900)] tracking-tight">
             Security Center
           </h1>
-          <p className="text-[var(--color-gray-500)] text-xs sm:text-sm mt-1">
-            Real-time cryptographic verification, device trust status, and security audit log
-          </p>
         </div>
 
         {/* 2-Column Responsive Grid on Desktop */}
@@ -143,7 +140,6 @@ function Security() {
             <Card>
               <CardHeader
                 title="Cryptographic Architecture"
-                subtitle="End-to-end security protections"
               />
               <div className="space-y-2">
                 {[
@@ -169,7 +165,6 @@ function Security() {
             <Card>
               <CardHeader
                 title="Security Event Log"
-                subtitle={`${securityEvents.length} total events recorded`}
               />
 
               {securityEvents.length === 0 ? (

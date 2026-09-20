@@ -45,10 +45,9 @@ function OfflinePayment() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-5 animate-fade-in">
+      <div className="max-w-4xl space-y-5 animate-fade-in">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Offline Payments</h1>
-          <p className="text-[var(--color-gray-500)] text-sm mt-1">Pay without internet using cryptographic signatures</p>
         </div>
 
         {/* Online/Offline Status */}
@@ -66,10 +65,10 @@ function OfflinePayment() {
             }
             <div>
               <p className="text-sm font-bold" style={{ color: isOffline ? 'var(--color-amber-800)' : 'var(--color-emerald-800)' }}>
-                {isSimulating ? 'Offline Simulation Active' : isOffline ? 'You are offline' : 'Online'}
+                {isSimulating ? 'Offline Simulation Active' : isOffline ? 'Offline Mode' : 'Online'}
               </p>
               <p className="text-xs" style={{ color: isOffline ? 'var(--color-amber-600)' : 'var(--color-emerald-600)' }}>
-                {isOffline ? 'Offline payments available — sync when reconnected' : 'Sync available'}
+                {isOffline ? 'Transactions will sync automatically once reconnected' : 'Connected to ledger network'}
               </p>
             </div>
           </div>
@@ -88,7 +87,7 @@ function OfflinePayment() {
 
         {/* Authorization Status */}
         <Card>
-          <CardHeader title="Offline Authorization" subtitle="Your spending limit for offline payments" />
+          <CardHeader title="Offline Authorization" />
 
           {authorization ? (
             <div className="space-y-3">
@@ -135,8 +134,7 @@ function OfflinePayment() {
               <ArrowUpRight size={22} color="var(--color-red-500)" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold text-[var(--color-gray-800)]">Send Offline</p>
-              <p className="text-[10px] text-[var(--color-gray-400)]">Sign + QR payment</p>
+              <p className="text-sm font-bold text-[var(--color-gray-800)]">Send Money</p>
             </div>
           </Link>
           <Link to="/scan" className="quick-action group no-underline">
@@ -145,7 +143,6 @@ function OfflinePayment() {
             </div>
             <div className="text-center">
               <p className="text-sm font-bold text-[var(--color-gray-800)]">Scan QR</p>
-              <p className="text-[10px] text-[var(--color-gray-400)]">Receive offline payment</p>
             </div>
           </Link>
         </div>
@@ -154,7 +151,7 @@ function OfflinePayment() {
         {offlineTxs.length > 0 && (
           <Card>
             <div className="flex items-center justify-between mb-3">
-              <CardHeader title={`Pending Sync (${offlineTxs.length})`} subtitle="Transactions awaiting internet" />
+              <CardHeader title={`Pending Sync (${offlineTxs.length})`} />
               {!isOffline && (
                 <Button size="sm" variant="primary" loading={isSyncing} onClick={handleSync}
                   leftIcon={<RefreshCw size={13} />}>
@@ -205,7 +202,7 @@ function OfflinePayment() {
 
         {/* Security info */}
         <Card>
-          <CardHeader title="Security Features" subtitle="How offline payments stay secure" />
+          <CardHeader title="Security Features" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { icon: Shield, title: 'P-256 Signatures', desc: 'Transactions signed with your device key' },

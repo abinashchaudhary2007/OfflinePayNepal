@@ -96,16 +96,11 @@ function ReceiveMoney() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-lg space-y-5 animate-fade-in">
-        <div>
+      <div className="max-w-md mx-auto space-y-5 animate-fade-in">
+        <div className="text-center sm:text-left">
           <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">
-            {isOfflineTx ? 'Offline Payment QR' : 'Receive Money'}
+            {isOfflineTx ? 'Payment QR Code' : 'Receive Money'}
           </h1>
-          <p className="text-[var(--color-gray-500)] text-sm mt-1">
-            {isOfflineTx
-              ? 'Show this QR code to the receiver to complete the offline payment'
-              : 'Share your QR code or scan to receive payment'}
-          </p>
         </div>
 
         {/* QR Display Card */}
@@ -173,7 +168,6 @@ function ReceiveMoney() {
                   <div className="text-center mt-2">
                     <p className="text-sm font-semibold text-[var(--color-gray-700)]">{currentUser?.name}</p>
                     <p className="text-xs text-[var(--color-gray-400)] mt-0.5">{currentUser?.email}</p>
-                    <p className="text-xs text-[var(--color-gray-400)] mt-1">Scan to send payment to this account</p>
                   </div>
                 )}
               </>
@@ -194,32 +188,6 @@ function ReceiveMoney() {
         >
           Scan a Payment QR
         </Button>
-
-        {/* Instructions */}
-        <Card>
-          <CardHeader title="How to Complete Payment" />
-          <ol className="space-y-2">
-            {(isOfflineTx ? [
-              'Show this QR code to the receiver on their screen.',
-              'Receiver opens the app and taps "Scan QR".',
-              'Receiver scans and verifies your signature.',
-              'Receiver taps "Accept Payment" to store it locally.',
-              'When internet is available, both devices sync automatically.',
-            ] : [
-              'Share this QR code with the sender.',
-              'Sender opens the app and scans your QR.',
-              'Sender confirms the payment amount.',
-              'Payment is processed and credited to your account.',
-            ]).map((step, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-gray-600)]">
-                <span className="w-5 h-5 rounded-full bg-[var(--color-indigo-100)] text-[var(--color-indigo-600)] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {i + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-        </Card>
       </div>
     </DashboardLayout>
   );

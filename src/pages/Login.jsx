@@ -154,7 +154,6 @@ function Login() {
               error={formError.password}
               leftIcon={<Lock size={16} />}
               autoComplete="current-password"
-              hint="Demo accounts accept any password ≥ 6 characters."
             />
 
             <Button

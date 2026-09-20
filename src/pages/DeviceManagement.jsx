@@ -50,25 +50,15 @@ function DeviceManagement() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-5 animate-fade-in">
+      <div className="max-w-4xl space-y-5 animate-fade-in">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Device Management</h1>
-          <p className="text-[var(--color-gray-500)] text-sm mt-1">
-            Manage your cryptographic device identity
-          </p>
         </div>
 
-        {/* Security Model explanation */}
-        <div className="p-4 rounded-2xl" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
-          <div className="flex items-start gap-3">
-            <Shield size={18} color="var(--color-indigo-600)" className="flex-shrink-0 mt-0.5" />
-            <div className="text-xs text-[var(--color-gray-600)] leading-relaxed">
-              <p className="font-semibold text-[var(--color-indigo-700)] mb-1">Cryptographic Device Identity</p>
-              Each device generates an <strong>ECDSA P-256 key pair</strong>. Your private key is stored in IndexedDB
-              (non-extractable) and never leaves your device. Only your public key is registered.
-              All offline transactions are signed with your device's private key.
-            </div>
-          </div>
+        {/* Security Model note */}
+        <div className="p-3.5 rounded-2xl flex items-center gap-2.5 text-xs text-[var(--color-indigo-700)]" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
+          <Shield size={16} className="text-[var(--color-indigo-600)] flex-shrink-0" />
+          <span>Each device holds an ECDSA P-256 key pair stored securely in IndexedDB.</span>
         </div>
 
         {/* Message */}
@@ -95,7 +85,7 @@ function DeviceManagement() {
         {/* Current Device */}
         {device ? (
           <Card>
-            <CardHeader title="Current Device" subtitle="Your registered cryptographic identity" />
+            <CardHeader title="Current Device" />
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -199,7 +189,7 @@ function DeviceManagement() {
         {/* Register new device when revoked or no device */}
         {device?.status === 'REVOKED' && (
           <Card>
-            <CardHeader title="Register a New Device" subtitle="Generate fresh key pair for this device" />
+            <CardHeader title="Register a New Device" />
             <Button block variant="primary" loading={isRegistering} onClick={handleRegister}
               leftIcon={<Plus size={16} />}>
               Register New Device
