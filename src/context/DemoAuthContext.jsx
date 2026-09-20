@@ -204,9 +204,19 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
           localStorage.setItem(ACTIVE_USER_STORAGE_KEY, user.id);
           setIsLoading(false);
           onLogin?.(user);
-          return { success: true, user };
         } else if (sbError && sbError.message !== 'Failed to fetch') {
-          // Real auth failure from Supabase
+          // If Supabase rejected (e.g., email not confirmed or rate-limited), check local user cache
+          const cachedUser = await getUserByEmail(cleanEmail);
+          if (cachedUser && cachedUser.passwordHash === hashedInput) {
+            let wallet = await getWalletByUserId(cachedUser.id);
+            if (wallet) cachedUser.wallet = wallet;
+            setCurrentUser(cachedUser);
+            localStorage.setItem(ACTIVE_USER_STORAGE_KEY, cachedUser.id);
+            setIsLoading(false);
+            onLogin?.(cachedUser);
+            return { success: true, user: cachedUser };
+          }
+
           setError(sbError.message || 'Invalid email or password.');
           setIsLoading(false);
           return { success: false };
@@ -311,16 +321,25 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
         });
 
         if (sbError) {
-          setError(sbError.message);
-          setIsLoading(false);
-          return { success: false };
+          console.warn('[auth] Supabase register notice:', sbError.message);
+          // If Supabase hits built-in email service rate limits, don't block prototype registration!
+          const isEmailLimit = sbError.message?.toLowerCase().includes('rate limit') || 
+                               sbError.message?.toLowerCase().includes('email') ||
+                               sbError.status === 429;
+          if (!isEmailLimit) {
+            setError(sbError.message);
+            setIsLoading(false);
+            return { success: false };
+          }
+          // Proceed with prototype ID for email-rate-limited accounts
+          console.info('[auth] Supabase email rate limit reached. Creating user profile directly.');
         }
 
         if (data?.user?.id) {
           assignedUserId = data.user.id;
         }
       } catch (err) {
-        console.warn('[auth] Supabase register warning:', err);
+        console.warn('[auth] Supabase register exception:', err);
       }
     }
 

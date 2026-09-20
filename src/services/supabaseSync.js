@@ -141,12 +141,12 @@ export async function pushWalletToSupabase(wallet) {
     const { error } = await supabase.from('wallets').upsert({
       id: wallet.id,
       user_id: wallet.userId,
-      balance: wallet.balance,
+      balance: wallet.availableBalance !== undefined ? wallet.availableBalance : (wallet.balance || 0),
       offline_limit: wallet.offlineLimit || 0,
       offline_reserve: wallet.offlineReserve || 0,
       currency: wallet.currency || 'NPR',
       updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
+    }, { onConflict: 'user_id' });
 
     return !error;
   } catch (err) {
