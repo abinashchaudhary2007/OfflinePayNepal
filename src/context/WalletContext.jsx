@@ -48,14 +48,20 @@ export function WalletProvider({ children }) {
     if (!user) return;
     currentUserIdRef.current = user.id;
 
-    // Try to load from IndexedDB first
-    let storedWallet = await getWallet(user.wallet.id);
+    // Load wallet by user ID with guaranteed 1000.00 initial deposit
+    let storedWallet = await getWalletByUserId(user.id);
 
     if (!storedWallet) {
-      // First time — seed from mock data
       storedWallet = {
-        ...user.wallet,
+        id: user.wallet?.id || `wallet-${user.id}`,
         userId: user.id,
+        availableBalance: 1000.00,
+        offlineLimit: 0,
+        offlineSpent: 0,
+        offlineRemaining: 0,
+        currency: 'NPR',
+        totalReceived: 1000.00,
+        totalSent: 0,
         updatedAt: new Date().toISOString(),
       };
       await saveWallet(storedWallet);

@@ -163,23 +163,26 @@ export async function getAllWallets() {
 
 export async function getWalletByUserId(userId) {
   const db = await getDB();
-  await initSeedData();
   const all = await db.getAll('wallet');
   const found = all.find(w => w.userId === userId);
   if (found) return found;
 
-  // Fallback to checking users store if wallet not yet materialized
+  // Initialize fresh wallet with 1000.00 deposit grant for every new account
   const user = await getUser(userId);
-  if (user?.wallet) {
-    const initialWallet = {
-      ...user.wallet,
-      userId: user.id,
-      updatedAt: new Date().toISOString(),
-    };
-    await db.put('wallet', initialWallet);
-    return initialWallet;
-  }
-  return null;
+  const initialWallet = {
+    id: user?.wallet?.id || `wallet-${userId}`,
+    userId: userId,
+    availableBalance: user?.wallet?.availableBalance ?? 1000.00,
+    offlineLimit: user?.wallet?.offlineLimit ?? 0,
+    offlineSpent: 0,
+    offlineRemaining: 0,
+    currency: 'NPR',
+    totalReceived: 1000.00,
+    totalSent: 0,
+    updatedAt: new Date().toISOString(),
+  };
+  await db.put('wallet', initialWallet);
+  return initialWallet;
 }
 
 // ─── Devices ──────────────────────────────────
@@ -400,12 +403,12 @@ export async function executeAtomicOnlinePayment({
     receiverWallet = {
       id: receiverUser?.wallet?.id || `wallet-${receiverId}`,
       userId: receiverId,
-      availableBalance: receiverUser?.wallet?.availableBalance || 0,
+      availableBalance: receiverUser?.wallet?.availableBalance ?? 1000.00,
       offlineLimit: 0,
       offlineSpent: 0,
       offlineRemaining: 0,
       currency: 'NPR',
-      totalReceived: 0,
+      totalReceived: 1000.00,
       totalSent: 0,
       updatedAt: new Date().toISOString(),
     };
@@ -566,12 +569,12 @@ export async function executeAtomicOfflineAcceptance({
     receiverWallet = {
       id: receiverUser?.wallet?.id || `wallet-${receiverId}`,
       userId: receiverId,
-      availableBalance: receiverUser?.wallet?.availableBalance || 0,
+      availableBalance: receiverUser?.wallet?.availableBalance ?? 1000.00,
       offlineLimit: 0,
       offlineSpent: 0,
       offlineRemaining: 0,
       currency: 'NPR',
-      totalReceived: 0,
+      totalReceived: 1000.00,
       totalSent: 0,
       updatedAt: new Date().toISOString(),
     };
