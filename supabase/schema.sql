@@ -268,42 +268,55 @@ begin
     end if;
   end if;
 
-  -- 4. Lock sender wallet (or provision with standard grant if legitimate profile exists)
+  -- 4. Ensure profiles exist to satisfy foreign key constraints on wallets and transactions
+  if not exists (select 1 from public.profiles where id = p_sender_id) then
+    insert into public.profiles (id, full_name, role)
+    values (p_sender_id, coalesce(nullif(p_sender_name, ''), 'Sender'), 'user')
+    on conflict (id) do nothing;
+  end if;
+
+  if not exists (select 1 from public.profiles where id = p_receiver_id) then
+    insert into public.profiles (id, full_name, role)
+    values (p_receiver_id, coalesce(nullif(p_receiver_name, ''), 'Receiver / Merchant'), 'user')
+    on conflict (id) do nothing;
+  end if;
+
+  -- 5. Lock sender wallet (or provision with standard grant)
   select * into v_sender_wallet
   from public.wallets
   where user_id = p_sender_id
   for update;
 
   if not found then
-    if exists (select 1 from public.profiles where id = p_sender_id) then
-      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
-      values ('wallet_' || p_sender_id, p_sender_id, 1000.00, 0.00, 0.00, 'NPR')
-      returning * into v_sender_wallet;
-    else
-      return jsonb_build_object('success', false, 'error', 'Sender wallet not found');
-    end if;
+    insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+    values ('wallet_' || p_sender_id, p_sender_id, 1000.00, 0.00, 0.00, 'NPR')
+    on conflict (user_id) do nothing;
+
+    select * into v_sender_wallet
+    from public.wallets
+    where user_id = p_sender_id
+    for update;
   end if;
 
   if v_sender_wallet.balance < p_amount then
     return jsonb_build_object('success', false, 'error', 'Insufficient balance');
   end if;
 
-  -- 5. Lock or create receiver wallet
+  -- 6. Lock or create receiver wallet
   select * into v_receiver_wallet
   from public.wallets
   where user_id = p_receiver_id
   for update;
 
   if not found then
-    if exists (select 1 from public.profiles where id = p_receiver_id) then
-      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
-      values ('wallet_' || p_receiver_id, p_receiver_id, 1000.00, 0.00, 0.00, 'NPR')
-      returning * into v_receiver_wallet;
-    else
-      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
-      values ('wallet_' || p_receiver_id, p_receiver_id, 0.00, 0.00, 0.00, 'NPR')
-      returning * into v_receiver_wallet;
-    end if;
+    insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+    values ('wallet_' || p_receiver_id, p_receiver_id, 1000.00, 0.00, 0.00, 'NPR')
+    on conflict (user_id) do nothing;
+
+    select * into v_receiver_wallet
+    from public.wallets
+    where user_id = p_receiver_id
+    for update;
   end if;
 
   -- 6. Atomic Debit & Credit

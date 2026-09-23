@@ -242,14 +242,16 @@ export async function executeRemoteAtomicTransfer({
 
     if (error) {
       console.warn('[supabaseSync] Remote atomic transfer error:', error);
-      const isMissingRpc =
+      const isFallbackEligible =
         error.code === 'PGRST202' ||
         error.code === '42883' ||
+        error.code === '23503' || // foreign_key_violation in stored procedure
         error.message?.includes('schema cache') ||
-        error.message?.includes('transfer_funds_atomic');
+        error.message?.includes('transfer_funds_atomic') ||
+        error.message?.includes('foreign key constraint');
 
-      if (isMissingRpc) {
-        console.info('[supabaseSync] transfer_funds_atomic RPC not found in schema cache, executing direct REST settlement fallback...');
+      if (isFallbackEligible) {
+        console.info('[supabaseSync] Stored procedure returned fallback-eligible error, executing direct REST settlement fallback...');
         return await fallbackDirectRemoteTransfer({
           senderId,
           receiverId,
@@ -314,7 +316,24 @@ async function fallbackDirectRemoteTransfer({
       }
     }
 
-    // 3. Sender profile & wallet lookup / auto-provision
+    // 3. Ensure profiles exist in Supabase for both sender and receiver (satisfies foreign key constraints)
+    await supabase
+      .from('profiles')
+      .upsert({
+        id: senderId,
+        full_name: senderName || 'User',
+        role: 'user'
+      }, { onConflict: 'id' });
+
+    await supabase
+      .from('profiles')
+      .upsert({
+        id: receiverId,
+        full_name: receiverName || 'Shopkeeper/Receiver',
+        role: 'user'
+      }, { onConflict: 'id' });
+
+    // 4. Sender wallet lookup / auto-provision
     let { data: senderWallet } = await supabase
       .from('wallets')
       .select('*')
@@ -322,14 +341,6 @@ async function fallbackDirectRemoteTransfer({
       .maybeSingle();
 
     if (!senderWallet) {
-      await supabase
-        .from('profiles')
-        .upsert({
-          id: senderId,
-          full_name: senderName || 'User',
-          role: 'user'
-        }, { onConflict: 'id' });
-
       const newWallet = {
         id: `wallet-${senderId}`,
         user_id: senderId,
@@ -351,7 +362,7 @@ async function fallbackDirectRemoteTransfer({
       return { success: false, error: 'Insufficient balance on server wallet' };
     }
 
-    // 4. Receiver profile & wallet lookup / auto-provision
+    // 5. Receiver wallet lookup / auto-provision
     let { data: receiverWallet } = await supabase
       .from('wallets')
       .select('*')
