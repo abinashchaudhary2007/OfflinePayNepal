@@ -14,7 +14,7 @@
  * provides reasonable isolation for a demo application.
  */
 
-import { saveKeyMaterial, getKeyMaterial } from './db';
+import { saveKeyMaterial, getKeyMaterial } from './db.js';
 
 const KEY_ALGORITHM = { name: 'ECDSA', namedCurve: 'P-256' };
 const SIGN_ALGORITHM = { name: 'ECDSA', hash: 'SHA-256' };

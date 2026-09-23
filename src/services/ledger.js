@@ -18,9 +18,9 @@ import {
   getDevice,
   getActiveAuthorization,
   updateAuthorization,
-} from './db';
-import { verifyTransactionSignature } from './crypto';
-import { generateNonce } from './crypto';
+} from './db.js';
+import { verifyTransactionSignature } from './crypto.js';
+import { generateNonce } from './crypto.js';
 
 // ─── Transaction Status ────────────────────────────────────────────
 
@@ -28,11 +28,83 @@ export const TX_STATUS = {
   CREATED:         'CREATED',
   OFFLINE_PENDING: 'OFFLINE_PENDING',
   SYNCING:         'SYNCING',
+  RETRY_WAITING:   'RETRY_WAITING',
   VERIFIED:        'VERIFIED',
   SETTLED:         'SETTLED',
   REJECTED:        'REJECTED',
   EXPIRED:         'EXPIRED',
 };
+
+// ─── Status Transition Policy ──────────────────────────────────────
+export const VALID_STATUS_TRANSITIONS = {
+  [TX_STATUS.CREATED]:         [TX_STATUS.OFFLINE_PENDING, TX_STATUS.SETTLED, TX_STATUS.REJECTED],
+  [TX_STATUS.OFFLINE_PENDING]: [TX_STATUS.SYNCING, TX_STATUS.REJECTED, TX_STATUS.EXPIRED],
+  [TX_STATUS.SYNCING]:         [TX_STATUS.SETTLED, TX_STATUS.RETRY_WAITING, TX_STATUS.REJECTED],
+  [TX_STATUS.RETRY_WAITING]:   [TX_STATUS.SYNCING, TX_STATUS.REJECTED, TX_STATUS.EXPIRED],
+  [TX_STATUS.VERIFIED]:        [TX_STATUS.SETTLED, TX_STATUS.REJECTED],
+  [TX_STATUS.SETTLED]:         [], // Terminal state
+  [TX_STATUS.REJECTED]:        [], // Terminal state
+  [TX_STATUS.EXPIRED]:         [], // Terminal state
+};
+
+/**
+ * Validates whether transitioning from currentStatus to targetStatus is permitted.
+ */
+export function isValidStatusTransition(currentStatus, targetStatus) {
+  if (!currentStatus || !targetStatus) return false;
+  if (currentStatus === targetStatus) return true; // Same state is always idempotent
+  const allowed = VALID_STATUS_TRANSITIONS[currentStatus];
+  return Array.isArray(allowed) && allowed.includes(targetStatus);
+}
+
+/**
+ * Classifies an error during transaction synchronization as retryable vs fatal.
+ */
+export function classifySyncError(error) {
+  const msg = (error?.message || error?.error || error?.reasonCode || String(error || '')).toLowerCase();
+
+  // Permanent / security validation failures — non-retryable
+  const isFatal =
+    msg.includes('invalid signature') ||
+    msg.includes('signature could not be verified') ||
+    msg.includes('replay') ||
+    msg.includes('duplicate transaction') ||
+    (msg.includes('nonce') && (msg.includes('used') || msg.includes('replay') || msg.includes('duplicate') || msg.includes('already'))) ||
+    msg.includes('counter') ||
+    msg.includes('regression') ||
+    msg.includes('revoked') ||
+    msg.includes('unregistered') ||
+    msg.includes('invalid recipient') ||
+    msg.includes('limit exceeded') ||
+    msg.includes('expired') ||
+    msg.includes('insufficient balance') ||
+    msg.includes('cannot be the same') ||
+    msg.includes('unauthorized');
+
+  if (isFatal) {
+    let reasonCode = 'VALIDATION_FAILED';
+    if (msg.includes('signature')) reasonCode = 'INVALID_SIGNATURE';
+    else if (msg.includes('replay') || msg.includes('nonce')) reasonCode = 'REPLAY_ATTACK';
+    else if (msg.includes('counter')) reasonCode = 'INVALID_COUNTER';
+    else if (msg.includes('revoked')) reasonCode = 'REVOKED_DEVICE';
+    else if (msg.includes('expired')) reasonCode = 'EXPIRED_AUTHORIZATION';
+
+    return {
+      retryable: false,
+      category: 'FATAL',
+      reasonCode,
+      message: error?.message || 'Transaction rejected due to security or validation failure.',
+    };
+  }
+
+  // Transient / network / server unavailability failures — retryable
+  return {
+    retryable: true,
+    category: 'RETRYABLE',
+    reasonCode: 'TEMPORARY_NETWORK_OR_SERVER_ERROR',
+    message: error?.message || 'Temporary connection or server error. Will retry synchronization.',
+  };
+}
 
 // ─── Security Event Types ──────────────────────────────────────────
 

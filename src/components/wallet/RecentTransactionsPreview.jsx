@@ -113,12 +113,19 @@ function EmptyTransactions() {
         className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
         style={{ background: 'var(--color-gray-100)' }}
       >
-        <ArrowUpRight size={24} color="var(--color-gray-300)" />
+        <ArrowUpRight size={24} color="var(--color-gray-400)" />
       </div>
-      <p className="text-sm font-semibold text-[var(--color-gray-500)]">No transactions yet</p>
-      <p className="text-xs text-[var(--color-gray-400)] mt-1">
-        Your transaction history will appear here
+      <p className="text-sm font-bold text-[var(--color-gray-700)]">No transactions yet</p>
+      <p className="text-xs text-[var(--color-gray-400)] mt-1 max-w-xs mx-auto mb-4">
+        Your payment activity will appear here once you send or receive funds.
       </p>
+      <Link
+        to="/send"
+        className="btn btn-primary btn-sm inline-flex no-underline shadow-xs"
+        id="btn-empty-make-demo-payment"
+      >
+        Make a Demo Payment
+      </Link>
     </div>
   );
 }

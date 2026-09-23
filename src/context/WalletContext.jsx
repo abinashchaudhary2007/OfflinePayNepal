@@ -14,7 +14,7 @@ import {
   saveTransaction, getTransactionsByUser, getTransaction, updateTransactionStatus,
   saveDevice, getDevicesByUser, getDevice,
   saveAuthorization, getActiveAuthorization, updateAuthorization,
-  getPendingSyncItems, addToSyncQueue, updateSyncItem, removeSyncItem,
+  getPendingSyncItems, getAllSyncQueueItems, addToSyncQueue, updateSyncItem, removeSyncItem,
   getSecurityEvents, saveSecurityEvent, checkAndSaveNonce,
   executeAtomicOnlinePayment, executeAtomicOfflineCreation, executeAtomicOfflineAcceptance,
   getAllUsers, getUser,
@@ -26,7 +26,9 @@ import {
 import {
   TX_STATUS, verifyTransaction, settleTransaction,
   buildSignablePayload, logSecurityEvent, checkDoubleSpend,
+  classifySyncError,
 } from '../services/ledger';
+import { verifyAndSettleOnServer } from '../services/serverVerifier';
 
 const WalletContext = createContext(null);
 
@@ -39,9 +41,12 @@ export function WalletProvider({ children }) {
   const [securityEvents, setSecurityEvents] = useState([]);
   const [syncStatus, setSyncStatus]       = useState('idle'); // idle | syncing | done | error
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [retryWaitingCount, setRetryWaitingCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime]   = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const currentUserIdRef = useRef(null);
+  const isSyncingRef = useRef(false);
 
   // ─── Initialize wallet for a user ───────────────────────
   const initWallet = useCallback(async (user) => {
@@ -65,11 +70,39 @@ export function WalletProvider({ children }) {
         updatedAt: new Date().toISOString(),
       };
       await saveWallet(storedWallet);
+    } else if (storedWallet.availableBalance === undefined || storedWallet.availableBalance === null) {
+      storedWallet.availableBalance = 1000.00;
+      storedWallet.totalReceived = Math.max(storedWallet.totalReceived || 0, 1000.00);
+      await saveWallet(storedWallet);
     }
     setWallet(storedWallet);
 
-    // Load transactions
-    const txs = await getTransactionsByUser(user.id);
+    // Load transactions and guarantee visible welcome deposit transaction
+    let txs = await getTransactionsByUser(user.id);
+    if (!txs || txs.length === 0) {
+      const initialDepositTx = {
+        id: `TX-INIT-${user.id}`,
+        senderId: 'SYSTEM',
+        senderName: 'OfflinePay Nepal',
+        receiverId: user.id,
+        receiverName: user.name || 'User',
+        amount: 1000.00,
+        currency: 'NPR',
+        status: TX_STATUS.SETTLED,
+        method: 'ONLINE',
+        timestamp: user.createdAt || new Date().toISOString(),
+        settledAt: user.createdAt || new Date().toISOString(),
+        note: 'Welcome Bonus · Initial Deposit',
+        createdAt: user.createdAt || new Date().toISOString(),
+        updatedAt: user.createdAt || new Date().toISOString(),
+      };
+      try {
+        await saveTransaction(initialDepositTx);
+        txs = [initialDepositTx];
+      } catch (err) {
+        console.warn('[wallet] Could not save initial deposit tx:', err);
+      }
+    }
     setTransactions(txs);
 
     // Load device
@@ -87,9 +120,10 @@ export function WalletProvider({ children }) {
     const events = await getSecurityEvents(user.id);
     setSecurityEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
 
-    // Count pending sync items
-    const pending = await getPendingSyncItems();
-    setPendingSyncCount(pending.length);
+    // Count pending and retry waiting sync items
+    const allQueue = await getAllSyncQueueItems();
+    setPendingSyncCount(allQueue.filter(i => i.status === 'PENDING').length);
+    setRetryWaitingCount(allQueue.filter(i => i.status === 'RETRY_WAITING').length);
 
     setIsInitialized(true);
   }, []);
@@ -97,6 +131,7 @@ export function WalletProvider({ children }) {
   // ─── Reset on logout ─────────────────────────────────────
   const resetWallet = useCallback(() => {
     currentUserIdRef.current = null;
+    isSyncingRef.current = false;
     setWallet(null);
     setTransactions([]);
     setDevice(null);
@@ -104,6 +139,8 @@ export function WalletProvider({ children }) {
     setSecurityEvents([]);
     setSyncStatus('idle');
     setPendingSyncCount(0);
+    setRetryWaitingCount(0);
+    setLastSyncTime(null);
     setIsInitialized(false);
   }, []);
 
@@ -424,19 +461,31 @@ export function WalletProvider({ children }) {
 
   // ─── Synchronization Engine ──────────────────────────────
   const syncTransactions = useCallback(async (currentUser) => {
-    if (syncStatus === 'syncing') return;
+    if (isSyncingRef.current || syncStatus === 'syncing') {
+      return { settled: 0, rejected: 0, retrying: 0 };
+    }
+    isSyncingRef.current = true;
     setSyncStatus('syncing');
+
+    const MAX_SYNC_RETRIES = 5;
 
     try {
       const pending = await getPendingSyncItems();
       let settled = 0;
       let rejected = 0;
+      let retrying = 0;
 
       for (const item of pending) {
         if (item.type !== 'TRANSACTION') continue;
 
+        const currentAttempts = (item.attempts || 0) + 1;
+
         // Mark as syncing
-        await updateSyncItem(item.id, { status: 'SYNCING', attempts: (item.attempts || 0) + 1 });
+        await updateSyncItem(item.id, {
+          status: 'SYNCING',
+          attempts: currentAttempts,
+          lastAttemptAt: new Date().toISOString(),
+        });
         await updateTransactionStatus(item.transactionId, TX_STATUS.SYNCING);
 
         const tx = await getTransaction(item.transactionId);
@@ -452,31 +501,24 @@ export function WalletProvider({ children }) {
           continue;
         }
 
-        // Load sender's public key for verification
-        let senderPublicKey = null;
-        const senderKeys = await loadDeviceKeys(tx.deviceId);
-        if (senderKeys) senderPublicKey = senderKeys.publicKeyJwk;
+        // Authoritative Server-Side Verification Boundary
+        const serverResult = await verifyAndSettleOnServer(tx);
 
-        // Load device for counter check
-        const txDevice = await getDevice(tx.deviceId);
-        const expectedCounter = txDevice ? txDevice.transactionCounter : undefined;
-
-        // Run verification
-        const result = await verifyTransaction(tx, senderPublicKey, expectedCounter);
-
-        if (result.valid) {
+        if (serverResult.success) {
           // Mark transaction SETTLED
           await updateTransactionStatus(tx.id, TX_STATUS.SETTLED, {
             settledAt: new Date().toISOString(),
             syncedAt: new Date().toISOString(),
+            serverVerification: 'VERIFIED',
           });
 
-          // Note: Sender was debited upon creation, receiver credited upon acceptance.
-          // No duplicate deduction or addition is made here to maintain money conservation.
-
           // Update device counter
+          const txDevice = await getDevice(tx.deviceId);
           if (txDevice && tx.counter) {
-            const updDev = { ...txDevice, transactionCounter: Math.max(txDevice.transactionCounter, tx.counter) };
+            const updDev = {
+              ...txDevice,
+              transactionCounter: Math.max(txDevice.transactionCounter || 0, tx.counter),
+            };
             await saveDevice(updDev);
             if (device?.id === txDevice.id) setDevice(updDev);
           }
@@ -484,44 +526,77 @@ export function WalletProvider({ children }) {
           await removeSyncItem(item.id);
           settled++;
         } else {
-          // Verification failed: mark REJECTED
-          await updateTransactionStatus(tx.id, TX_STATUS.REJECTED, {
-            rejectionReason: result.event,
-            rejectedAt: new Date().toISOString(),
-          });
+          // Classify failure: retryable transient error vs fatal security rejection
+          const errClassification = classifySyncError(serverResult);
 
-          // Refund sender if sender is the one syncing
-          if (tx.senderId === currentUser.id && wallet) {
-            const refundedWallet = {
-              ...wallet,
-              availableBalance: Math.round(((wallet?.availableBalance || 0) + tx.amount) * 100) / 100,
-              totalSent: Math.max(0, Math.round(((wallet?.totalSent || 0) - tx.amount) * 100) / 100),
-              updatedAt: new Date().toISOString(),
-            };
-            await saveWallet(refundedWallet);
-            setWallet(refundedWallet);
+          if (errClassification.retryable && currentAttempts < MAX_SYNC_RETRIES) {
+            // Transient error: schedule exponential backoff retry (e.g. 2s, 4s, 8s, 16s, 30s)
+            const backoffMs = Math.min(30000, 2000 * Math.pow(2, currentAttempts - 1));
+            const nextRetryAt = new Date(Date.now() + backoffMs).toISOString();
+
+            await updateSyncItem(item.id, {
+              status: 'RETRY_WAITING',
+              nextRetryAt,
+              lastErrorCategory: 'RETRYABLE',
+              lastErrorMessage: serverResult.message || errClassification.message,
+            });
+
+            await updateTransactionStatus(tx.id, TX_STATUS.RETRY_WAITING, {
+              syncError: serverResult.message || errClassification.message,
+              nextRetryAt,
+            });
+
+            retrying++;
+          } else {
+            // Fatal security error OR max retries exhausted: mark REJECTED permanently
+            const reason = currentAttempts >= MAX_SYNC_RETRIES
+              ? 'MAX_RETRIES_EXCEEDED'
+              : (serverResult.reasonCode || errClassification.reasonCode || 'VERIFICATION_FAILED');
+
+            await updateTransactionStatus(tx.id, TX_STATUS.REJECTED, {
+              rejectionReason: reason,
+              rejectedAt: new Date().toISOString(),
+              syncError: serverResult.message || errClassification.message,
+            });
+
+            // Safe rollback/refund: only refund sender if sender is syncing and was debited upon creation
+            if (tx.senderId === currentUser?.id && wallet) {
+              const currentBal = wallet.availableBalance || 0;
+              const refundedWallet = {
+                ...wallet,
+                availableBalance: Math.round((currentBal + tx.amount) * 100) / 100,
+                totalSent: Math.max(0, Math.round(((wallet.totalSent || 0) - tx.amount) * 100) / 100),
+                updatedAt: new Date().toISOString(),
+              };
+              await saveWallet(refundedWallet);
+              setWallet(refundedWallet);
+            }
+
+            await removeSyncItem(item.id);
+            rejected++;
           }
-
-          await removeSyncItem(item.id);
-          rejected++;
         }
       }
 
       await refreshTransactions();
       await refreshSecurityEvents();
 
-      const remaining = await getPendingSyncItems();
-      setPendingSyncCount(remaining.length);
+      const allRemaining = await getAllSyncQueueItems();
+      setPendingSyncCount(allRemaining.filter(i => i.status === 'PENDING').length);
+      setRetryWaitingCount(allRemaining.filter(i => i.status === 'RETRY_WAITING').length);
+      setLastSyncTime(new Date().toISOString());
 
       setSyncStatus('done');
       setTimeout(() => setSyncStatus('idle'), 3000);
 
-      return { settled, rejected };
+      return { settled, rejected, retrying };
     } catch (err) {
-      console.error('[sync] Error:', err);
+      console.error('[sync] Error in sync engine:', err);
       setSyncStatus('error');
       setTimeout(() => setSyncStatus('idle'), 5000);
       throw err;
+    } finally {
+      isSyncingRef.current = false;
     }
   }, [syncStatus, wallet, device, refreshTransactions, refreshSecurityEvents]);
 
@@ -559,6 +634,8 @@ export function WalletProvider({ children }) {
       securityEvents,
       syncStatus,
       pendingSyncCount,
+      retryWaitingCount,
+      lastSyncTime,
       isInitialized,
 
       // Actions

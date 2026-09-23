@@ -123,6 +123,7 @@ export function getStatusBadgeClass(status) {
     FAILED:          'badge-failed',
     ACTIVE:          'badge-active',
     CREATED:         'badge-syncing',
+    RETRY_WAITING:   'badge-pending',
     EXPIRED:         'badge-failed',
   };
   return map[status] || 'badge-syncing';
@@ -138,6 +139,7 @@ export function getStatusLabel(status) {
     OFFLINE_PENDING: 'Offline Pending',
     PENDING:         'Pending',
     SYNCING:         'Syncing',
+    RETRY_WAITING:   'Retrying',
     REJECTED:        'Rejected',
     FAILED:          'Failed',
     ACTIVE:          'Active',

@@ -1,10 +1,9 @@
-/**
- * QRScanner.jsx — Phase 7 (QR Scanning + Verification)
- * Receiver scans the sender's QR, verifies signature locally, and accepts payment.
- * Uses html5-qrcode for camera scanning.
- */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, QrCode, ArrowDownLeft } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  CheckCircle2, XCircle, AlertTriangle, QrCode, ArrowDownLeft,
+  ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck
+} from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -15,14 +14,15 @@ import { useWallet } from '../context/WalletContext';
 import { formatCurrency, formatDateTime } from '../utils/formatting';
 import { verifyTransactionSignature } from '../services/crypto';
 import { buildSignablePayload } from '../services/ledger';
-import { loadDeviceKeys } from '../services/crypto';
-import { getDevice } from '../services/db';
+import { getDevice, getTransaction, getDB } from '../services/db';
+import PaymentReceipt from '../components/wallet/PaymentReceipt';
 
 const SCAN_STATES = {
   IDLE: 'idle',
   SCANNING: 'scanning',
   VERIFYING: 'verifying',
-  VERIFIED: 'verified',
+  OFFLINE_VERIFIED: 'offline_verified',
+  REQUEST_DETECTED: 'request_detected',
   INVALID: 'invalid',
   ACCEPTED: 'accepted',
   ERROR: 'error',
@@ -31,45 +31,53 @@ const SCAN_STATES = {
 function QRScanner() {
   const { currentUser } = useAuth();
   const { acceptIncomingPayment } = useWallet();
+  const navigate = useNavigate();
 
   const [scanState, setScanState] = useState(SCAN_STATES.IDLE);
   const [scannedTx, setScannedTx] = useState(null);
+  const [paymentRequest, setPaymentRequest] = useState(null);
   const [verifyResult, setVerifyResult] = useState(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const scannerRef = useRef(null);
-  const scannerContainerRef = useRef(null);
+  const [manualInput, setManualInput] = useState('');
+  const [showManual, setShowManual] = useState(false);
 
-  // Start scanner
+  const scannerRef = useRef(null);
+
+  // Start HTML5 camera scanner
   const startScanner = useCallback(() => {
     setScanState(SCAN_STATES.SCANNING);
     setScannedTx(null);
+    setPaymentRequest(null);
     setVerifyResult(null);
+    setErrorMsg('');
 
     setTimeout(() => {
       if (!document.getElementById('qr-reader')) return;
 
-      const scanner = new Html5QrcodeScanner('qr-reader', {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true,
-      }, false);
+      try {
+        const scanner = new Html5QrcodeScanner('qr-reader', {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          rememberLastUsedCamera: true,
+        }, false);
 
-      scanner.render(
-        async (decodedText) => {
-          scanner.clear().catch(() => {});
-          await handleScannedData(decodedText);
-        },
-        (error) => {
-          // scan errors are expected while scanning — ignore
-        }
-      );
+        scanner.render(
+          async (decodedText) => {
+            scanner.clear().catch(() => {});
+            await handleScannedData(decodedText);
+          },
+          () => {} // scan errors are expected while scanning
+        );
 
-      scannerRef.current = scanner;
+        scannerRef.current = scanner;
+      } catch (err) {
+        console.warn('[scanner init error]', err);
+      }
     }, 200);
   }, []);
 
-  // Stop scanner
+  // Stop scanner safely
   const stopScanner = useCallback(() => {
     if (scannerRef.current) {
       scannerRef.current.clear().catch(() => {});
@@ -86,76 +94,112 @@ function QRScanner() {
     };
   }, []);
 
-  // Process scanned QR data
+  // Process decoded QR payload
   async function handleScannedData(rawData) {
     setScanState(SCAN_STATES.VERIFYING);
     try {
-      const parsed = JSON.parse(rawData);
+      const parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
-      if (parsed.type !== 'OFFLINE_PAYMENT') {
-        setScanState(SCAN_STATES.INVALID);
-        setErrorMsg('This QR code is not an OfflinePay payment.');
-        return;
-      }
-
-      // Validate that this payment is for the current user
-      if (parsed.receiverId && parsed.receiverId !== currentUser?.id) {
-        setScanState(SCAN_STATES.INVALID);
-        setErrorMsg(`This payment is for ${parsed.receiverName || 'another user'}, not you.`);
-        return;
-      }
-
-      // Check amount
-      if (!parsed.amount || parsed.amount <= 0) {
-        setScanState(SCAN_STATES.INVALID);
-        setErrorMsg('Invalid payment amount.');
-        return;
-      }
-
-      // Verify signature
-      let sigValid = false;
-      let sigNote = 'Signature verification skipped (no public key available)';
-
-      // Try to get sender's public key from QR payload or registered device in local DB
-      try {
-        const senderDevice = await getDevice(parsed.deviceId);
-        const publicKeyJwk = parsed.senderPublicKeyJwk || senderDevice?.publicKeyJwk;
-
-        if (publicKeyJwk && parsed.signature && parsed.signature !== 'DEMO_SIG') {
-          const signablePayload = buildSignablePayload(parsed);
-          sigValid = await verifyTransactionSignature(
-            publicKeyJwk,
-            signablePayload,
-            parsed.signature
-          );
-          sigNote = sigValid ? 'ECDSA P-256 Signature Verified ✓' : 'Signature INVALID — Payload was tampered with ✗';
-        } else if (parsed.signature === 'DEMO_SIG') {
-          sigValid = true; // demo mode
-          sigNote = 'Demo signature (accepted for simulated demo)';
-        } else {
-          sigValid = false;
-          sigNote = 'Sender public key not available — cannot verify signature';
+      // ─── CASE 1: PAYMENT REQUEST (User scanned someone's receive/request QR) ───
+      if (parsed.type === 'PAYMENT_REQUEST') {
+        if (parsed.receiverId === currentUser?.id) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('You scanned your own payment request QR. You cannot send money to yourself.');
+          return;
         }
-      } catch (e) {
-        sigValid = false;
-        sigNote = 'Verification error: ' + e.message;
+
+        setPaymentRequest(parsed);
+        setScanState(SCAN_STATES.REQUEST_DETECTED);
+        return;
       }
 
-      setScannedTx(parsed);
-      setVerifyResult({ sigValid, sigNote });
-      setScanState(sigValid ? SCAN_STATES.VERIFIED : SCAN_STATES.INVALID);
+      // ─── CASE 2: OFFLINE PAYMENT (Receiver claims signed money sent by sender) ───
+      if (parsed.type === 'OFFLINE_PAYMENT') {
+        // Validate required cryptographic fields
+        if (!parsed.id || !parsed.senderId || !parsed.amount || !parsed.nonce) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Malformed payment token: Required cryptographic fields are missing from QR code.');
+          return;
+        }
 
-      if (!sigValid) {
-        setErrorMsg('Transaction signature is invalid. This payment may have been tampered with.');
+        // Validate receiver match
+        if (parsed.receiverId && parsed.receiverId !== currentUser?.id) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg(`This payment was created specifically for ${parsed.receiverName || 'another user'}, not your account.`);
+          return;
+        }
+
+        if (Number(parsed.amount) <= 0) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Invalid payment amount detected (must be greater than 0).');
+          return;
+        }
+
+        // 1. Check if transaction was already received / claimed on this device
+        try {
+          const existingTx = await getTransaction(parsed.id);
+          if (existingTx) {
+            setScanState(SCAN_STATES.INVALID);
+            setErrorMsg(`Transaction ${parsed.id} has already been claimed on this device.`);
+            return;
+          }
+        } catch (_) {}
+
+        // 2. Check if nonce was already registered
+        try {
+          const db = await getDB();
+          const existingNonce = await db.get('nonces', parsed.nonce);
+          if (existingNonce) {
+            setScanState(SCAN_STATES.INVALID);
+            setErrorMsg('Replay attack detected: This payment nonce has already been claimed.');
+            return;
+          }
+        } catch (_) {}
+
+        // 3. Verify cryptographic P-256 signature locally
+        let sigValid = false;
+        let sigNote = 'Signature verification skipped';
+
+        try {
+          const senderDevice = await getDevice(parsed.deviceId);
+          const publicKeyJwk = parsed.senderPublicKeyJwk || senderDevice?.publicKeyJwk;
+
+          if (publicKeyJwk && parsed.signature && parsed.signature !== 'DEMO_SIG') {
+            const signablePayload = buildSignablePayload(parsed);
+            sigValid = await verifyTransactionSignature(publicKeyJwk, signablePayload, parsed.signature);
+            sigNote = sigValid ? 'ECDSA P-256 Signature Verified ✓' : 'Signature INVALID — Payload was tampered with ✗';
+          } else if (parsed.signature === 'DEMO_SIG') {
+            sigValid = true;
+            sigNote = 'Demo signature (accepted for educational prototype)';
+          }
+        } catch (e) {
+          sigValid = false;
+          sigNote = 'Verification exception: ' + e.message;
+        }
+
+        if (!sigValid) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Cryptographic signature verification failed: Payload was altered or device key is invalid.');
+          return;
+        }
+
+        setScannedTx(parsed);
+        setVerifyResult({ sigValid, sigNote });
+        setScanState(SCAN_STATES.OFFLINE_VERIFIED);
+        return;
       }
+
+      // ─── CASE 3: Unknown QR payload ───
+      setScanState(SCAN_STATES.INVALID);
+      setErrorMsg('This QR code is not a valid OfflinePay payment or request.');
     } catch (err) {
       setScanState(SCAN_STATES.INVALID);
-      setErrorMsg('Invalid QR code format: ' + err.message);
+      setErrorMsg('Could not parse QR data format: ' + err.message);
     }
   }
 
-  // Accept payment
-  const handleAccept = async () => {
+  // Accept incoming offline payment into local wallet
+  const handleAcceptOfflinePayment = async () => {
     if (!scannedTx) return;
     setIsAccepting(true);
     try {
@@ -166,206 +210,291 @@ function QRScanner() {
       });
       setScanState(SCAN_STATES.ACCEPTED);
     } catch (e) {
-      setErrorMsg(e.message);
+      setErrorMsg(e.message || 'Failed to accept payment');
       setScanState(SCAN_STATES.ERROR);
     } finally {
       setIsAccepting(false);
     }
   };
 
+  const handleProceedToPay = () => {
+    if (!paymentRequest) return;
+    navigate('/send', {
+      state: {
+        receiver: {
+          id: paymentRequest.receiverId,
+          name: paymentRequest.receiverName || 'Recipient',
+        },
+        amount: paymentRequest.amount || '',
+        note: paymentRequest.note || '',
+      }
+    });
+  };
+
   const handleReset = () => {
     setScanState(SCAN_STATES.IDLE);
     setScannedTx(null);
+    setPaymentRequest(null);
     setVerifyResult(null);
     setErrorMsg('');
+    setManualInput('');
   };
 
   return (
     <DashboardLayout>
       <div className="max-w-md mx-auto space-y-5 animate-fade-in">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)]">Scan QR</h1>
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/dashboard"
+              className="p-1.5 rounded-lg hover:bg-[var(--color-gray-100)] text-[var(--color-gray-600)] transition-colors no-underline"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)] tracking-tight">
+                Scan Payment QR
+              </h1>
+              <p className="text-xs text-[var(--color-gray-500)] mt-0.5">
+                Scan to pay someone or claim an offline transfer
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowManual(p => !p)}
+            className="text-xs font-semibold text-[var(--color-indigo-600)] hover:underline flex items-center gap-1"
+          >
+            <Edit3 size={13} /> {showManual ? 'Hide Manual' : 'Paste Code'}
+          </button>
         </div>
 
-        {/* IDLE: Start scanning */}
-        {scanState === SCAN_STATES.IDLE && (
-          <Card>
-            <div className="text-center py-8">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'var(--color-indigo-100)' }}>
-                <QrCode size={40} color="var(--color-indigo-600)" />
-              </div>
-              <h2 className="font-bold text-[var(--color-gray-900)] mb-1">Ready to Scan</h2>
-              <p className="text-xs text-[var(--color-gray-500)] mb-4">
-                Point your camera at the sender's payment QR code
-              </p>
-              <Button block size="lg" variant="primary" onClick={startScanner} leftIcon={<QrCode size={18} />}>
-                Open Camera Scanner
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* SCANNING: Camera active */}
-        {scanState === SCAN_STATES.SCANNING && (
-          <Card>
-            <CardHeader title="Point Camera at QR Code" />
-            <div id="qr-reader" className="w-full rounded-xl overflow-hidden" />
-            <Button block variant="outline" className="mt-3" onClick={stopScanner}>
-              Cancel
+        {/* Manual Payload Fallback (Convenient for quick testing or camera restriction) */}
+        {showManual && (
+          <Card padding className="bg-indigo-50/40 border border-indigo-100 space-y-2.5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-indigo-900)]">
+              Manual QR Code Payload
+            </h2>
+            <textarea
+              rows={3}
+              placeholder='Paste JSON payload or QR string here...'
+              value={manualInput}
+              onChange={e => setManualInput(e.target.value)}
+              className="w-full p-2.5 text-xs font-mono bg-white border border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-lg outline-none"
+            />
+            <Button
+              size="sm"
+              variant="primary"
+              block
+              disabled={!manualInput.trim()}
+              onClick={() => handleScannedData(manualInput.trim())}
+            >
+              Process Payload
             </Button>
           </Card>
         )}
 
-        {/* VERIFYING */}
-        {scanState === SCAN_STATES.VERIFYING && (
-          <Card>
-            <div className="text-center py-8">
-              <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin mx-auto mb-4" />
-              <p className="font-semibold text-[var(--color-gray-700)]">Verifying signature...</p>
-              <p className="text-xs text-[var(--color-gray-400)] mt-1">Checking cryptographic proof</p>
+        {/* ─── STATE 1: IDLE ─── */}
+        {scanState === SCAN_STATES.IDLE && (
+          <Card padding className="text-center py-8 space-y-4">
+            <div className="w-20 h-20 rounded-2xl bg-indigo-50 text-[var(--color-indigo-600)] flex items-center justify-center mx-auto shadow-xs">
+              <Camera size={40} />
             </div>
+            <div>
+              <h2 className="text-base font-bold text-[var(--color-gray-900)]">Ready to Scan</h2>
+              <p className="text-xs text-[var(--color-gray-500)] max-w-xs mx-auto mt-1">
+                Scan another user's identity QR to send them money, or scan a signed payment QR to claim offline funds.
+              </p>
+            </div>
+
+            <Button
+              block
+              size="lg"
+              variant="primary"
+              onClick={startScanner}
+              leftIcon={<QrCode size={18} />}
+              id="btn-open-camera-scanner"
+            >
+              Open Camera Scanner
+            </Button>
           </Card>
         )}
 
-        {/* VERIFIED: Show details, let receiver accept */}
-        {scanState === SCAN_STATES.VERIFIED && scannedTx && (
-          <Card>
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-4 p-3 rounded-xl" style={{ background: 'var(--color-emerald-50)' }}>
-              <CheckCircle2 size={24} color="var(--color-emerald-600)" />
-              <div>
-                <p className="font-bold text-[var(--color-emerald-700)]">Payment Verified</p>
-                <p className="text-xs text-[var(--color-emerald-600)]">{verifyResult?.sigNote}</p>
+        {/* ─── STATE 2: SCANNING (Camera Active) ─── */}
+        {scanState === SCAN_STATES.SCANNING && (
+          <Card padding className="space-y-4">
+            <CardHeader
+              title="Camera Viewfinder"
+              subtitle="Hold steady over the QR code"
+            />
+            <div
+              id="qr-reader"
+              className="w-full rounded-2xl overflow-hidden border border-[var(--color-gray-200)] shadow-inner"
+            />
+            <Button block variant="outline" onClick={stopScanner}>
+              Cancel Scanner
+            </Button>
+          </Card>
+        )}
+
+        {/* ─── STATE 3: VERIFYING ─── */}
+        {scanState === SCAN_STATES.VERIFYING && (
+          <Card padding className="text-center py-10 space-y-3">
+            <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin mx-auto" />
+            <p className="font-bold text-sm text-[var(--color-gray-800)]">Verifying QR Data...</p>
+            <p className="text-xs text-[var(--color-gray-400)]">Checking cryptographic signature & payload structure</p>
+          </Card>
+        )}
+
+        {/* ─── STATE 4: PAYMENT REQUEST DETECTED ─── */}
+        {scanState === SCAN_STATES.REQUEST_DETECTED && paymentRequest && (
+          <Card padding className="space-y-5">
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-50 border border-indigo-100">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-indigo-600)] text-white flex items-center justify-center flex-shrink-0">
+                <ArrowUpRight size={22} />
               </div>
-            </div>
-
-            {/* Payment details */}
-            <div className="space-y-2 mb-4">
-              <DetailRow label="From"        value={scannedTx.senderName} />
-              <DetailRow label="Amount"      value={formatCurrency(scannedTx.amount)} highlight />
-              <DetailRow label="Method"      value={<Badge status="OFFLINE_PENDING">Offline QR</Badge>} />
-              <DetailRow label="TX ID"       value={scannedTx.id} mono />
-              <DetailRow label="Timestamp"   value={formatDateTime(scannedTx.timestamp)} />
-              {scannedTx.note && <DetailRow label="Note" value={scannedTx.note} />}
-            </div>
-
-            {/* Signature indicator */}
-            <div className="p-3 rounded-xl mb-4 flex items-center gap-2"
-              style={{ background: verifyResult?.sigValid ? 'var(--color-emerald-50)' : 'var(--color-amber-50)' }}>
-              {verifyResult?.sigValid
-                ? <CheckCircle2 size={16} color="var(--color-emerald-600)" />
-                : <AlertTriangle size={16} color="var(--color-amber-600)" />
-              }
-              <div>
-                <p className="text-xs font-bold" style={{ color: verifyResult?.sigValid ? 'var(--color-emerald-700)' : 'var(--color-amber-700)' }}>
-                  Signature: {verifyResult?.sigValid ? 'VALID' : 'UNVERIFIED (Demo)'}
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-indigo-700)]">
+                  Payment Request
+                </span>
+                <p className="text-sm font-bold text-[var(--color-gray-900)] truncate">
+                  Pay {paymentRequest.receiverName || 'Recipient'}
                 </p>
-                <p className="text-[10px] text-[var(--color-gray-400)]">{verifyResult?.sigNote}</p>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset}>Reject</Button>
+            <div className="space-y-2.5 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
+                <span className="text-[var(--color-gray-500)]">Recipient:</span>
+                <span className="font-bold text-[var(--color-gray-900)]">{paymentRequest.receiverName}</span>
+              </div>
+              {paymentRequest.amount ? (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
+                  <span className="text-[var(--color-gray-500)]">Requested Amount:</span>
+                  <span className="font-black text-emerald-600 text-sm">
+                    {formatCurrency(paymentRequest.amount)}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
+                  <span className="text-[var(--color-gray-500)]">Amount:</span>
+                  <span className="font-medium text-[var(--color-gray-700)]">Enter upon payment</span>
+                </div>
+              )}
+              {paymentRequest.note && (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
+                  <span className="text-[var(--color-gray-500)]">Note:</span>
+                  <span className="text-[var(--color-gray-700)] italic">{paymentRequest.note}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <Button variant="outline" onClick={handleReset} className="w-1/3">
+                Cancel
+              </Button>
               <Button
-                block variant="primary"
-                loading={isAccepting}
-                onClick={handleAccept}
-                leftIcon={<ArrowDownLeft size={16} />}
+                variant="primary"
+                onClick={handleProceedToPay}
+                className="w-2/3"
+                leftIcon={<ArrowUpRight size={16} />}
+                id="btn-proceed-to-pay"
               >
-                Accept Payment
+                Proceed to Pay
               </Button>
             </div>
           </Card>
         )}
 
-        {/* INVALID */}
-        {scanState === SCAN_STATES.INVALID && (
-          <Card>
-            <div className="text-center py-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'var(--color-red-100)' }}>
-                <XCircle size={32} color="var(--color-red-500)" />
+        {/* ─── STATE 5: OFFLINE PAYMENT CLAIM / ACCEPTANCE ─── */}
+        {scanState === SCAN_STATES.OFFLINE_VERIFIED && scannedTx && (
+          <Card padding className="space-y-5">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+              <ShieldCheck size={26} className="text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-emerald-950">Offline Payment Verified</p>
+                <p className="text-[11px] text-emerald-700">{verifyResult?.sigNote}</p>
               </div>
-              <h2 className="font-bold text-[var(--color-red-600)] mb-2">Invalid Payment</h2>
-              <p className="text-sm text-[var(--color-gray-500)] mb-5">{errorMsg}</p>
-              <Button block variant="outline" onClick={handleReset}>Try Again</Button>
             </div>
-          </Card>
-        )}
 
-        {/* ACCEPTED */}
-        {scanState === SCAN_STATES.ACCEPTED && scannedTx && (
-          <Card>
-            <div className="text-center py-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'var(--color-emerald-100)' }}>
-                <ArrowDownLeft size={32} color="var(--color-emerald-600)" />
-              </div>
-              <h2 className="font-bold text-[var(--color-emerald-700)] text-xl mb-1">Payment Accepted!</h2>
-              <p className="text-2xl font-black text-[var(--color-emerald-600)] my-3">
+            <div className="text-center py-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+                Incoming Amount To Claim
+              </span>
+              <p className="text-3xl font-black text-emerald-600 mt-0.5">
                 +{formatCurrency(scannedTx.amount)}
               </p>
-              <p className="text-sm text-[var(--color-gray-500)] mb-2">From {scannedTx.senderName}</p>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-5"
-                style={{ background: 'var(--color-amber-100)', color: 'var(--color-amber-700)' }}>
-                <AlertTriangle size={11} />
-                Stored offline — will sync when internet is available
+              <p className="text-xs text-[var(--color-gray-500)]">From: {scannedTx.senderName}</p>
+            </div>
+
+            <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-xl overflow-hidden bg-white text-xs">
+              <div className="flex items-center justify-between p-3">
+                <span className="text-[var(--color-gray-500)]">Sender ID:</span>
+                <span className="font-mono text-[11px] text-[var(--color-gray-700)]">{scannedTx.senderId}</span>
               </div>
-              <div className="flex gap-2">
-                <Button block variant="outline" onClick={handleReset}>Scan Another</Button>
-                <Button block variant="primary" onClick={() => window.location.href = '/transactions'}>
-                  View Transactions
-                </Button>
+              <div className="flex items-center justify-between p-3">
+                <span className="text-[var(--color-gray-500)]">Transaction ID:</span>
+                <span className="font-mono text-[11px] text-[var(--color-gray-700)]">{scannedTx.id}</span>
               </div>
+              <div className="flex items-center justify-between p-3">
+                <span className="text-[var(--color-gray-500)]">Signature Type:</span>
+                <span className="font-bold text-emerald-700 text-[11px]">ECDSA P-256</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <Button variant="outline" onClick={handleReset} className="w-1/3">
+                Dismiss
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleAcceptOfflinePayment}
+                loading={isAccepting}
+                className="w-2/3"
+                leftIcon={<ArrowDownLeft size={16} />}
+                id="btn-claim-offline-payment"
+              >
+                Claim & Accept
+              </Button>
             </div>
           </Card>
         )}
 
-        {/* ERROR */}
-        {scanState === SCAN_STATES.ERROR && (
-          <Card>
-            <div className="text-center py-6">
-              <XCircle size={40} color="var(--color-red-500)" className="mx-auto mb-3" />
-              <p className="font-bold text-[var(--color-red-600)] mb-2">Error</p>
-              <p className="text-sm text-[var(--color-gray-500)] mb-4">{errorMsg}</p>
-              <Button block variant="outline" onClick={handleReset}>Try Again</Button>
-            </div>
-          </Card>
+        {/* ─── STATE 6: PAYMENT ACCEPTED RESULT ─── */}
+        {scanState === SCAN_STATES.ACCEPTED && scannedTx && (
+          <PaymentReceipt
+            transaction={{
+              ...scannedTx,
+              status: 'OFFLINE_PENDING',
+              method: 'OFFLINE_QR',
+              receiverName: currentUser?.name || 'Receiver',
+            }}
+            isSender={false}
+            onDone={() => navigate('/dashboard')}
+          />
         )}
 
-        {/* Info card */}
-        {(scanState === SCAN_STATES.IDLE || scanState === SCAN_STATES.SCANNING) && (
-          <Card>
-            <CardHeader title="Offline Payment Verification" />
-            <ul className="space-y-2">
-              {[
-                'The QR code contains a cryptographically signed transaction.',
-                'Signature is verified locally without internet.',
-                'Accepted payments are stored securely on your device.',
-                'Balances update automatically when you sync.',
-              ].map((tip, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-[var(--color-gray-600)]">
-                  <CheckCircle2 size={12} color="var(--color-emerald-500)" className="mt-0.5 flex-shrink-0" />
-                  {tip}
-                </li>
-              ))}
-            </ul>
+        {/* ─── STATE 7: INVALID / ERROR ─── */}
+        {(scanState === SCAN_STATES.INVALID || scanState === SCAN_STATES.ERROR) && (
+          <Card padding className="text-center py-8 space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <XCircle size={32} />
+            </div>
+
+            <h2 className="text-base font-bold text-red-700">Invalid Payment QR</h2>
+            <p className="text-xs text-[var(--color-gray-600)] max-w-xs mx-auto leading-relaxed">
+              {errorMsg || 'Could not verify or process this QR code.'}
+            </p>
+
+            <Button block variant="outline" onClick={handleReset}>
+              Try Again
+            </Button>
           </Card>
         )}
       </div>
     </DashboardLayout>
-  );
-}
-
-function DetailRow({ label, value, highlight, mono }) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-b border-[var(--color-gray-50)] last:border-0">
-      <span className="text-xs text-[var(--color-gray-500)]">{label}</span>
-      <span className={`text-xs font-semibold ${highlight ? 'text-[var(--color-emerald-600)]' : 'text-[var(--color-gray-700)]'} ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </span>
-    </div>
   );
 }
 

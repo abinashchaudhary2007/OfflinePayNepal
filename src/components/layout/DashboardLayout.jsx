@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import MobileBottomNav from './MobileBottomNav';
 import { OfflineBanner } from '../ui/OfflineBanner';
 import { useOfflineSimulation } from '../../hooks/useOfflineSimulation';
 
@@ -22,10 +23,10 @@ function DashboardLayout({ children }) {
   } = useOfflineSimulation();
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-gray-50)' }}>
-      {/* Demo banner */}
+    <div className="min-h-screen flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)]">
+      {/* Demo watermark banner */}
       <div className="demo-banner">
-        OfflinePay Nepal · Prototype Demo
+        OfflinePay Nepal · Educational Prototype (Simulated Money Only)
       </div>
 
       {/* Offline banner */}
@@ -45,7 +46,7 @@ function DashboardLayout({ children }) {
       />
 
       {/* Body: Sidebar + Main */}
-      <div className="flex flex-1 overflow-hidden" style={{ position: 'relative' }}>
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
@@ -54,8 +55,7 @@ function DashboardLayout({ children }) {
 
         {/* Main content */}
         <main
-          className="flex-1 overflow-y-auto pb-20 md:pb-8"
-          style={{ minHeight: 0 }}
+          className="flex-1 overflow-y-auto pb-24 md:pb-10 min-h-0"
         >
           <div className="container-app py-4 sm:py-6 md:py-8">
             {children}
@@ -66,46 +66,6 @@ function DashboardLayout({ children }) {
       {/* Mobile bottom navigation */}
       <MobileBottomNav />
     </div>
-  );
-}
-
-/** Mobile bottom navigation tabs */
-function MobileBottomNav() {
-  const mobileNavItems = [
-    { to: '/dashboard',    icon: LayoutDashboard, label: 'Home' },
-    { to: '/wallet',       icon: Wallet2,         label: 'Wallet' },
-    { to: '/send',         icon: ArrowUpRight,    label: 'Send' },
-    { to: '/offline',      icon: WifiOff,         label: 'Offline' },
-    { to: '/transactions', icon: History,         label: 'History' },
-  ];
-
-  return (
-    <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[var(--color-gray-100)] flex z-20 safe-bottom"
-      style={{ boxShadow: '0 -1px 12px rgba(0,0,0,0.06)' }}
-    >
-      {mobileNavItems.map(({ to, icon: Icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          className={({ isActive }) => `
-            flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5
-            text-[10px] font-semibold transition-colors
-            ${isActive
-              ? 'text-[var(--color-indigo-600)]'
-              : 'text-[var(--color-gray-400)]'
-            }
-          `}
-        >
-          {({ isActive }) => (
-            <>
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              {label}
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
   );
 }
 

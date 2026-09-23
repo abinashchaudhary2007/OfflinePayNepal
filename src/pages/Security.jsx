@@ -53,16 +53,16 @@ function Security() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-[var(--color-gray-400)] font-bold uppercase tracking-wider mb-0.5">
-                    Security Posture
+                    Security Configuration & Device Status
                   </p>
                   <p
                     className="text-xl sm:text-2xl font-black"
                     style={{ color: highSeverityCount > 0 ? 'var(--color-red-600)' : 'var(--color-emerald-600)' }}
                   >
-                    {highSeverityCount > 0 ? `${highSeverityCount} High Alert${highSeverityCount > 1 ? 's' : ''}` : 'Verified & Secure'}
+                    {highSeverityCount > 0 ? `${highSeverityCount} High Alert${highSeverityCount > 1 ? 's' : ''}` : 'Operational & Healthy'}
                   </p>
                   <p className="text-xs text-[var(--color-gray-500)] mt-0.5">
-                    {securityEvents.length} events logged · {blockedCount} malicious attempts blocked
+                    {securityEvents.length} security checks logged · {blockedCount} anomaly attempts prevented
                   </p>
                 </div>
               </div>

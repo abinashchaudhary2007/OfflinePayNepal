@@ -5,9 +5,10 @@
  * DEMO SYSTEM — simulated money only.
  */
 import { openDB } from 'idb';
+import { isValidStatusTransition } from './ledger.js';
 
 const DB_NAME    = 'offlinepay-nepal';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 let dbPromise = null;
 
@@ -317,9 +318,16 @@ export async function getTransactionsByUser(userId) {
 export async function updateTransactionStatus(id, status, extra = {}) {
   const db = await getDB();
   const tx = await db.get('transactions', id);
-  if (tx) {
-    await db.put('transactions', { ...tx, status, ...extra, updatedAt: new Date().toISOString() });
+  if (!tx) return false;
+
+  // Enforce central status transition policy
+  if (!isValidStatusTransition(tx.status, status)) {
+    console.warn(`[db] Invalid status transition rejected: ${tx.status} -> ${status} for tx ${id}`);
+    return false;
   }
+
+  await db.put('transactions', { ...tx, status, ...extra, updatedAt: new Date().toISOString() });
+  return true;
 }
 
 // ─── Authorizations ────────────────────────────
@@ -344,12 +352,43 @@ export async function updateAuthorization(authId, updates) {
 // ─── Sync Queue ───────────────────────────────
 export async function addToSyncQueue(item) {
   const db = await getDB();
-  await db.put('sync_queue', item);
+  const queueItem = {
+    id: item.id || `sync-${item.transactionId || Date.now()}`,
+    transactionId: item.transactionId,
+    transactionRef: item.transactionRef || item.transactionId,
+    type: item.type || 'TRANSACTION',
+    status: item.status || 'PENDING',
+    attempts: item.attempts || 0,
+    lastAttemptAt: item.lastAttemptAt || null,
+    nextRetryAt: item.nextRetryAt || null,
+    lastErrorCategory: item.lastErrorCategory || null,
+    lastErrorMessage: item.lastErrorMessage || null,
+    idempotencyKey: item.idempotencyKey || `idem-${item.transactionId || item.id}`,
+    senderId: item.senderId || null,
+    receiverId: item.receiverId || null,
+    createdAt: item.createdAt || new Date().toISOString(),
+    ...item,
+  };
+  await db.put('sync_queue', queueItem);
 }
 
 export async function getPendingSyncItems() {
   const db = await getDB();
-  return db.getAllFromIndex('sync_queue', 'status', 'PENDING');
+  const all = await db.getAll('sync_queue');
+  const now = new Date();
+  return all.filter(item => {
+    if (item.status === 'PENDING') return true;
+    if (item.status === 'RETRY_WAITING') {
+      if (!item.nextRetryAt) return true;
+      return new Date(item.nextRetryAt) <= now;
+    }
+    return false;
+  });
+}
+
+export async function getAllSyncQueueItems() {
+  const db = await getDB();
+  return db.getAll('sync_queue');
 }
 
 export async function updateSyncItem(id, updates) {

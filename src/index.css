@@ -90,27 +90,22 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  font-family: var(--font-primary);
-  background-color: var(--color-gray-50);
-  color: var(--color-gray-900);
-  line-height: 1.6;
-  min-height: 100vh;
-}
+@layer base {
+  body {
+    font-family: var(--font-primary);
+    background-color: var(--color-gray-50);
+    color: var(--color-gray-900);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
 
-/* ─── Custom Scrollbar ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--color-gray-100); }
-::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); }
-
-/* ─── Typography ───────────────────────────────────────────────────── */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-primary);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-  color: var(--color-gray-900);
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-primary);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+    color: inherit;
+  }
 }
 
 /* ─── Standard Cards ───────────────────────────────────────────────── */
@@ -488,10 +483,14 @@ input::-ms-clear {
 
 /* ─── Hero background (Minimal Dark Fintech) ───────────────────────── */
 .hero-bg {
-  background: #0F172A;
+  background: #0B0F19;
+  color: #F8FAFC;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid #1E293B;
+}
+.hero-bg h1, .hero-bg h2, .hero-bg h3, .hero-bg h4 {
+  color: #FFFFFF;
 }
 .hero-bg::before {
   content: '';

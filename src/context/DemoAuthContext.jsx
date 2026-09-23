@@ -82,6 +82,7 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
             setCurrentUser(localUser);
             localStorage.setItem(ACTIVE_USER_STORAGE_KEY, localUser.id);
             setIsLoading(false);
+            onLogin?.(localUser);
             return;
           }
         }
@@ -91,9 +92,25 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
         if (savedUserId && isMounted) {
           const localUser = await getUser(savedUserId);
           if (localUser) {
-            const wallet = await getWalletByUserId(localUser.id);
-            if (wallet) localUser.wallet = wallet;
+            let wallet = await getWalletByUserId(localUser.id);
+            if (!wallet) {
+              wallet = {
+                id: `wallet-${localUser.id}`,
+                userId: localUser.id,
+                availableBalance: 1000.00,
+                offlineLimit: 0,
+                offlineSpent: 0,
+                offlineRemaining: 0,
+                currency: 'NPR',
+                totalReceived: 1000.00,
+                totalSent: 0,
+                updatedAt: new Date().toISOString(),
+              };
+              await saveWallet(wallet);
+            }
+            localUser.wallet = wallet;
             setCurrentUser(localUser);
+            onLogin?.(localUser);
           }
         }
       } catch (err) {

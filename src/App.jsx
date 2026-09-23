@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { DemoAuthProvider, useAuth } from './context/DemoAuthContext';
 import { WalletProvider, useWallet } from './context/WalletContext';
 
@@ -47,6 +47,18 @@ function AdminRoute({ children }) {
  * Must be a child of both DemoAuthProvider and WalletProvider.
  */
 function AppCore() {
+  const { currentUser, isAuthenticated } = useAuth();
+  const { initWallet, resetWallet } = useWallet();
+
+  // Guarantees wallet is initialized whenever user session is active (including page refresh)
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      initWallet(currentUser);
+    } else if (!isAuthenticated) {
+      resetWallet();
+    }
+  }, [isAuthenticated, currentUser?.id, initWallet, resetWallet]);
+
   return (
     <Routes>
       {/* Public */}

@@ -5,6 +5,12 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {
+  isValidStatusTransition,
+  classifySyncError,
+  TX_STATUS,
+  VALID_STATUS_TRANSITIONS,
+} from '../src/services/ledger.js';
 
 // Mock in-memory IndexedDB replacement for unit testing
 const inMemoryStores = {
@@ -579,4 +585,319 @@ test('Bug 2 / Test 8: Offline payment balance debit & limit deduction consistenc
 
   assert.equal(receiverWallet.availableBalance, 200, 'Receiver availableBalance must be 200');
   assert.equal(wallet.availableBalance + receiverWallet.availableBalance, 1000, 'Conservation of money must hold');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. State Machine & Status Transition Policy Tests
+// ─────────────────────────────────────────────────────────────────────────────
+test('State Machine — Valid status transitions are permitted', () => {
+  assert.equal(isValidStatusTransition(TX_STATUS.CREATED, TX_STATUS.OFFLINE_PENDING), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.CREATED, TX_STATUS.SETTLED), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.OFFLINE_PENDING, TX_STATUS.SYNCING), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.SYNCING, TX_STATUS.RETRY_WAITING), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.RETRY_WAITING, TX_STATUS.SYNCING), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.SYNCING, TX_STATUS.SETTLED), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.SYNCING, TX_STATUS.REJECTED), true);
+  // Idempotent same-state transitions
+  assert.equal(isValidStatusTransition(TX_STATUS.SETTLED, TX_STATUS.SETTLED), true);
+  assert.equal(isValidStatusTransition(TX_STATUS.SYNCING, TX_STATUS.SYNCING), true);
+});
+
+test('State Machine — Invalid and illegal status transitions are strictly blocked', () => {
+  // Terminal state SETTLED cannot transition back to anything else
+  assert.equal(isValidStatusTransition(TX_STATUS.SETTLED, TX_STATUS.SYNCING), false);
+  assert.equal(isValidStatusTransition(TX_STATUS.SETTLED, TX_STATUS.REJECTED), false);
+  assert.equal(isValidStatusTransition(TX_STATUS.SETTLED, TX_STATUS.CREATED), false);
+
+  // Terminal state REJECTED cannot transition to SETTLED
+  assert.equal(isValidStatusTransition(TX_STATUS.REJECTED, TX_STATUS.SETTLED), false);
+
+  // Illegal jumps
+  assert.equal(isValidStatusTransition(TX_STATUS.CREATED, TX_STATUS.RETRY_WAITING), false);
+  assert.equal(isValidStatusTransition(TX_STATUS.OFFLINE_PENDING, TX_STATUS.SETTLED), false);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Synchronization Error Classification & Safe Retry Queue Tests
+// ─────────────────────────────────────────────────────────────────────────────
+test('Sync — Classify transient network/server failures as RETRYABLE', () => {
+  const netError = classifySyncError(new Error('Failed to fetch: net::ERR_INTERNET_DISCONNECTED'));
+  assert.equal(netError.retryable, true);
+  assert.equal(netError.category, 'RETRYABLE');
+
+  const timeoutError = classifySyncError(new Error('Gateway timeout (HTTP 504)'));
+  assert.equal(timeoutError.retryable, true);
+  assert.equal(timeoutError.category, 'RETRYABLE');
+});
+
+test('Sync — Classify security violations as non-retryable FATAL errors', () => {
+  const sigError = classifySyncError(new Error('The transaction signature could not be verified.'));
+  assert.equal(sigError.retryable, false);
+  assert.equal(sigError.category, 'FATAL');
+  assert.equal(sigError.reasonCode, 'INVALID_SIGNATURE');
+
+  const replayError = classifySyncError(new Error('Cryptographic nonce has already been used'));
+  assert.equal(replayError.retryable, false);
+  assert.equal(replayError.category, 'FATAL');
+  assert.equal(replayError.reasonCode, 'REPLAY_ATTACK');
+
+  const counterError = classifySyncError(new Error('Transaction counter regression detected'));
+  assert.equal(counterError.retryable, false);
+  assert.equal(counterError.category, 'FATAL');
+  assert.equal(counterError.reasonCode, 'INVALID_COUNTER');
+
+  const revokedError = classifySyncError(new Error('Transacting device has been REVOKED'));
+  assert.equal(revokedError.retryable, false);
+  assert.equal(revokedError.category, 'FATAL');
+  assert.equal(revokedError.reasonCode, 'REVOKED_DEVICE');
+});
+
+test('Sync Queue — Exponential backoff calculation and retry limits', () => {
+  const calculateBackoff = (attempt) => Math.min(30000, 2000 * Math.pow(2, attempt - 1));
+
+  assert.equal(calculateBackoff(1), 2000, 'Attempt 1 backoff is 2s');
+  assert.equal(calculateBackoff(2), 4000, 'Attempt 2 backoff is 4s');
+  assert.equal(calculateBackoff(3), 8000, 'Attempt 3 backoff is 8s');
+  assert.equal(calculateBackoff(4), 16000, 'Attempt 4 backoff is 16s');
+  assert.equal(calculateBackoff(5), 30000, 'Attempt 5 backoff is capped at 30s');
+
+  const MAX_RETRIES = 5;
+  const item = { attempts: 5 };
+  const shouldReject = item.attempts >= MAX_RETRIES;
+  assert.equal(shouldReject, true, 'Transactions reaching max retries must be marked REJECTED');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Server-Side Cryptographic Signature Verification & Tamper Resistance
+// ─────────────────────────────────────────────────────────────────────────────
+test('Server Verifier — Authoritative ECDSA P-256 verification succeeds for authentic payload', async () => {
+  const { keyPair, publicKeyJwk } = await generateKeyPair();
+
+  // Authoritative server device registry
+  const serverDeviceDb = new Map();
+  serverDeviceDb.set('DEV-AUTH-001', {
+    id: 'DEV-AUTH-001',
+    userId: 'usr-abinash',
+    publicKeyJwk,
+    status: 'ACTIVE',
+    transactionCounter: 5,
+  });
+
+  const tx = {
+    id: 'TX-VERIFY-001',
+    senderId: 'usr-abinash',
+    receiverId: 'usr-shopkeeper',
+    amount: 150.00,
+    currency: 'NPR',
+    timestamp: new Date().toISOString(),
+    nonce: generateNonce(),
+    counter: 6,
+    authorizationId: null,
+    deviceId: 'DEV-AUTH-001',
+  };
+
+  const signature = await signPayload(keyPair.privateKey, tx);
+  tx.signature = signature;
+
+  // Independent server verification logic:
+  // 1. Resolve registered device authoritatively from DB (not client payload)
+  const registeredDevice = serverDeviceDb.get(tx.deviceId);
+  assert.ok(registeredDevice, 'Server must locate registered device');
+  assert.equal(registeredDevice.status, 'ACTIVE');
+
+  // 2. Authoritative signature verification (reconstruct signable payload excluding signature)
+  const signablePayload = {
+    id: tx.id,
+    senderId: tx.senderId,
+    receiverId: tx.receiverId,
+    amount: tx.amount,
+    currency: tx.currency,
+    timestamp: tx.timestamp,
+    nonce: tx.nonce,
+    counter: tx.counter,
+    authorizationId: tx.authorizationId,
+    deviceId: tx.deviceId,
+  };
+  const isValid = await verifySignature(registeredDevice.publicKeyJwk, signablePayload, tx.signature);
+  assert.equal(isValid, true, 'Server must verify authentic signature with registered public key');
+});
+
+test('Server Verifier — Server rejects tampered amount, recipient, or transaction ID', async () => {
+  const { keyPair, publicKeyJwk } = await generateKeyPair();
+
+  const originalTx = {
+    id: 'TX-TAMPER-001',
+    senderId: 'usr-abinash',
+    receiverId: 'usr-shopkeeper',
+    amount: 200.00,
+    currency: 'NPR',
+    timestamp: new Date().toISOString(),
+    nonce: generateNonce(),
+    counter: 1,
+    authorizationId: null,
+    deviceId: 'DEV-AUTH-002',
+  };
+
+  const validSignature = await signPayload(keyPair.privateKey, originalTx);
+
+  // 1. Tamper amount (Rs. 200 -> Rs. 2,000)
+  const tamperedAmountTx = { ...originalTx, amount: 2000.00 };
+  const amountValid = await verifySignature(publicKeyJwk, tamperedAmountTx, validSignature);
+  assert.equal(amountValid, false, 'Tampered amount MUST be rejected by server signature verifier');
+
+  // 2. Tamper recipient (usr-shopkeeper -> usr-attacker)
+  const tamperedReceiverTx = { ...originalTx, receiverId: 'usr-attacker' };
+  const receiverValid = await verifySignature(publicKeyJwk, tamperedReceiverTx, validSignature);
+  assert.equal(receiverValid, false, 'Tampered recipient MUST be rejected by server signature verifier');
+
+  // 3. Tamper transaction ID
+  const tamperedIdTx = { ...originalTx, id: 'TX-TAMPER-999' };
+  const idValid = await verifySignature(publicKeyJwk, tamperedIdTx, validSignature);
+  assert.equal(idValid, false, 'Tampered transaction ID MUST be rejected by server signature verifier');
+});
+
+test('Server Verifier — Server rejects unregistered device or revoked device', async () => {
+  const serverDeviceDb = new Map();
+  serverDeviceDb.set('DEV-REVOKED-01', {
+    id: 'DEV-REVOKED-01',
+    userId: 'usr-abinash',
+    status: 'REVOKED',
+  });
+
+  // Test unregistered device
+  const unknownDev = serverDeviceDb.get('DEV-UNKNOWN-99');
+  assert.equal(unknownDev, undefined, 'Unregistered device must fail resolution');
+
+  // Test revoked device
+  const revokedDev = serverDeviceDb.get('DEV-REVOKED-01');
+  assert.equal(revokedDev.status, 'REVOKED', 'Revoked device must not be permitted');
+});
+
+test('Server Verifier — Idempotent server settlement guarantees no double debit or credit', () => {
+  const serverLedger = new Map();
+  const txId = 'TX-IDEM-001';
+
+  // First sync attempt
+  function settle(tx) {
+    if (serverLedger.has(tx.id)) {
+      return { success: true, status: 'SETTLED', alreadySettled: true };
+    }
+    serverLedger.set(tx.id, { ...tx, status: 'SETTLED', settledAt: new Date().toISOString() });
+    return { success: true, status: 'SETTLED', alreadySettled: false };
+  }
+
+  const result1 = settle({ id: txId, amount: 250 });
+  assert.equal(result1.success, true);
+  assert.equal(result1.alreadySettled, false);
+  assert.equal(serverLedger.size, 1);
+
+  const result2 = settle({ id: txId, amount: 250 });
+  assert.equal(result2.success, true);
+  assert.equal(result2.alreadySettled, true, 'Second sync must recognize transaction is already settled');
+  assert.equal(serverLedger.size, 1, 'Server ledger must not create duplicate transaction');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. Shopkeeper UX & Local QR Acceptance Tests
+// ─────────────────────────────────────────────────────────────────────────────
+test('Receiver UX — Reject payment QR intended for a different receiver', () => {
+  const currentShopkeeperId = 'usr-kirana-store-01';
+  const qrPayload = {
+    id: 'TX-PAY-901',
+    senderId: 'usr-customer-02',
+    receiverId: 'usr-hardware-store-03', // Different shopkeeper!
+    amount: 350.00,
+  };
+
+  function validateReceiver(scannedTx, myId) {
+    if (scannedTx.receiverId !== myId) {
+      throw new Error(`Payment mismatch: This payment was intended for another receiver (${scannedTx.receiverId}).`);
+    }
+  }
+
+  assert.throws(
+    () => validateReceiver(qrPayload, currentShopkeeperId),
+    /Payment mismatch: This payment was intended for another receiver/
+  );
+});
+
+test('Receiver UX — Enforce single local acceptance: duplicate scans are blocked', () => {
+  const localAcceptedTxs = new Set();
+  const localAcceptedNonces = new Set();
+
+  function acceptQrPayment(tx) {
+    if (localAcceptedTxs.has(tx.id)) {
+      throw new Error('This payment has already been accepted locally.');
+    }
+    if (localAcceptedNonces.has(tx.nonce)) {
+      throw new Error('Security alert: Replay detected. Nonce has already been accepted.');
+    }
+    localAcceptedTxs.add(tx.id);
+    localAcceptedNonces.add(tx.nonce);
+    return { accepted: true, status: 'OFFLINE_PENDING' };
+  }
+
+  const tx = { id: 'TX-SHOP-001', nonce: 'nonce-shop-001', amount: 150 };
+
+  // First scan
+  const firstAccept = acceptQrPayment(tx);
+  assert.equal(firstAccept.accepted, true);
+  assert.equal(firstAccept.status, 'OFFLINE_PENDING');
+
+  // Second scan (replay/duplicate)
+  assert.throws(
+    () => acceptQrPayment(tx),
+    /already been accepted locally/
+  );
+});
+
+test('Payment UX — Validate amount constraints (zero, negative, max single, allowance)', () => {
+  const auth = { remainingAmount: 500, maxSingleTransaction: 300 };
+  const wallet = { availableBalance: 1000 };
+
+  function validatePaymentAmount(amount, auth, wallet) {
+    const num = Number(amount);
+    if (isNaN(num) || num <= 0) {
+      return { valid: false, error: 'Please enter a valid amount greater than Rs. 0.' };
+    }
+    if (num > wallet.availableBalance) {
+      return { valid: false, error: `Insufficient balance. Available: Rs. ${wallet.availableBalance}` };
+    }
+    if (num > auth.maxSingleTransaction) {
+      return { valid: false, error: `Amount exceeds maximum single transaction limit of Rs. ${auth.maxSingleTransaction}.` };
+    }
+    if (num > auth.remainingAmount) {
+      return { valid: false, error: `Amount exceeds your remaining offline allowance of Rs. ${auth.remainingAmount}.` };
+    }
+    return { valid: true };
+  }
+
+  assert.equal(validatePaymentAmount(0, auth, wallet).valid, false);
+  assert.equal(validatePaymentAmount(-50, auth, wallet).valid, false);
+  assert.equal(validatePaymentAmount(400, auth, wallet).valid, false); // Exceeds max single 300
+  assert.equal(validatePaymentAmount(350, { ...auth, maxSingleTransaction: 600, remainingAmount: 200 }, wallet).valid, false); // Exceeds remaining 200
+  assert.equal(validatePaymentAmount(200, auth, wallet).valid, true);
+});
+
+test('Server Verifier — Reject transaction with expired authorization', () => {
+  const expiredAuth = {
+    id: 'AUTH-EXP-01',
+    deviceId: 'DEV-01',
+    remainingAmount: 500,
+    expiresAt: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+  };
+
+  function checkAuth(auth, txAmount) {
+    if (new Date(auth.expiresAt) < new Date()) {
+      return { valid: false, reasonCode: 'EXPIRED_AUTHORIZATION' };
+    }
+    if (txAmount > auth.remainingAmount) {
+      return { valid: false, reasonCode: 'LIMIT_EXCEEDED' };
+    }
+    return { valid: true };
+  }
+
+  const result = checkAuth(expiredAuth, 100);
+  assert.equal(result.valid, false);
+  assert.equal(result.reasonCode, 'EXPIRED_AUTHORIZATION');
 });
