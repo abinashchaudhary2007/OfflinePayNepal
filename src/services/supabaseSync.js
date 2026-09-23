@@ -145,6 +145,24 @@ export async function pushProfileToSupabase(user) {
 }
 
 /**
+ * Delete user profile and wallet from Supabase
+ */
+export async function deleteProfileAndWalletFromSupabase(userId) {
+  if (!canSyncWithSupabase() || !userId) return false;
+
+  try {
+    // Delete profile
+    await supabase.from('profiles').delete().eq('id', userId);
+    // Delete wallet
+    await supabase.from('wallets').delete().eq('user_id', userId);
+    return true;
+  } catch (err) {
+    console.warn('[supabaseSync] Failed to delete user from Supabase:', err);
+    return false;
+  }
+}
+
+/**
  * Push user wallet state to Supabase
  */
 export async function pushWalletToSupabase(wallet) {

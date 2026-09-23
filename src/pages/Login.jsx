@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/DemoAuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -9,15 +9,18 @@ import Button from '../components/ui/Button';
  * Login page — Secure authentication with Supabase and offline session support.
  */
 function Login() {
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, resendConfirmationEmail, isLoading, error, clearError } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [formError, setFormError] = useState({});
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState(null);
 
   const handleChange = (e) => {
     clearError();
     setFormError({});
+    setResendMsg(null);
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -37,6 +40,22 @@ function Login() {
 
     const result = await login(form.email, form.password);
     if (result.success) navigate('/dashboard');
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!form.email) {
+      setFormError({ email: 'Please enter your email to resend confirmation.' });
+      return;
+    }
+    setResendLoading(true);
+    setResendMsg(null);
+    const res = await resendConfirmationEmail(form.email);
+    setResendLoading(false);
+    if (res.success) {
+      setResendMsg('Confirmation email sent! Please check your inbox and spam folder.');
+    } else {
+      setResendMsg(res.error || 'Failed to resend confirmation email.');
+    }
   };
 
   return (
@@ -114,11 +133,38 @@ function Login() {
           {/* Server error */}
           {error && (
             <div
-              className="flex items-center gap-2 p-3 rounded-lg text-sm mb-5 border border-red-200"
-              style={{ background: 'var(--color-red-50)', color: 'var(--color-red-700)' }}
+              className="p-3.5 rounded-xl text-sm mb-5 border border-red-200 space-y-2.5"
+              style={{ background: 'var(--color-red-50)', color: 'var(--color-red-800)' }}
               role="alert"
             >
-              {error}
+              <div className="flex items-start gap-2.5">
+                <AlertCircle size={17} className="text-red-600 shrink-0 mt-0.5" />
+                <span className="font-medium text-xs leading-relaxed">{error}</span>
+              </div>
+
+              {error.toLowerCase().includes('not confirmed') && (
+                <div className="pt-2 border-t border-red-200/80">
+                  <p className="text-xs text-red-700 mb-2 leading-relaxed">
+                    Supabase requires email confirmation before you can sign in. Check your inbox (or spam) for the verification link.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResendConfirmation}
+                      disabled={resendLoading}
+                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+                    >
+                      {resendLoading ? 'Sending...' : 'Resend Confirmation Email'}
+                    </button>
+                    {resendMsg && (
+                      <span className={`text-xs font-medium flex items-center gap-1 ${resendMsg.includes('sent') ? 'text-emerald-700' : 'text-red-600'}`}>
+                        {resendMsg.includes('sent') && <CheckCircle2 size={13} />}
+                        {resendMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -33,7 +33,7 @@ const Input = forwardRef(function Input({
 
       <div className="relative flex items-center">
         {leftIcon && (
-          <span className="absolute left-3.5 text-[var(--color-gray-400)] pointer-events-none flex">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-gray-400)] pointer-events-none flex items-center justify-center">
             {leftIcon}
           </span>
         )}
@@ -57,15 +57,23 @@ const Input = forwardRef(function Input({
         {type === 'password' ? (
           <button
             type="button"
-            className="absolute right-3.5 text-[var(--color-gray-400)] hover:text-[var(--color-gray-600)] transition-colors"
-            onClick={() => setShowPassword(s => !s)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-[var(--color-gray-400)] hover:text-[var(--color-gray-700)] focus:text-[var(--color-indigo-600)] transition-colors cursor-pointer rounded-md flex items-center justify-center z-10 select-none hover:bg-[var(--color-gray-100)] focus:outline-none"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowPassword(s => !s);
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
             tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            id={`${inputId}-toggle-password`}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         ) : rightIcon ? (
-          <span className="absolute right-3.5 text-[var(--color-gray-400)] pointer-events-none flex">
+          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-gray-400)] pointer-events-none flex items-center justify-center">
             {rightIcon}
           </span>
         ) : null}

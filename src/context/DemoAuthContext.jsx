@@ -217,7 +217,11 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
             return { success: true, user: cachedUser };
           }
 
-          setError(sbError.message || 'Invalid email or password.');
+          if (sbError.message.toLowerCase().includes('email not confirmed')) {
+            setError('Email not confirmed. Please check your inbox for the verification link, or click below to resend it.');
+          } else {
+            setError(sbError.message || 'Invalid email or password.');
+          }
           setIsLoading(false);
           return { success: false };
         }
@@ -296,17 +300,37 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
 
     const hashedInput = await hashPassword(password);
 
-    // Duplicate check in local IndexedDB
+    // 1. Duplicate check in local IndexedDB
     const existing = await getUserByEmail(cleanEmail);
     if (existing) {
-      setError('An account with this email already exists.');
+      setError('An account with this email already exists. Please sign in instead.');
       setIsLoading(false);
       return { success: false };
     }
 
-    let assignedUserId = `user-${Date.now()}`;
+    // 2. Duplicate check in remote Supabase profiles if online
+    if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', cleanEmail)
+          .maybeSingle();
 
-    // Online registration via Supabase Auth
+        if (existingProfile) {
+          setError('An account with this email already exists. Please sign in instead.');
+          setIsLoading(false);
+          return { success: false };
+        }
+      } catch (err) {
+        console.warn('[auth] Remote profile duplicate check:', err);
+      }
+    }
+
+    let assignedUserId = `user-${Date.now()}`;
+    let requiresEmailConfirmation = false;
+
+    // 3. Online registration via Supabase Auth
     if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
       try {
         const { data, error: sbError } = await supabase.auth.signUp({
@@ -322,11 +346,23 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
 
         if (sbError) {
           console.warn('[auth] Supabase register notice:', sbError.message);
-          // If Supabase hits built-in email service rate limits, don't block prototype registration!
-          const isEmailLimit = sbError.message?.toLowerCase().includes('rate limit') || 
-                               sbError.message?.toLowerCase().includes('email') ||
-                               sbError.status === 429;
-          if (!isEmailLimit) {
+          const msg = (sbError.message || '').toLowerCase();
+
+          // Reject if email is already in use
+          if (
+            msg.includes('already registered') ||
+            msg.includes('already exists') ||
+            msg.includes('user already in use') ||
+            msg.includes('email address is already') ||
+            sbError.status === 422
+          ) {
+            setError('An account with this email already exists. Please sign in instead.');
+            setIsLoading(false);
+            return { success: false };
+          }
+
+          const isRateLimit = msg.includes('rate limit') || msg.includes('too many requests') || sbError.status === 429;
+          if (!isRateLimit) {
             setError(sbError.message);
             setIsLoading(false);
             return { success: false };
@@ -335,8 +371,19 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
           console.info('[auth] Supabase email rate limit reached. Creating user profile directly.');
         }
 
+        // Supabase identity enumeration protection: empty identities means email is already registered!
+        if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          setError('An account with this email already exists. Please sign in instead.');
+          setIsLoading(false);
+          return { success: false };
+        }
+
         if (data?.user?.id) {
           assignedUserId = data.user.id;
+        }
+
+        if (data?.user && !data.session) {
+          requiresEmailConfirmation = true;
         }
       } catch (err) {
         console.warn('[auth] Supabase register exception:', err);
@@ -381,8 +428,66 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
     localStorage.setItem(ACTIVE_USER_STORAGE_KEY, newUser.id);
     setIsLoading(false);
     onLogin?.(newUser);
-    return { success: true, user: newUser };
+    return { success: true, user: newUser, requiresEmailConfirmation };
   }, [onLogin]);
+
+  // ─── Resend Confirmation Email ────────────────────────────────
+  const resendConfirmationEmail = useCallback(async (email) => {
+    if (!isSupabaseConfigured()) {
+      return { success: false, error: 'Supabase is not configured.' };
+    }
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address.' };
+    }
+    try {
+      const { error: resendErr } = await supabase.auth.resend({
+        type: 'signup',
+        email: cleanEmail,
+      });
+      if (resendErr) throw resendErr;
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message || 'Failed to resend confirmation email.' };
+    }
+  }, []);
+
+  // ─── Delete Account ───────────────────────────────────────────
+  const deleteAccount = useCallback(async () => {
+    if (!currentUser) return { success: false, error: 'No active user session' };
+    setIsLoading(true);
+    const userId = currentUser.id;
+
+    try {
+      // 1. Delete remote Supabase data if online
+      if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const { deleteProfileAndWalletFromSupabase } = await import('../services/supabaseSync');
+          await deleteProfileAndWalletFromSupabase(userId);
+          await supabase.auth.signOut().catch(() => {});
+        } catch (err) {
+          console.warn('[auth] Error during Supabase account deletion:', err);
+        }
+      }
+
+      // 2. Delete all local IndexedDB data
+      const { deleteUserData } = await import('../services/db');
+      await deleteUserData(userId);
+
+      // 3. Clear session storage & state
+      localStorage.removeItem(ACTIVE_USER_STORAGE_KEY);
+      setCurrentUser(null);
+      setError(null);
+      setIsLoading(false);
+      onLogout?.();
+
+      return { success: true };
+    } catch (err) {
+      console.error('[auth] Failed to delete account:', err);
+      setIsLoading(false);
+      return { success: false, error: err.message || 'Failed to delete account' };
+    }
+  }, [currentUser, onLogout]);
 
   // ─── Quick login for developer testing ─────────────────────────
   const quickLogin = useCallback(async (userId) => {
@@ -439,6 +544,8 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
       quickLogin,
       register,
       logout,
+      deleteAccount,
+      resendConfirmationEmail,
       clearError,
     }}>
       {children}

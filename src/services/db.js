@@ -139,6 +139,63 @@ export async function getAllUsers() {
   return validUsers;
 }
 
+/**
+ * Permanently delete all local IndexedDB records associated with a user:
+ * user profile, wallets, devices, key material, authorizations, transactions, security events, and sync queue.
+ */
+export async function deleteUserData(userId) {
+  if (!userId) return;
+  const db = await getDB();
+
+  // 1. Delete user record
+  await db.delete('users', userId).catch(() => {});
+
+  // 2. Delete wallet(s)
+  const allWallets = await db.getAll('wallet');
+  for (const w of allWallets) {
+    if (w.userId === userId) {
+      await db.delete('wallet', w.id).catch(() => {});
+    }
+  }
+
+  // 3. Delete devices, key materials & authorizations
+  const devices = await getDevicesByUser(userId);
+  for (const dev of devices) {
+    await db.delete('devices', dev.id).catch(() => {});
+    await db.delete('key_material', dev.id).catch(() => {});
+    const allAuths = await db.getAll('authorizations');
+    for (const a of allAuths) {
+      if (a.deviceId === dev.id) {
+        await db.delete('authorizations', a.id).catch(() => {});
+      }
+    }
+  }
+
+  // 4. Delete transactions where user is sender or receiver
+  const allTxs = await db.getAll('transactions');
+  for (const tx of allTxs) {
+    if (tx.senderId === userId || tx.receiverId === userId) {
+      await db.delete('transactions', tx.id).catch(() => {});
+    }
+  }
+
+  // 5. Delete security events
+  const allEvents = await db.getAll('security_events');
+  for (const ev of allEvents) {
+    if (ev.userId === userId) {
+      await db.delete('security_events', ev.id).catch(() => {});
+    }
+  }
+
+  // 6. Delete sync queue items
+  const syncItems = await db.getAll('sync_queue');
+  for (const item of syncItems) {
+    if (item.userId === userId || item.payload?.senderId === userId || item.payload?.receiverId === userId) {
+      await db.delete('sync_queue', item.id).catch(() => {});
+    }
+  }
+}
+
 // ─── Wallet ───────────────────────────────────
 export async function saveWallet(wallet) {
   const db = await getDB();

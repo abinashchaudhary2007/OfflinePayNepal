@@ -315,6 +315,15 @@ h1, h2, h3, h4, h5, h6 {
 .input-field.has-left-icon { padding-left: 42px !important; }
 .input-field.has-right-icon { padding-right: 42px !important; }
 
+/* ─── Disable Browser Native Password Reveal (Edge / IE) ──────────── */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+}
+
 /* ─── Status Indicators ────────────────────────────────────────────── */
 .status-dot {
   width: 8px;
