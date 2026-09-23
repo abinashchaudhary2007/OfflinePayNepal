@@ -268,14 +268,20 @@ begin
     end if;
   end if;
 
-  -- 4. Lock sender wallet
+  -- 4. Lock sender wallet (or provision with standard grant if legitimate profile exists)
   select * into v_sender_wallet
   from public.wallets
   where user_id = p_sender_id
   for update;
 
   if not found then
-    return jsonb_build_object('success', false, 'error', 'Sender wallet not found');
+    if exists (select 1 from public.profiles where id = p_sender_id) then
+      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+      values ('wallet_' || p_sender_id, p_sender_id, 1000.00, 0.00, 0.00, 'NPR')
+      returning * into v_sender_wallet;
+    else
+      return jsonb_build_object('success', false, 'error', 'Sender wallet not found');
+    end if;
   end if;
 
   if v_sender_wallet.balance < p_amount then
@@ -289,9 +295,15 @@ begin
   for update;
 
   if not found then
-    insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
-    values ('wallet_' || p_receiver_id, p_receiver_id, 0.00, 0.00, 0.00, 'NPR')
-    returning * into v_receiver_wallet;
+    if exists (select 1 from public.profiles where id = p_receiver_id) then
+      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+      values ('wallet_' || p_receiver_id, p_receiver_id, 1000.00, 0.00, 0.00, 'NPR')
+      returning * into v_receiver_wallet;
+    else
+      insert into public.wallets (id, user_id, balance, offline_limit, offline_reserve, currency)
+      values ('wallet_' || p_receiver_id, p_receiver_id, 0.00, 0.00, 0.00, 'NPR')
+      returning * into v_receiver_wallet;
+    end if;
   end if;
 
   -- 6. Atomic Debit & Credit

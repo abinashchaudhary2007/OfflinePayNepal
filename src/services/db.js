@@ -451,110 +451,119 @@ export async function executeAtomicOnlinePayment({
   const db = await getDB();
   await initSeedData();
 
-  const idbTx = db.transaction(['wallet', 'transactions', 'nonces', 'security_events', 'users'], 'readwrite');
-
-  // 1. Replay prevention check
-  const nonceStore = idbTx.objectStore('nonces');
-  const existingNonce = await nonceStore.get(transaction.nonce);
-  if (existingNonce) {
-    idbTx.abort();
-    throw new Error('Replay protection check failed: nonce already used.');
-  }
-  await nonceStore.put({ nonce: transaction.nonce, usedAt: new Date().toISOString() });
-
-  // 2. Load sender wallet
-  const walletStore = idbTx.objectStore('wallet');
-  const allWallets = await walletStore.getAll();
-  let senderWallet = allWallets.find(w => w.userId === senderId);
-  if (!senderWallet) {
-    const senderUser = await idbTx.objectStore('users').get(senderId);
-    if (senderUser?.wallet) {
-      senderWallet = {
-        ...senderUser.wallet,
-        userId: senderId,
-        updatedAt: new Date().toISOString(),
-      };
-      await walletStore.put(senderWallet);
-    } else {
-      idbTx.abort();
-      throw new Error('Sender wallet not found.');
-    }
-  }
-
-  // 3. Amount & balance validation
+  // 1. Strict amount and recipient validation
   const parsedAmount = Math.round(Number(amount) * 100) / 100;
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
-    idbTx.abort();
     throw new Error('Invalid payment amount. Must be greater than 0.');
   }
+  if (senderId === receiverId) {
+    throw new Error('Sender and receiver cannot be the same account.');
+  }
+
+  // 2. Replay prevention check on local nonce registry
+  const existingNonce = await db.get('nonces', transaction.nonce);
+  if (existingNonce) {
+    throw new Error('Replay protection check failed: nonce already used.');
+  }
+
+  // 3. Load sender wallet and pre-validate balance
+  let senderWallet = await getWalletByUserId(senderId);
+  if (!senderWallet) {
+    throw new Error('Sender wallet not found.');
+  }
   if (senderWallet.availableBalance < parsedAmount) {
-    idbTx.abort();
     throw new Error('Insufficient balance.');
   }
 
-  // 4. Load or initialize receiver wallet
-  let receiverWallet = allWallets.find(w => w.userId === receiverId);
-  if (!receiverWallet) {
-    const receiverUser = await idbTx.objectStore('users').get(receiverId);
-    receiverWallet = {
-      id: receiverUser?.wallet?.id || `wallet-${receiverId}`,
-      userId: receiverId,
-      availableBalance: receiverUser?.wallet?.availableBalance ?? 1000.00,
-      offlineLimit: 0,
-      offlineSpent: 0,
-      offlineRemaining: 0,
-      currency: 'NPR',
-      totalReceived: 1000.00,
-      totalSent: 0,
-      updatedAt: new Date().toISOString(),
-    };
+  // 4. Remote Authoritative Supabase Settlement (Phase 1)
+  let remoteResult = null;
+  const isOnlineEnv = typeof navigator !== 'undefined' && navigator.onLine;
+
+  if (isOnlineEnv) {
+    try {
+      const { executeRemoteAtomicTransfer, canSyncWithSupabase } = await import('./supabaseSync.js');
+      if (canSyncWithSupabase()) {
+        remoteResult = await executeRemoteAtomicTransfer({
+          senderId,
+          receiverId,
+          amount: parsedAmount,
+          txRef: transaction.id,
+          senderName: transaction.senderName,
+          receiverName: transaction.receiverName,
+          note: transaction.note,
+          nonce: transaction.nonce,
+          paymentType: 'ONLINE',
+        });
+
+        if (!remoteResult || remoteResult.success !== true) {
+          const errMsg = remoteResult?.error || remoteResult?.message || 'Server rejected payment settlement.';
+          throw new Error(errMsg);
+        }
+      }
+    } catch (remoteErr) {
+      console.warn('[db] Remote atomic payment settlement failed:', remoteErr);
+      throw remoteErr;
+    }
+  } else if (typeof window !== 'undefined') {
+    throw new Error('Online transfer requires an internet connection. Please connect or switch to Offline Payment.');
   }
 
-  // 5. Atomic Debit & Credit
+  // 5. Commit atomic updates to local IndexedDB ONLY after server confirms settlement
+  const idbTx = db.transaction(['wallet', 'transactions', 'nonces', 'security_events'], 'readwrite');
+
+  // Record nonce in local registry
+  await idbTx.objectStore('nonces').put({ nonce: transaction.nonce, usedAt: new Date().toISOString() });
+
+  // Update sender wallet with server-confirmed balance if available
+  const authoritativeSenderBalance = remoteResult?.sender_new_balance !== undefined
+    ? Number(remoteResult.sender_new_balance)
+    : Math.round((senderWallet.availableBalance - parsedAmount) * 100) / 100;
+
   const updatedSenderWallet = {
     ...senderWallet,
-    availableBalance: Math.round((senderWallet.availableBalance - parsedAmount) * 100) / 100,
+    availableBalance: authoritativeSenderBalance,
     totalSent: Math.round(((senderWallet.totalSent || 0) + parsedAmount) * 100) / 100,
     updatedAt: transaction.timestamp,
   };
-  await walletStore.put(updatedSenderWallet);
+  await idbTx.objectStore('wallet').put(updatedSenderWallet);
 
-  const updatedReceiverWallet = {
-    ...receiverWallet,
-    availableBalance: Math.round((receiverWallet.availableBalance + parsedAmount) * 100) / 100,
-    totalReceived: Math.round(((receiverWallet.totalReceived || 0) + parsedAmount) * 100) / 100,
-    updatedAt: transaction.timestamp,
+  // Update receiver wallet if it exists in this local IndexedDB instance
+  const walletStore = idbTx.objectStore('wallet');
+  const allWallets = await walletStore.getAll();
+  let receiverWallet = allWallets.find(w => w.userId === receiverId);
+  let updatedReceiverWallet = null;
+
+  if (receiverWallet) {
+    const authoritativeReceiverBalance = remoteResult?.receiver_new_balance !== undefined
+      ? Number(remoteResult.receiver_new_balance)
+      : Math.round((receiverWallet.availableBalance + parsedAmount) * 100) / 100;
+
+    updatedReceiverWallet = {
+      ...receiverWallet,
+      availableBalance: authoritativeReceiverBalance,
+      totalReceived: Math.round(((receiverWallet.totalReceived || 0) + parsedAmount) * 100) / 100,
+      updatedAt: transaction.timestamp,
+    };
+    await walletStore.put(updatedReceiverWallet);
+  }
+
+  // Save settled transaction in local store
+  const settledTx = {
+    ...transaction,
+    status: 'SETTLED',
+    settledAt: transaction.timestamp || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
-  await walletStore.put(updatedReceiverWallet);
+  await idbTx.objectStore('transactions').put(settledTx);
 
-  // 6. Save settled transaction
-  await idbTx.objectStore('transactions').put(transaction);
-
-  // 7. Save security audit event
+  // Save security audit event
   if (securityEvent) {
     await idbTx.objectStore('security_events').put(securityEvent);
   }
 
   await idbTx.done;
 
-  // 8. Remote Supabase atomic transfer in background if online
-  if (typeof navigator !== 'undefined' && navigator.onLine) {
-    import('./supabaseSync.js').then(({ executeRemoteAtomicTransfer }) => {
-      executeRemoteAtomicTransfer({
-        senderId,
-        receiverId,
-        amount: parsedAmount,
-        txRef: transaction.id,
-        senderName: transaction.senderName,
-        receiverName: transaction.receiverName,
-        note: transaction.note,
-        nonce: transaction.nonce,
-        paymentType: 'ONLINE'
-      }).catch(err => console.warn('[db] Remote atomic payment sync warning:', err));
-    }).catch(() => {});
-  }
-
-  return { updatedSenderWallet, updatedReceiverWallet };
+  return { updatedSenderWallet, updatedReceiverWallet, remoteResult };
 }
 
 /**

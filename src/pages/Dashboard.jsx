@@ -294,7 +294,9 @@ function Dashboard() {
                   </p>
                   <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-[#0B0F19] text-xs text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-800/80">
                     <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                    <span className="truncate font-medium">{securityEvents[0].eventType.replace(/_/g, ' ')}</span>
+                    <span className="truncate font-medium">
+                      {securityEvents[0]?.eventType ? securityEvents[0].eventType.replace(/_/g, ' ') : 'Security Audit Verified'}
+                    </span>
                   </div>
                 </div>
               )}

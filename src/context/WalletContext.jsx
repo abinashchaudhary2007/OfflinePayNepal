@@ -125,6 +125,35 @@ export function WalletProvider({ children }) {
     setPendingSyncCount(allQueue.filter(i => i.status === 'PENDING').length);
     setRetryWaitingCount(allQueue.filter(i => i.status === 'RETRY_WAITING').length);
 
+    // Reconcile with authoritative Supabase remote state when online (Phase 2)
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { fetchRemoteWallet, syncInboundTransactions, canSyncWithSupabase } = await import('../services/supabaseSync');
+        if (canSyncWithSupabase()) {
+          const remoteWallet = await fetchRemoteWallet(user.id);
+          if (remoteWallet && remoteWallet.balance !== undefined) {
+            storedWallet = {
+              ...storedWallet,
+              availableBalance: Number(remoteWallet.balance),
+              offlineLimit: remoteWallet.offline_limit ?? storedWallet.offlineLimit,
+              offlineReserve: remoteWallet.offline_reserve ?? storedWallet.offlineReserve,
+              updatedAt: remoteWallet.updated_at || new Date().toISOString(),
+            };
+            await saveWallet(storedWallet);
+            setWallet(storedWallet);
+          }
+
+          const { newCount } = await syncInboundTransactions(user.id);
+          if (newCount > 0) {
+            txs = await getTransactionsByUser(user.id);
+            setTransactions(txs);
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[wallet] Inbound reconciliation warning:', syncErr);
+      }
+    }
+
     setIsInitialized(true);
   }, []);
 
@@ -159,6 +188,46 @@ export function WalletProvider({ children }) {
     const events = await getSecurityEvents(userId);
     setSecurityEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
   }, []);
+
+  // ─── Realtime Inbound Updates Listener (Phase 3) ─────────
+  useEffect(() => {
+    const userId = wallet?.userId;
+    if (!userId || typeof navigator === 'undefined' || !navigator.onLine) return;
+
+    let unsubscribe = () => {};
+
+    import('../services/supabaseSync').then(({ subscribeToUserWalletAndTransactions, canSyncWithSupabase, syncInboundTransactions }) => {
+      if (!canSyncWithSupabase()) return;
+
+      unsubscribe = subscribeToUserWalletAndTransactions(
+        userId,
+        async (remoteWallet) => {
+          if (remoteWallet && remoteWallet.balance !== undefined) {
+            const currentLocal = await getWalletByUserId(userId);
+            if (currentLocal) {
+              const updated = {
+                ...currentLocal,
+                availableBalance: Number(remoteWallet.balance),
+                offlineLimit: remoteWallet.offline_limit ?? currentLocal.offlineLimit,
+                offlineReserve: remoteWallet.offline_reserve ?? currentLocal.offlineReserve,
+                updatedAt: remoteWallet.updated_at || new Date().toISOString(),
+              };
+              await saveWallet(updated);
+              setWallet(updated);
+            }
+          }
+        },
+        async () => {
+          await syncInboundTransactions(userId);
+          await refreshTransactions();
+        }
+      );
+    }).catch(err => console.warn('[wallet] Realtime listener notice:', err));
+
+    return () => {
+      unsubscribe();
+    };
+  }, [wallet?.userId, refreshTransactions]);
 
   // ─── Register Device ─────────────────────────────────────
   const registerDevice = useCallback(async (userId) => {
@@ -575,6 +644,37 @@ export function WalletProvider({ children }) {
             await removeSyncItem(item.id);
             rejected++;
           }
+        }
+      }
+
+      // Inbound reconciliation for incoming payments & authoritative wallet balance (Phase 2)
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const { fetchRemoteWallet, syncInboundTransactions, canSyncWithSupabase } = await import('../services/supabaseSync');
+          if (canSyncWithSupabase() && currentUser?.id) {
+            const remoteWallet = await fetchRemoteWallet(currentUser.id);
+            if (remoteWallet && remoteWallet.balance !== undefined) {
+              const currentLocalWallet = await getWalletByUserId(currentUser.id);
+              if (currentLocalWallet) {
+                const updated = {
+                  ...currentLocalWallet,
+                  availableBalance: Number(remoteWallet.balance),
+                  offlineLimit: remoteWallet.offline_limit ?? currentLocalWallet.offlineLimit,
+                  offlineReserve: remoteWallet.offline_reserve ?? currentLocalWallet.offlineReserve,
+                  updatedAt: remoteWallet.updated_at || new Date().toISOString(),
+                };
+                await saveWallet(updated);
+                setWallet(updated);
+              }
+            }
+
+            const { newCount } = await syncInboundTransactions(currentUser.id);
+            if (newCount > 0) {
+              settled += newCount;
+            }
+          }
+        } catch (inboundErr) {
+          console.warn('[sync] Inbound synchronization notice:', inboundErr);
         }
       }
 

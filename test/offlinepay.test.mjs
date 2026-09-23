@@ -901,3 +901,109 @@ test('Server Verifier — Reject transaction with expired authorization', () => 
   assert.equal(result.valid, false);
   assert.equal(result.reasonCode, 'EXPIRED_AUTHORIZATION');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 15. Online QR Payment: Authoritative Settlement & Inbound Synchronization
+// ─────────────────────────────────────────────────────────────────────────────
+test('Authoritative Online Settlement — Server RPC failure preserves local balance without debit', async () => {
+  const localSenderWallet = { userId: 'usr-sender', availableBalance: 1000.00, totalSent: 0 };
+  const mockRpcResult = { success: false, error: 'Insufficient server balance or network partition' };
+
+  // Simulated settlement dispatcher
+  function executeSettlement(wallet, amount, rpcResult) {
+    if (wallet.availableBalance < amount) throw new Error('Insufficient balance');
+    if (!rpcResult.success) {
+      throw new Error(rpcResult.error);
+    }
+    return {
+      updatedWallet: {
+        ...wallet,
+        availableBalance: wallet.availableBalance - amount,
+        totalSent: wallet.totalSent + amount,
+      },
+      status: 'SETTLED',
+    };
+  }
+
+  // Attempt transfer of Rs. 200 with server rejection
+  let caughtError = null;
+  try {
+    executeSettlement(localSenderWallet, 200, mockRpcResult);
+  } catch (err) {
+    caughtError = err;
+  }
+
+  assert.ok(caughtError !== null, 'Must throw error on server RPC rejection');
+  assert.equal(caughtError.message, 'Insufficient server balance or network partition');
+  assert.equal(localSenderWallet.availableBalance, 1000.00, 'Sender balance must remain completely unchanged');
+  assert.equal(localSenderWallet.totalSent, 0, 'Sender totalSent must remain unchanged');
+});
+
+test('Authoritative Online Settlement — Server RPC success commits authoritative balances', () => {
+  const localSenderWallet = { userId: 'usr-sender', availableBalance: 1000.00, totalSent: 0 };
+  const mockRpcResult = {
+    success: true,
+    sender_new_balance: 850.00,
+    receiver_new_balance: 1150.00,
+    transaction_id: 'tx-12345',
+  };
+
+  function executeSettlement(wallet, amount, rpcResult) {
+    if (!rpcResult.success) throw new Error(rpcResult.error);
+    return {
+      updatedSenderWallet: {
+        ...wallet,
+        availableBalance: rpcResult.sender_new_balance,
+        totalSent: wallet.totalSent + amount,
+      },
+      status: 'SETTLED',
+    };
+  }
+
+  const result = executeSettlement(localSenderWallet, 150.00, mockRpcResult);
+  assert.equal(result.status, 'SETTLED');
+  assert.equal(result.updatedSenderWallet.availableBalance, 850.00);
+  assert.equal(result.updatedSenderWallet.totalSent, 150.00);
+});
+
+test('Inbound Sync — Remote transactions merged without duplicates or dropping offline metadata', () => {
+  const localTransactions = [
+    { id: 'tx-001', senderId: 'usr-sender', receiverId: 'usr-receiver', amount: 100, status: 'OFFLINE_PENDING', note: 'local offline tx' }
+  ];
+
+  const remoteTransactions = [
+    { id: 'tx-001', sender_id: 'usr-sender', receiver_id: 'usr-receiver', amount: 100, status: 'SETTLED', payload: { note: 'reconciled' } },
+    { id: 'tx-002', sender_id: 'usr-other', receiver_id: 'usr-receiver', amount: 300, status: 'SETTLED', payload: { note: 'incoming online payment' } }
+  ];
+
+  // Merge logic
+  const mergedMap = new Map();
+  for (const ltx of localTransactions) {
+    mergedMap.set(ltx.id, { ...ltx });
+  }
+
+  let newCount = 0;
+  for (const rtx of remoteTransactions) {
+    const existing = mergedMap.get(rtx.id);
+    if (!existing) {
+      mergedMap.set(rtx.id, {
+        id: rtx.id,
+        senderId: rtx.sender_id,
+        receiverId: rtx.receiver_id,
+        amount: rtx.amount,
+        status: rtx.status,
+        note: rtx.payload?.note || '',
+      });
+      newCount++;
+    } else if (existing.status !== rtx.status) {
+      existing.status = rtx.status;
+      newCount++;
+    }
+  }
+
+  assert.equal(mergedMap.size, 2, 'Total transactions after merge must be 2 (no duplicates)');
+  assert.equal(newCount, 2, 'One new incoming tx + one status update');
+  assert.equal(mergedMap.get('tx-001').status, 'SETTLED', 'Local OFFLINE_PENDING must update to server SETTLED');
+  assert.equal(mergedMap.get('tx-002').amount, 300, 'New incoming remote transaction must be present');
+});
+

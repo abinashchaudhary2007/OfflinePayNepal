@@ -249,3 +249,160 @@ export async function executeRemoteAtomicTransfer({
     return { success: false, error: err.message };
   }
 }
+
+/**
+ * Fetch authoritative wallet balance and limits from Supabase
+ */
+export async function fetchRemoteWallet(userId) {
+  if (!canSyncWithSupabase() || !userId) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('wallets')
+      .select('id, user_id, balance, offline_limit, offline_reserve, currency, updated_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[supabaseSync] Error fetching remote wallet:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.warn('[supabaseSync] Exception fetching remote wallet:', err);
+    return null;
+  }
+}
+
+/**
+ * Pull inbound and reconciled transactions from Supabase into local IndexedDB
+ */
+export async function syncInboundTransactions(userId) {
+  if (!canSyncWithSupabase() || !userId) return { transactions: [], newCount: 0 };
+
+  try {
+    const { data: remoteTxs, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(`receiver_id.eq.${userId},sender_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error || !remoteTxs) {
+      console.warn('[supabaseSync] Error fetching inbound transactions:', error?.message);
+      return { transactions: [], newCount: 0 };
+    }
+
+    const db = await getDB();
+    let newCount = 0;
+
+    for (const rtx of remoteTxs) {
+      const txId = rtx.id || rtx.transaction_ref;
+      const existing = await db.get('transactions', txId);
+
+      const mappedTx = {
+        id: txId,
+        transactionRef: rtx.transaction_ref || txId,
+        senderId: rtx.sender_id,
+        senderName: rtx.sender_name || (rtx.sender_id === userId ? 'You' : 'Sender'),
+        receiverId: rtx.receiver_id,
+        receiverName: rtx.receiver_name || (rtx.receiver_id === userId ? 'You' : 'Receiver'),
+        amount: Number(rtx.amount),
+        currency: 'NPR',
+        status: rtx.status || 'SETTLED',
+        method: rtx.payment_type || 'ONLINE',
+        timestamp: rtx.created_at || new Date().toISOString(),
+        settledAt: rtx.settled_at || rtx.created_at || new Date().toISOString(),
+        nonce: rtx.nonce || null,
+        note: rtx.payload?.note || '',
+        signature: rtx.signature || null,
+        isOffline: rtx.payment_type === 'OFFLINE_QR',
+        updatedAt: rtx.settled_at || rtx.created_at || new Date().toISOString(),
+      };
+
+      if (!existing) {
+        await db.put('transactions', mappedTx);
+        newCount++;
+      } else if (existing.status !== mappedTx.status || (!existing.settledAt && mappedTx.settledAt)) {
+        await db.put('transactions', { ...existing, ...mappedTx });
+        newCount++;
+      }
+    }
+
+    return { transactions: remoteTxs, newCount };
+  } catch (err) {
+    console.warn('[supabaseSync] Exception during inbound transaction sync:', err);
+    return { transactions: [], newCount: 0 };
+  }
+}
+
+/**
+ * Subscribe to Supabase Realtime changes on wallets and transactions
+ * Returns cleanup function to unsubscribe.
+ */
+export function subscribeToUserWalletAndTransactions(userId, onWalletUpdate, onTransactionReceived) {
+  if (!canSyncWithSupabase() || !userId) return () => {};
+
+  try {
+    const channelId = `user-sync-${userId}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelId)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.new && onWalletUpdate) {
+            onWalletUpdate(payload.new);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.new && onTransactionReceived) {
+            onTransactionReceived(payload.new);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'transactions',
+          filter: `receiver_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.new && onTransactionReceived) {
+            onTransactionReceived(payload.new);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('[supabaseSync] Realtime channel error for user:', userId);
+        }
+      });
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (_) {}
+    };
+  } catch (err) {
+    console.warn('[supabaseSync] Could not initialize realtime subscription:', err);
+    return () => {};
+  }
+}
+
