@@ -700,3 +700,144 @@ export async function executeAtomicOfflineAcceptance({
   await idbTx.done;
   return updatedReceiverWallet;
 }
+
+/**
+ * cancelAndRefundExpiredTransactions
+ * Sweeps all pending transactions (OFFLINE_PENDING, RETRY_WAITING, SYNCING, PENDING)
+ * whose age exceeds timeoutMs (default 5 minutes).
+ * Atomically marks them as EXPIRED, refunds the sender's balance and offline allowance,
+ * removes them from sync_queue, and logs an audit security event.
+ */
+export async function cancelAndRefundExpiredTransactions({
+  userId = null,
+  timeoutMs = 5 * 60 * 1000,
+} = {}) {
+  const db = await getDB();
+  await initSeedData();
+
+  const idbTx = db.transaction(
+    ['wallet', 'authorizations', 'transactions', 'sync_queue', 'security_events'],
+    'readwrite'
+  );
+
+  const txStore = idbTx.objectStore('transactions');
+  const allTxs = await txStore.getAll();
+  const now = Date.now();
+
+  const PENDING_STATUSES = new Set(['OFFLINE_PENDING', 'RETRY_WAITING', 'SYNCING', 'PENDING']);
+  const expiredTxs = allTxs.filter(tx => {
+    if (!PENDING_STATUSES.has(tx.status)) return false;
+    const createdAtTime = new Date(tx.createdAt || tx.timestamp).getTime();
+    if (isNaN(createdAtTime)) return false;
+    return (now - createdAtTime) >= timeoutMs;
+  });
+
+  if (expiredTxs.length === 0) {
+    await idbTx.done;
+    return { expiredCount: 0, refundedAmount: 0, updatedWallet: null, updatedAuth: null };
+  }
+
+  const walletStore = idbTx.objectStore('wallet');
+  const allWallets = await walletStore.getAll();
+  const authStore = idbTx.objectStore('authorizations');
+  const allAuths = await authStore.getAll();
+  const syncQueueStore = idbTx.objectStore('sync_queue');
+  const allQueueItems = await syncQueueStore.getAll();
+  const secStore = idbTx.objectStore('security_events');
+
+  let totalRefunded = 0;
+  let currentUserUpdatedWallet = null;
+  let currentUserUpdatedAuth = null;
+  const walletsToPush = [];
+
+  for (const tx of expiredTxs) {
+    // 1. Mark transaction as EXPIRED
+    const updatedTx = {
+      ...tx,
+      status: 'EXPIRED',
+      expiredAt: new Date().toISOString(),
+      rejectionReason: 'Payment expired: 5-minute timeout exceeded without receiver settlement.',
+      updatedAt: new Date().toISOString(),
+    };
+    await txStore.put(updatedTx);
+
+    // 2. Remove matching queue items from sync queue
+    const matchingQueueItems = allQueueItems.filter(
+      q => q.transactionId === tx.id || q.id === tx.id
+    );
+    for (const q of matchingQueueItems) {
+      await syncQueueStore.delete(q.id);
+    }
+
+    // 3. Refund sender wallet if found and amount > 0
+    const parsedAmount = Math.round(Number(tx.amount) * 100) / 100;
+    const senderWallet = allWallets.find(w => w.userId === tx.senderId);
+    if (senderWallet && parsedAmount > 0) {
+      senderWallet.availableBalance = Math.round((senderWallet.availableBalance + parsedAmount) * 100) / 100;
+      senderWallet.offlineSpent = Math.max(0, Math.round(((senderWallet.offlineSpent || 0) - parsedAmount) * 100) / 100);
+      senderWallet.offlineRemaining = Math.min(
+        senderWallet.offlineLimit ?? 2000,
+        Math.round(((senderWallet.offlineRemaining || 0) + parsedAmount) * 100) / 100
+      );
+      senderWallet.totalSent = Math.max(0, Math.round(((senderWallet.totalSent || 0) - parsedAmount) * 100) / 100);
+      senderWallet.updatedAt = new Date().toISOString();
+
+      await walletStore.put(senderWallet);
+      walletsToPush.push(senderWallet);
+
+      if (userId && tx.senderId === userId) {
+        currentUserUpdatedWallet = { ...senderWallet };
+      }
+      totalRefunded += parsedAmount;
+    }
+
+    // 4. Restore active authorization allowance if present
+    const matchingAuth = allAuths.find(
+      a => (tx.authorizationId && a.id === tx.authorizationId) ||
+           (a.userId === tx.senderId && a.status === 'ACTIVE')
+    );
+    if (matchingAuth && parsedAmount > 0) {
+      matchingAuth.remainingAmount = Math.min(
+        matchingAuth.maximumAmount,
+        Math.round(((matchingAuth.remainingAmount || 0) + parsedAmount) * 100) / 100
+      );
+      matchingAuth.updatedAt = new Date().toISOString();
+      await authStore.put(matchingAuth);
+
+      if (userId && (matchingAuth.userId === userId || tx.senderId === userId)) {
+        currentUserUpdatedAuth = { ...matchingAuth };
+      }
+    }
+
+    // 5. Log security audit event
+    await secStore.put({
+      id: `SEC-EXP-${tx.id.slice(0, 16)}-${Date.now().toString(36)}`,
+      userId: tx.senderId,
+      deviceId: tx.deviceId || 'DEVICE-OFFLINE',
+      eventType: 'OFFLINE_PAYMENT_EXPIRED',
+      severity: 'LOW',
+      description: `Offline payment ${tx.id} for Rs. ${tx.amount} expired after 5 minutes and was automatically cancelled & refunded.`,
+      status: 'LOGGED',
+      relatedTxId: tx.id,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  await idbTx.done;
+
+  // Asynchronously synchronize refunded wallets to Supabase when online
+  if (typeof navigator !== 'undefined' && navigator.onLine && walletsToPush.length > 0) {
+    import('./supabaseSync.js').then(({ pushWalletToSupabase }) => {
+      for (const w of walletsToPush) {
+        pushWalletToSupabase(w).catch(() => {});
+      }
+    }).catch(() => {});
+  }
+
+  return {
+    expiredCount: expiredTxs.length,
+    refundedAmount: totalRefunded,
+    updatedWallet: currentUserUpdatedWallet,
+    updatedAuth: currentUserUpdatedAuth,
+  };
+}

@@ -88,6 +88,18 @@ export function PaymentReceipt({
         </div>
       </div>
     );
+  } else if (status === 'EXPIRED') {
+    statusBanner = (
+      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-xs flex items-start gap-2.5 text-left">
+        <Clock size={18} className="text-slate-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-bold text-slate-950">Payment Expired & Cancelled</p>
+          <p className="text-slate-700 mt-0.5 leading-relaxed">
+            {transaction.rejectionReason || 'This payment was not received or settled within the 5-minute timeout window. It has been automatically cancelled and refunded.'}
+          </p>
+        </div>
+      </div>
+    );
   } else {
     // OFFLINE_PENDING
     statusBanner = (
@@ -108,14 +120,16 @@ export function PaymentReceipt({
       {/* Icon & Heading */}
       <div>
         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
-          status === 'REJECTED'
-            ? 'bg-red-100 text-red-600'
+          status === 'REJECTED' || status === 'EXPIRED'
+            ? 'bg-slate-100 text-slate-600'
             : isSender
             ? 'bg-indigo-100 text-indigo-600'
             : 'bg-emerald-100 text-emerald-600'
         }`}>
           {status === 'REJECTED' ? (
             <XCircle size={28} />
+          ) : status === 'EXPIRED' ? (
+            <Clock size={28} />
           ) : isSender ? (
             <ArrowUpRight size={28} strokeWidth={2.5} />
           ) : (
@@ -124,7 +138,7 @@ export function PaymentReceipt({
         </div>
 
         <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
-          {isSender ? 'Payment Submitted' : 'Payment Received'}
+          {status === 'EXPIRED' ? 'Payment Expired & Cancelled' : isSender ? 'Payment Submitted' : 'Payment Received'}
         </p>
 
         <h2 className="text-3xl font-black text-[var(--color-gray-900)] mt-1 tracking-tight">

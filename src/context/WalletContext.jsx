@@ -17,6 +17,7 @@ import {
   getPendingSyncItems, getAllSyncQueueItems, addToSyncQueue, updateSyncItem, removeSyncItem,
   getSecurityEvents, saveSecurityEvent, checkAndSaveNonce,
   executeAtomicOnlinePayment, executeAtomicOfflineCreation, executeAtomicOfflineAcceptance,
+  cancelAndRefundExpiredTransactions,
   getAllUsers, getUser,
 } from '../services/db';
 import {
@@ -52,6 +53,13 @@ export function WalletProvider({ children }) {
   const initWallet = useCallback(async (user) => {
     if (!user) return;
     currentUserIdRef.current = user.id;
+
+    // Automatically cancel and refund any pending transactions that exceeded the 5-minute timeout
+    try {
+      await cancelAndRefundExpiredTransactions({ userId: user.id });
+    } catch (e) {
+      console.warn('[wallet] Error expiring transactions during init:', e);
+    }
 
     // Load wallet by user ID with guaranteed 1000.00 initial deposit
     let storedWallet = await getWalletByUserId(user.id);
@@ -177,6 +185,12 @@ export function WalletProvider({ children }) {
   const refreshTransactions = useCallback(async () => {
     const userId = currentUserIdRef.current;
     if (!userId) return;
+    try {
+      const expRes = await cancelAndRefundExpiredTransactions({ userId });
+      if (expRes?.expiredCount > 0 && expRes.updatedWallet) {
+        setWallet(expRes.updatedWallet);
+      }
+    } catch (_) {}
     const txs = await getTransactionsByUser(userId);
     setTransactions(txs);
   }, []);
@@ -188,6 +202,47 @@ export function WalletProvider({ children }) {
     const events = await getSecurityEvents(userId);
     setSecurityEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
   }, []);
+
+  // ─── Sweep and cancel expired pending transactions ──────
+  const expirePendingTransactions = useCallback(async () => {
+    const userId = currentUserIdRef.current;
+    if (!userId) return { expiredCount: 0 };
+
+    try {
+      const res = await cancelAndRefundExpiredTransactions({ userId });
+      if (res && res.expiredCount > 0) {
+        if (res.updatedWallet) setWallet(res.updatedWallet);
+        if (res.updatedAuth) setAuthorization(res.updatedAuth);
+
+        const txs = await getTransactionsByUser(userId);
+        setTransactions(txs);
+
+        const allRemaining = await getAllSyncQueueItems();
+        setPendingSyncCount(allRemaining.filter(i => i.status === 'PENDING').length);
+        setRetryWaitingCount(allRemaining.filter(i => i.status === 'RETRY_WAITING').length);
+
+        await refreshSecurityEvents();
+      }
+      return res;
+    } catch (err) {
+      console.warn('[wallet] Error expiring pending transactions:', err);
+      return { expiredCount: 0 };
+    }
+  }, [refreshSecurityEvents]);
+
+  // ─── Auto-expire pending payments older than 5 minutes ───
+  useEffect(() => {
+    if (!wallet?.userId) return;
+
+    // Run sweep immediately
+    expirePendingTransactions();
+
+    const interval = setInterval(() => {
+      expirePendingTransactions();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [wallet?.userId, expirePendingTransactions]);
 
   // ─── Realtime Inbound Updates Listener (Phase 3) ─────────
   useEffect(() => {
@@ -539,6 +594,7 @@ export function WalletProvider({ children }) {
     const MAX_SYNC_RETRIES = 5;
 
     try {
+      await expirePendingTransactions();
       const pending = await getPendingSyncItems();
       let settled = 0;
       let rejected = 0;
@@ -549,6 +605,20 @@ export function WalletProvider({ children }) {
 
         const currentAttempts = (item.attempts || 0) + 1;
 
+        const tx = await getTransaction(item.transactionId);
+        if (!tx) {
+          await removeSyncItem(item.id);
+          continue;
+        }
+
+        // Check if transaction has exceeded the 5-minute timeout without settlement
+        const txAge = Date.now() - new Date(tx.createdAt || tx.timestamp).getTime();
+        if (txAge >= 5 * 60 * 1000) {
+          await expirePendingTransactions();
+          rejected++;
+          continue;
+        }
+
         // Mark as syncing
         await updateSyncItem(item.id, {
           status: 'SYNCING',
@@ -556,12 +626,6 @@ export function WalletProvider({ children }) {
           lastAttemptAt: new Date().toISOString(),
         });
         await updateTransactionStatus(item.transactionId, TX_STATUS.SYNCING);
-
-        const tx = await getTransaction(item.transactionId);
-        if (!tx) {
-          await removeSyncItem(item.id);
-          continue;
-        }
 
         // Idempotency: if already settled, remove and continue
         if (tx.status === TX_STATUS.SETTLED) {
@@ -698,7 +762,7 @@ export function WalletProvider({ children }) {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [syncStatus, wallet, device, refreshTransactions, refreshSecurityEvents]);
+  }, [syncStatus, wallet, device, refreshTransactions, refreshSecurityEvents, expirePendingTransactions]);
 
   // ─── Revoke Device ───────────────────────────────────────
   const revokeDevice = useCallback(async (deviceId) => {
@@ -743,6 +807,7 @@ export function WalletProvider({ children }) {
       resetWallet,
       refreshTransactions,
       refreshSecurityEvents,
+      expirePendingTransactions,
       registerDevice,
       createOfflineAuthorization,
       createOfflineTransaction,

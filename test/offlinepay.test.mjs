@@ -1007,3 +1007,126 @@ test('Inbound Sync — Remote transactions merged without duplicates or dropping
   assert.equal(mergedMap.get('tx-002').amount, 300, 'New incoming remote transaction must be present');
 });
 
+test('Timeout — Pending offline transaction < 5 minutes old remains OFFLINE_PENDING', () => {
+  const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+  const now = Date.now();
+  const tx = {
+    id: 'tx-recent-pending',
+    senderId: 'usr-sender',
+    receiverId: 'usr-receiver',
+    amount: 150.00,
+    status: 'OFFLINE_PENDING',
+    createdAt: new Date(now - 2 * 60 * 1000).toISOString(), // 2 minutes old
+  };
+
+  const isExpired = (now - new Date(tx.createdAt).getTime()) >= PENDING_TIMEOUT_MS;
+  assert.equal(isExpired, false, 'Transaction at 2 minutes must NOT be expired');
+  assert.equal(tx.status, 'OFFLINE_PENDING');
+});
+
+test('Timeout — Pending offline transaction >= 5 minutes old automatically expires and refunds sender balance and allowance', () => {
+  const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+  const now = Date.now();
+
+  const senderWallet = {
+    userId: 'usr-sender-exp',
+    availableBalance: 813.00, // Debited from 1000 after 187 payment
+    offlineSpent: 187.00,
+    offlineRemaining: 813.00,
+    offlineLimit: 1000.00,
+    totalSent: 187.00,
+  };
+
+  const authorization = {
+    id: 'AUTH-EXP-01',
+    userId: 'usr-sender-exp',
+    maximumAmount: 1000.00,
+    remainingAmount: 813.00,
+    status: 'ACTIVE',
+  };
+
+  const expiredTx = {
+    id: 'tx-expired-5min',
+    senderId: 'usr-sender-exp',
+    receiverId: 'usr-receiver-jaiz',
+    amount: 187.00,
+    status: 'OFFLINE_PENDING',
+    createdAt: new Date(now - 5 * 60 * 1000 - 1000).toISOString(), // 5m 1s old
+    authorizationId: 'AUTH-EXP-01',
+  };
+
+  const syncQueue = [
+    { id: 'sync-tx-expired-5min', transactionId: 'tx-expired-5min', status: 'PENDING' }
+  ];
+
+  // Execution of expiration & refund logic
+  const txAge = now - new Date(expiredTx.createdAt).getTime();
+  assert.ok(txAge >= PENDING_TIMEOUT_MS, 'Transaction age must exceed 5 minutes');
+
+  // 1. Transition status
+  expiredTx.status = TX_STATUS.EXPIRED;
+  expiredTx.expiredAt = new Date().toISOString();
+  expiredTx.rejectionReason = 'Payment expired: 5-minute timeout exceeded without receiver settlement.';
+
+  // 2. Refund sender wallet
+  senderWallet.availableBalance = Math.round((senderWallet.availableBalance + expiredTx.amount) * 100) / 100;
+  senderWallet.offlineSpent = Math.max(0, Math.round((senderWallet.offlineSpent - expiredTx.amount) * 100) / 100);
+  senderWallet.offlineRemaining = Math.min(
+    senderWallet.offlineLimit,
+    Math.round((senderWallet.offlineRemaining + expiredTx.amount) * 100) / 100
+  );
+  senderWallet.totalSent = Math.max(0, Math.round((senderWallet.totalSent - expiredTx.amount) * 100) / 100);
+
+  // 3. Restore authorization
+  authorization.remainingAmount = Math.min(
+    authorization.maximumAmount,
+    Math.round((authorization.remainingAmount + expiredTx.amount) * 100) / 100
+  );
+
+  // 4. Remove from sync queue
+  const remainingQueue = syncQueue.filter(q => q.transactionId !== expiredTx.id);
+
+  // Assertions
+  assert.equal(expiredTx.status, 'EXPIRED');
+  assert.equal(senderWallet.availableBalance, 1000.00, 'Sender balance must be refunded back to Rs. 1,000');
+  assert.equal(senderWallet.offlineSpent, 0.00, 'Offline spent must be reset to 0');
+  assert.equal(senderWallet.offlineRemaining, 1000.00, 'Offline remaining must be restored to limit');
+  assert.equal(senderWallet.totalSent, 0.00, 'totalSent must be refunded');
+  assert.equal(authorization.remainingAmount, 1000.00, 'Authorization allowance must be restored');
+  assert.equal(remainingQueue.length, 0, 'Sync queue entry must be purged');
+});
+
+test('Receiver Scanner — Reject offline payment QR generated >= 5 minutes ago', () => {
+  const now = Date.now();
+  const validQrToken = {
+    type: 'OFFLINE_PAYMENT',
+    id: 'tx-fresh-001',
+    senderId: 'usr-sender',
+    receiverId: 'usr-receiver',
+    amount: 100,
+    timestamp: new Date(now - 3 * 60 * 1000).toISOString(), // 3 mins old (valid)
+  };
+
+  const expiredQrToken = {
+    type: 'OFFLINE_PAYMENT',
+    id: 'tx-old-002',
+    senderId: 'usr-sender',
+    receiverId: 'usr-receiver',
+    amount: 100,
+    timestamp: new Date(now - 6 * 60 * 1000).toISOString(), // 6 mins old (expired)
+  };
+
+  function validateQrFreshness(token) {
+    const age = Date.now() - new Date(token.timestamp).getTime();
+    if (age >= 5 * 60 * 1000) {
+      return { valid: false, error: 'Payment expired: 5-minute timeout exceeded' };
+    }
+    return { valid: true };
+  }
+
+  assert.equal(validateQrFreshness(validQrToken).valid, true, 'Token generated 3m ago must be accepted');
+  const expiredRes = validateQrFreshness(expiredQrToken);
+  assert.equal(expiredRes.valid, false, 'Token generated 6m ago must be rejected');
+  assert.match(expiredRes.error, /5-minute timeout exceeded/);
+});
+

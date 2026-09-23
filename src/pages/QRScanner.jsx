@@ -135,6 +135,14 @@ function QRScanner() {
           return;
         }
 
+        // Validate 5-minute expiration window
+        const txTimestamp = new Date(parsed.timestamp || parsed.createdAt).getTime();
+        if (!isNaN(txTimestamp) && (Date.now() - txTimestamp) >= 5 * 60 * 1000) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Payment expired: This offline payment QR was generated more than 5 minutes ago and has been automatically cancelled & refunded on the sender\'s device.');
+          return;
+        }
+
         // 1. Check if transaction was already received / claimed on this device
         try {
           const existingTx = await getTransaction(parsed.id);

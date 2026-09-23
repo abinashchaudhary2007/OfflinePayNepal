@@ -187,6 +187,8 @@ function TransactionDetail() {
                   ? 'Reconciled & Settled'
                   : tx.status === 'OFFLINE_PENDING'
                   ? 'Waiting for Connection (Pending Sync)'
+                  : tx.status === 'EXPIRED'
+                  ? 'Expired & Cancelled (Auto-refunded to sender)'
                   : tx.status
               }
               statusPill={tx.status}

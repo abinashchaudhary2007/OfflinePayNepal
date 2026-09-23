@@ -2,7 +2,7 @@
  * Transactions.jsx — Phase 14
  * Full transaction history with filters, search, and link to detail page.
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownLeft, Filter, Search, RefreshCw, ChevronRight } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -15,11 +15,11 @@ import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/formatting';
 
-const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Settled', 'Rejected'];
+const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Settled', 'Expired', 'Rejected'];
 
 function Transactions() {
   const { currentUser } = useAuth();
-  const { transactions, syncTransactions, syncStatus, pendingSyncCount } = useWallet();
+  const { transactions, syncTransactions, syncStatus, pendingSyncCount, expirePendingTransactions } = useWallet();
   const { isOffline } = useOfflineSimulation();
 
   const [activeFilter, setActiveFilter] = useState('All');
@@ -27,16 +27,24 @@ function Transactions() {
 
   const userId = currentUser?.id;
 
+  // Sweep expired transactions when viewing history
+  useEffect(() => {
+    if (expirePendingTransactions) {
+      expirePendingTransactions();
+    }
+  }, [expirePendingTransactions]);
+
   const filtered = useMemo(() => {
     let list = transactions;
 
     // Apply filter
-    if (activeFilter === 'Sent')     list = list.filter(tx => tx.senderId === userId);
+    if (activeFilter === 'Sent')          list = list.filter(tx => tx.senderId === userId);
     else if (activeFilter === 'Received') list = list.filter(tx => tx.receiverId === userId);
-    else if (activeFilter === 'Offline') list = list.filter(tx => tx.method === 'OFFLINE_QR');
-    else if (activeFilter === 'Online')  list = list.filter(tx => tx.method === 'ONLINE');
-    else if (activeFilter === 'Pending') list = list.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'SYNCING');
-    else if (activeFilter === 'Settled') list = list.filter(tx => tx.status === 'SETTLED');
+    else if (activeFilter === 'Offline')  list = list.filter(tx => tx.method === 'OFFLINE_QR');
+    else if (activeFilter === 'Online')   list = list.filter(tx => tx.method === 'ONLINE');
+    else if (activeFilter === 'Pending')  list = list.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING');
+    else if (activeFilter === 'Settled')  list = list.filter(tx => tx.status === 'SETTLED');
+    else if (activeFilter === 'Expired')  list = list.filter(tx => tx.status === 'EXPIRED');
     else if (activeFilter === 'Rejected') list = list.filter(tx => tx.status === 'REJECTED');
 
     // Apply search

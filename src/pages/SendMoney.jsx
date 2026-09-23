@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowUpRight, Wifi, WifiOff, ChevronRight, Search, QrCode,
   CheckCircle2, AlertTriangle, ShieldCheck, Copy, ArrowLeft, RefreshCw,
-  Wallet, User, FileText, Store, Eye, ChevronDown
+  Wallet, User, FileText, Store, Eye, ChevronDown, Clock
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -33,6 +33,7 @@ function SendMoney() {
   const {
     wallet, device, authorization, transactions,
     createOfflineTransaction, createOnlineTransaction,
+    expirePendingTransactions,
     registerDevice, TX_STATUS
   } = useWallet();
   const { isOffline } = useOfflineSimulation();
@@ -58,6 +59,8 @@ function SendMoney() {
   const [copiedId, setCopiedId] = useState(false);
   const [showTechnicalPayload, setShowTechnicalPayload] = useState(false);
   const [showReceiptView, setShowReceiptView] = useState(false);
+  const [remainingSecs, setRemainingSecs] = useState(300);
+  const [isTxExpired, setIsTxExpired] = useState(false);
 
   // Load all registered users
   useEffect(() => {
@@ -121,6 +124,29 @@ function SendMoney() {
       }).then(setQrDataUrl).catch(console.error);
     }
   }, [createdTx]);
+
+  // 5-minute timeout countdown for offline QR payments
+  useEffect(() => {
+    if (!createdTx || createdTx.method !== 'OFFLINE_QR' || step !== STEPS.STATUS) return;
+
+    const txTime = new Date(createdTx.createdAt || createdTx.timestamp).getTime();
+    const checkExpiration = async () => {
+      const elapsed = Math.floor((Date.now() - txTime) / 1000);
+      const left = Math.max(0, 300 - elapsed);
+      setRemainingSecs(left);
+
+      if (left <= 0) {
+        setIsTxExpired(true);
+        if (expirePendingTransactions) {
+          await expirePendingTransactions();
+        }
+      }
+    };
+
+    checkExpiration();
+    const timer = setInterval(checkExpiration, 1000);
+    return () => clearInterval(timer);
+  }, [createdTx, step, expirePendingTransactions]);
 
   // Available recipients: registered users except self and admin
   const availableReceivers = directoryUsers.filter(
@@ -863,28 +889,44 @@ function SendMoney() {
             <Card padding className="space-y-5 text-center">
               {/* Header Title */}
               <div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 mb-2">
-                  <WifiOff size={12} />
-                  <span>{createdTx.method === 'OFFLINE_QR' ? 'Offline Payment QR' : 'Payment Settled'}</span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  isTxExpired ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                } mb-2`}>
+                  {isTxExpired ? <Clock size={12} /> : createdTx.method === 'OFFLINE_QR' ? <WifiOff size={12} /> : <CheckCircle2 size={12} />}
+                  <span>{isTxExpired ? 'Payment Expired & Cancelled' : createdTx.method === 'OFFLINE_QR' ? 'Offline Payment QR' : 'Payment Settled'}</span>
                 </span>
                 <h2 className="text-2xl font-black text-[var(--color-gray-900)] tracking-tight">
-                  {createdTx.method === 'OFFLINE_QR'
+                  {isTxExpired
+                    ? 'Payment Expired & Cancelled'
+                    : createdTx.method === 'OFFLINE_QR'
                     ? 'Ask the shopkeeper to scan this QR'
                     : 'Payment Settled Successfully'}
                 </h2>
                 <p className="text-xs text-[var(--color-gray-500)] max-w-sm mx-auto mt-1">
-                  {createdTx.method === 'OFFLINE_QR'
+                  {isTxExpired
+                    ? `Not scanned within 5 minutes. ${formatCurrency(createdTx.amount)} has been automatically refunded to your wallet balance.`
+                    : createdTx.method === 'OFFLINE_QR'
                     ? 'Keep this screen open until the receiver scans and accepts the signed token.'
                     : 'Your payment was settled and confirmed immediately.'}
                 </p>
               </div>
+
+              {/* Countdown badge if active offline payment */}
+              {createdTx.method === 'OFFLINE_QR' && !isTxExpired && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 border border-amber-200 text-amber-800 mx-auto">
+                  <Clock size={13} className="text-amber-600 animate-pulse" />
+                  <span>
+                    Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not scanned
+                  </span>
+                </div>
+              )}
 
               {/* Amount Display */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm mx-auto">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
                   Payment Amount
                 </span>
-                <p className="text-3xl font-black text-[var(--color-indigo-600)] mt-0.5">
+                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-slate-400 line-through' : 'text-[var(--color-indigo-600)]'}`}>
                   {formatCurrency(createdTx.amount)}
                 </p>
                 <p className="text-xs text-[var(--color-gray-600)] mt-1">
@@ -892,16 +934,30 @@ function SendMoney() {
                 </p>
               </div>
 
-              {/* Offline QR Code presentation */}
-              {createdTx.method === 'OFFLINE_QR' && qrDataUrl && (
-                <div className="p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/20 max-w-sm mx-auto space-y-3">
-                  <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-slate-200">
-                    <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-60 h-60 mx-auto" />
+              {/* Offline QR Presentation or Expired Box */}
+              {createdTx.method === 'OFFLINE_QR' && (
+                isTxExpired ? (
+                  <div className="p-5 rounded-2xl border-2 border-red-200 bg-red-50/60 max-w-sm mx-auto space-y-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                      <Clock size={24} />
+                    </div>
+                    <p className="text-sm font-bold text-red-900">5-Minute Time Limit Exceeded</p>
+                    <p className="text-xs text-red-700 leading-relaxed">
+                      This payment was not received or scanned within 5 minutes. The QR token has been automatically cancelled and your funds ({formatCurrency(createdTx.amount)}) are refunded.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[var(--color-gray-500)] font-medium">
-                    Signed with local ECDSA P-256 device key · Anti-replay protected
-                  </p>
-                </div>
+                ) : (
+                  qrDataUrl && (
+                    <div className="p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/20 max-w-sm mx-auto space-y-3">
+                      <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-slate-200">
+                        <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-60 h-60 mx-auto" />
+                      </div>
+                      <p className="text-[11px] text-[var(--color-gray-500)] font-medium">
+                        Signed with local ECDSA P-256 device key · Anti-replay protected
+                      </p>
+                    </div>
+                  )
+                )
               )}
 
               {/* Collapsible Technical Payload Drawer */}
