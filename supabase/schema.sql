@@ -347,6 +347,10 @@ begin
 end;
 $$;
 
+-- Grant execution permissions for transfer_funds_atomic RPC
+grant execute on function public.transfer_funds_atomic(text, text, numeric, text, text, text, text, text, text) to anon, authenticated, service_role;
+notify pgrst, 'reload schema';
+
 -- Helper to auto-create wallet when a new profile is created
 create or replace function public.handle_new_profile_wallet()
 returns trigger as $$
