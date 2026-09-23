@@ -10,7 +10,7 @@ import {
 export function MobileBottomNav() {
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[var(--color-gray-200)] flex items-center justify-around px-2 py-1.5 z-40 safe-bottom"
+      className="mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[var(--color-gray-200)] flex items-center justify-around px-2 py-1.5 z-40 safe-bottom"
       style={{ boxShadow: '0 -4px 16px rgba(15, 23, 42, 0.06)' }}
     >
       {/* 1. Home */}

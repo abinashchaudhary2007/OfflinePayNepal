@@ -6,6 +6,7 @@ import {
 import { useState } from 'react';
 import { useAuth } from '../../context/DemoAuthContext';
 import { OnlineStatusPill } from '../ui/OfflineBanner';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 /**
  * Navbar — Top navigation bar for the dashboard shell.
@@ -87,6 +88,9 @@ function Navbar({
           <span className="hidden md:inline">{isSimulating ? 'Go Online' : 'Simulate Offline'}</span>
         </button>
       </div>
+
+      {/* Dark / Light Mode Toggle */}
+      <ThemeToggle />
 
       {/* Notification bell */}
       <button

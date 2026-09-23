@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useCallback, useEffect } from 'react';
 import { DemoAuthProvider, useAuth } from './context/DemoAuthContext';
 import { WalletProvider, useWallet } from './context/WalletContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Pages
 import Landing           from './pages/Landing';
@@ -118,9 +119,11 @@ function WalletBridge() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppWithProviders />
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppWithProviders />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

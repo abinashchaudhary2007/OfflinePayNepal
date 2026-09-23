@@ -10,6 +10,7 @@ import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { getAllUsers } from '../services/db';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 // Fallback demo presets if no accounts are found locally yet
 const DEFAULT_PRESETS = [
@@ -276,15 +277,18 @@ function Login() {
               <ArrowLeft size={15} /> Back to Home
             </Link>
 
-            {isOffline ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
-                <WifiOff size={13} className="text-amber-600" /> Offline Mode Active
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online Sync Ready
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <ThemeToggle size="sm" />
+              {isOffline ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
+                  <WifiOff size={13} className="text-amber-600" /> Offline Mode Active
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online Sync Ready
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Main Card */}

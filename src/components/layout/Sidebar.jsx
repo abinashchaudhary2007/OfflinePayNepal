@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/DemoAuthContext';
 import { DemoBadge } from '../ui/Badge';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 const MAIN_NAV_ITEMS = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
@@ -124,8 +125,13 @@ function Sidebar({ isOpen, onClose }) {
           )}
         </nav>
 
-        {/* Bottom — Device status info */}
-        <div className="p-3 border-t border-[var(--color-gray-100)] flex-shrink-0 bg-[var(--color-gray-50)]/60">
+        {/* Bottom — Theme Toggle & Device status info */}
+        <div className="p-3 border-t border-[var(--color-gray-100)] flex-shrink-0 bg-[var(--color-gray-50)]/60 space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[11px] font-semibold text-[var(--color-gray-500)]">Appearance</span>
+            <ThemeToggle size="sm" showLabel={true} />
+          </div>
+
           {currentUser?.device ? (
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-[var(--color-gray-200)] shadow-xs">
               <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0 animate-pulse" />
