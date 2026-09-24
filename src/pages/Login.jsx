@@ -1,38 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, AlertTriangle,
-  CheckCircle2, ArrowLeft, Sparkles, User, WifiOff, KeyRound,
-  Eye, EyeOff, HelpCircle, X, Check, RefreshCw
+  CheckCircle2, ArrowLeft, Sparkles, WifiOff, KeyRound,
+  Eye, EyeOff, HelpCircle, X, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/DemoAuthContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
-import { getAllUsers } from '../services/db';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import ThemeToggle from '../components/ui/ThemeToggle';
 
-// Fallback demo presets if no accounts are found locally yet
-const DEFAULT_PRESETS = [
-  {
-    name: 'Abhi',
-    email: 'abinashjaiz7@gmail.com',
-    role: 'Standard User',
-    avatar: 'A',
-    avatarColor: '#4F46E5',
-  },
-  {
-    name: 'Abinash Chaudhary',
-    email: 'abinashjayswal1@gmail.com',
-    role: 'Primary Account',
-    avatar: 'AC',
-    avatarColor: '#059669',
-  },
-];
-
 /**
- * Login page — Modern, user-friendly authentication with offline support,
- * device account auto-detection, caps lock detection, and instant demo quick-fill.
+ * Login page — Modern, secure authentication with offline support,
+ * password validation, and caps lock detection.
  */
 function Login() {
   const { login, resendConfirmationEmail, isLoading, error, clearError } = useAuth();
@@ -49,58 +30,15 @@ function Login() {
   );
   const [formError, setFormError] = useState({});
   const [isCapsLockOn, setIsCapsLockOn] = useState(false);
-  const [savedAccounts, setSavedAccounts] = useState([]);
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState(null);
-
-  // Load registered device accounts on mount
-  useEffect(() => {
-    let isMounted = true;
-    getAllUsers()
-      .then((users) => {
-        if (!isMounted) return;
-        if (users && users.length > 0) {
-          // Filter out dummy test users if any, keep real registered accounts
-          const uniqueByEmail = [];
-          const seenEmails = new Set();
-          for (const u of users) {
-            const em = (u.email || '').toLowerCase().trim();
-            if (em && !seenEmails.has(em)) {
-              seenEmails.add(em);
-              uniqueByEmail.push(u);
-            }
-          }
-          setSavedAccounts(uniqueByEmail);
-        } else {
-          setSavedAccounts(DEFAULT_PRESETS);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setSavedAccounts(DEFAULT_PRESETS);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const handleChange = (e) => {
     clearError();
     setFormError({});
     setResendMsg(null);
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSelectAccount = (accountEmail) => {
-    clearError();
-    setFormError({});
-    setForm(prev => ({ ...prev, email: accountEmail }));
-    // Auto-focus password input for immediate entry
-    setTimeout(() => {
-      const passEl = document.getElementById('login-password');
-      passEl?.focus();
-    }, 50);
   };
 
   const handleKeyModifier = (e) => {
@@ -159,8 +97,6 @@ function Login() {
       setResendMsg(res.error || 'Failed to resend confirmation email.');
     }
   };
-
-  const displayAccounts = savedAccounts.length > 0 ? savedAccounts : DEFAULT_PRESETS;
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--color-gray-50)] text-[var(--color-gray-900)]">
@@ -313,62 +249,6 @@ function Login() {
                 </div>
               </div>
             )}
-
-            {/* ─── Quick Account Selection (User-Friendly 1-Tap Fill) ─── */}
-            <div className="mb-6 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-500)] flex items-center gap-1.5">
-                  <User size={13} className="text-[var(--color-indigo-600)]" />
-                  {savedAccounts.length > 0 ? 'Accounts on this device' : 'Quick Demo Accounts'}
-                </span>
-                <span className="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">
-                  1-Tap Fill
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {displayAccounts.slice(0, 4).map((account) => {
-                  const isSelected = form.email.toLowerCase() === (account.email || '').toLowerCase();
-                  const initials = account.avatar || account.name?.slice(0, 2).toUpperCase() || 'U';
-
-                  return (
-                    <button
-                      key={account.email}
-                      type="button"
-                      onClick={() => handleSelectAccount(account.email)}
-                      className={`group relative p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                        isSelected
-                          ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-500/20 shadow-xs'
-                          : 'bg-white hover:bg-slate-100/80 border-slate-200 hover:border-indigo-300'
-                      }`}
-                      title={`Select ${account.name || account.email}`}
-                    >
-                      {/* Avatar Circle */}
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs"
-                        style={{ backgroundColor: account.avatarColor || '#4F46E5' }}
-                      >
-                        {initials}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold text-[var(--color-gray-900)] truncate">
-                            {account.name || 'User'}
-                          </p>
-                          {isSelected && (
-                            <Check size={14} className="text-indigo-600 shrink-0" />
-                          )}
-                        </div>
-                        <p className="text-[10px] text-[var(--color-gray-500)] truncate">
-                          {account.email}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Error Message with Resend Confirmation Option */}
             {error && (
@@ -542,8 +422,8 @@ function Login() {
 
             <div className="space-y-2.5 text-xs mb-5">
               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="font-bold text-slate-800">1. Instant Demo Accounts:</span>
-                <p className="text-slate-500 mt-0.5">Use one of the pre-filled demo accounts on the login screen.</p>
+                <span className="font-bold text-slate-800">1. Account Credentials:</span>
+                <p className="text-slate-500 mt-0.5">Enter your registered email and password to sign in.</p>
               </div>
               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                 <span className="font-bold text-slate-800">2. Register New Account:</span>
