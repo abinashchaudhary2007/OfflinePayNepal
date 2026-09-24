@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   CheckCircle2, XCircle, AlertTriangle, QrCode, ArrowDownLeft,
-  ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck
+  ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck, Image as ImageIcon,
+  UploadCloud
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import QRCode from 'qrcode';
@@ -16,6 +17,7 @@ import { formatCurrency, formatDateTime } from '../utils/formatting';
 import { verifyTransactionSignature } from '../services/crypto';
 import { buildSignablePayload } from '../services/ledger';
 import { getDevice, getTransaction, getDB } from '../services/db';
+import { decodeQRFromImage } from '../utils/qrImageDecoder';
 import PaymentReceipt from '../components/wallet/PaymentReceipt';
 
 const SCAN_STATES = {
@@ -44,11 +46,36 @@ function QRScanner() {
   const [ackQrDataUrl, setAckQrDataUrl] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
   const [isGeneratingAck, setIsGeneratingAck] = useState(false);
+  const [isDecodingImage, setIsDecodingImage] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [showManual, setShowManual] = useState(false);
 
   const scannerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Handle QR decode from uploaded screenshot or image file
+  const handleImageFileChange = async (fileOrEvent) => {
+    const file = fileOrEvent?.target?.files ? fileOrEvent.target.files[0] : fileOrEvent;
+    if (!file) return;
+    if (fileOrEvent?.target) fileOrEvent.target.value = '';
+
+    stopScanner();
+    setScanState(SCAN_STATES.VERIFYING);
+    setIsDecodingImage(true);
+    setErrorMsg('');
+
+    try {
+      const decodedText = await decodeQRFromImage(file);
+      await handleScannedData(decodedText);
+    } catch (err) {
+      console.warn('[image decode error]', err);
+      setScanState(SCAN_STATES.INVALID);
+      setErrorMsg(err.message || 'Could not detect a valid QR code in this image. Ensure the code is clear and not blurry.');
+    } finally {
+      setIsDecodingImage(false);
+    }
+  };
 
   // Start HTML5 camera scanner
   const startScanner = useCallback(() => {
@@ -59,7 +86,18 @@ function QRScanner() {
     setErrorMsg('');
 
     setTimeout(() => {
-      if (!document.getElementById('qr-reader')) return;
+      const qrReaderEl = document.getElementById('qr-reader');
+      if (!qrReaderEl) return;
+
+      // Intercept file input in Html5QrcodeScanner if user uploads an image inside the scanner
+      qrReaderEl.addEventListener('change', async (event) => {
+        if (event.target && event.target.type === 'file' && event.target.files?.[0]) {
+          event.stopPropagation();
+          event.preventDefault();
+          const selectedFile = event.target.files[0];
+          await handleImageFileChange(selectedFile);
+        }
+      }, true);
 
       try {
         const scanner = new Html5QrcodeScanner('qr-reader', {
@@ -354,6 +392,15 @@ function QRScanner() {
           </button>
         </div>
 
+        {/* Hidden File Input for Image & Screenshot Upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageFileChange}
+        />
+
         {/* Manual Payload Fallback (Convenient for quick testing or camera restriction) */}
         {showManual && (
           <Card padding className="bg-[#172337] border border-[#263449] space-y-2.5">
@@ -388,20 +435,32 @@ function QRScanner() {
             <div>
               <h2 className="text-base font-bold text-[#F8FAFC]">Ready to Scan</h2>
               <p className="text-xs text-[#94A3B8] max-w-xs mx-auto mt-1">
-                Scan another user's identity QR to send them money, or scan a signed payment QR to claim offline funds.
+                Scan using camera or upload a payment screenshot/photo directly from your gallery.
               </p>
             </div>
 
-            <Button
-              block
-              size="lg"
-              variant="primary"
-              onClick={startScanner}
-              leftIcon={<QrCode size={18} />}
-              id="btn-open-camera-scanner"
-            >
-              Open Camera Scanner
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <Button
+                size="lg"
+                variant="primary"
+                className="flex-1 font-bold"
+                onClick={startScanner}
+                leftIcon={<QrCode size={18} />}
+                id="btn-open-camera-scanner"
+              >
+                Camera Scanner
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="flex-1 font-semibold border-[#38BDF8]/40 text-[#38BDF8] hover:bg-[#38BDF8]/10"
+                onClick={() => fileInputRef.current?.click()}
+                leftIcon={<ImageIcon size={18} />}
+                id="btn-upload-qr-image"
+              >
+                Upload Image
+              </Button>
+            </div>
           </Card>
         )}
 
@@ -410,15 +469,26 @@ function QRScanner() {
           <Card padding className="space-y-4 bg-[#111C2E] border border-[#263449]">
             <CardHeader
               title="Camera Viewfinder"
-              subtitle="Hold steady over the QR code"
+              subtitle="Hold steady over the QR code or select an image"
             />
             <div
               id="qr-reader"
               className="w-full rounded-2xl overflow-hidden border-2 border-[#14B8A6]/40 shadow-inner bg-black"
             />
-            <Button block variant="outline" onClick={stopScanner}>
-              Cancel Scanner
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex-1 text-xs border-[#38BDF8]/40 text-[#38BDF8]"
+                leftIcon={<ImageIcon size={14} />}
+              >
+                Upload Image
+              </Button>
+              <Button size="sm" variant="outline" onClick={stopScanner} className="flex-1 text-xs">
+                Cancel Scanner
+              </Button>
+            </div>
           </Card>
         )}
 
@@ -426,8 +496,14 @@ function QRScanner() {
         {scanState === SCAN_STATES.VERIFYING && (
           <Card padding className="text-center py-10 space-y-3 bg-[#111C2E] border border-[#263449]">
             <div className="w-12 h-12 rounded-full border-4 border-[#263449] border-t-[#14B8A6] animate-spin mx-auto" />
-            <p className="font-bold text-sm text-[#F8FAFC]">Verifying QR Data...</p>
-            <p className="text-xs text-[#94A3B8]">Checking cryptographic signature & payload structure</p>
+            <p className="font-bold text-sm text-[#F8FAFC]">
+              {isDecodingImage ? 'Decoding QR from Image...' : 'Verifying QR Data...'}
+            </p>
+            <p className="text-xs text-[#94A3B8]">
+              {isDecodingImage
+                ? 'Applying multi-engine analysis (BarcodeDetector & jsQR)'
+                : 'Checking cryptographic signature & payload structure'}
+            </p>
           </Card>
         )}
 

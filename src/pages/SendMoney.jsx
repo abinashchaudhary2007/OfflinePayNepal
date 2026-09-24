@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowUpRight, Wifi, WifiOff, ChevronRight, Search, QrCode,
   CheckCircle2, AlertTriangle, ShieldCheck, Copy, ArrowLeft, RefreshCw,
-  Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera
+  Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera, Image as ImageIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -17,6 +17,7 @@ import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { getAllUsers } from '../services/db';
+import { decodeQRFromImage } from '../utils/qrImageDecoder';
 import { formatCurrency, formatTxIdShort, formatDateTime } from '../utils/formatting';
 
 const STEPS = {
@@ -68,6 +69,24 @@ function SendMoney() {
   const [manualAckInput, setManualAckInput] = useState('');
   const [isVerifyingAck, setIsVerifyingAck] = useState(false);
   const ackScannerRef = useRef(null);
+  const ackFileInputRef = useRef(null);
+
+  const handleAckImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsVerifyingAck(true);
+    setAckScanError('');
+    try {
+      const decodedText = await decodeQRFromImage(file);
+      await handleProcessAckPayload(decodedText);
+    } catch (err) {
+      setAckScanError(err.message || 'Could not detect an acknowledgment QR in this image.');
+    } finally {
+      setIsVerifyingAck(false);
+    }
+  };
 
   // Load all registered users
   useEffect(() => {
@@ -1136,27 +1155,56 @@ function SendMoney() {
                           </Button>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        block
-                        onClick={handleStopAckScanner}
-                      >
-                        Close Scanner
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs border-[#38BDF8]/40 text-[#38BDF8]"
+                          onClick={() => ackFileInputRef.current?.click()}
+                          leftIcon={<ImageIcon size={14} />}
+                        >
+                          Upload Image
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 text-xs"
+                          onClick={handleStopAckScanner}
+                        >
+                          Close Scanner
+                        </Button>
+                      </div>
                     </div>
                   ) : (
-                    <Button
-                      block
-                      variant="primary"
-                      onClick={handleStartAckScanner}
-                      leftIcon={<Camera size={16} />}
-                      id="btn-scan-receiver-ack"
-                      className="bg-[#0284C7] hover:bg-[#0369A1] font-bold"
-                    >
-                      Scan Receiver Acknowledgment
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button
+                        variant="primary"
+                        onClick={handleStartAckScanner}
+                        leftIcon={<Camera size={16} />}
+                        id="btn-scan-receiver-ack"
+                        className="flex-1 bg-[#0284C7] hover:bg-[#0369A1] font-bold text-xs"
+                      >
+                        Camera Scanner
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => ackFileInputRef.current?.click()}
+                        leftIcon={<ImageIcon size={16} />}
+                        id="btn-upload-receiver-ack-img"
+                        className="flex-1 border-[#38BDF8]/40 text-[#38BDF8] hover:bg-[#38BDF8]/10 text-xs font-semibold"
+                      >
+                        Upload Image
+                      </Button>
+                    </div>
                   )}
+
+                  <input
+                    ref={ackFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAckImageUpload}
+                  />
                 </div>
               )}
 
