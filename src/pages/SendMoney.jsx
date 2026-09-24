@@ -129,16 +129,32 @@ function SendMoney() {
   useEffect(() => {
     if (!createdTx || createdTx.method !== 'OFFLINE_QR' || step !== STEPS.STATUS) return;
 
+    // Check if transaction has already been acknowledged or settled
+    const latestTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
+    if (latestTx.status === 'SETTLED' || latestTx.status === 'RECEIVER_ACKNOWLEDGED' || latestTx.receiverAcknowledged) {
+      setIsTxExpired(false);
+      return;
+    }
+
     const txTime = new Date(createdTx.createdAt || createdTx.timestamp).getTime();
     const checkExpiration = async () => {
+      // Re-verify latest transaction status from transactions list
+      const currentTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
+      if (currentTx.status === 'SETTLED' || currentTx.status === 'RECEIVER_ACKNOWLEDGED' || currentTx.receiverAcknowledged) {
+        setIsTxExpired(false);
+        return;
+      }
+
       const elapsed = Math.floor((Date.now() - txTime) / 1000);
       const left = Math.max(0, 300 - elapsed);
       setRemainingSecs(left);
 
       if (left <= 0) {
-        setIsTxExpired(true);
-        if (expirePendingTransactions) {
-          await expirePendingTransactions();
+        if (currentTx.status === 'OFFLINE_PENDING' && !currentTx.receiverAcknowledged) {
+          setIsTxExpired(true);
+          if (expirePendingTransactions) {
+            await expirePendingTransactions();
+          }
         }
       }
     };
@@ -146,7 +162,7 @@ function SendMoney() {
     checkExpiration();
     const timer = setInterval(checkExpiration, 1000);
     return () => clearInterval(timer);
-  }, [createdTx, step, expirePendingTransactions]);
+  }, [createdTx, step, transactions, expirePendingTransactions]);
 
   // Available recipients: registered users except self and admin
   const availableReceivers = directoryUsers.filter(
@@ -878,10 +894,14 @@ function SendMoney() {
         {/* ════════════════════════════════════════════════════════════
             STEP 5: PAYMENT STATUS & QR PRESENTATION
         ════════════════════════════════════════════════════════════ */}
-        {step === STEPS.STATUS && createdTx && (
-          showReceiptView ? (
+        {step === STEPS.STATUS && createdTx && (() => {
+          const currentTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
+          const isSettled = currentTx.status === 'SETTLED';
+          const isAck = currentTx.status === 'RECEIVER_ACKNOWLEDGED' || currentTx.receiverAcknowledged;
+
+          return showReceiptView ? (
             <PaymentReceipt
-              transaction={createdTx}
+              transaction={currentTx}
               isSender={true}
               onDone={() => navigate('/dashboard')}
             />
@@ -892,31 +912,45 @@ function SendMoney() {
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                   isTxExpired
                     ? 'bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30'
-                    : createdTx.method === 'OFFLINE_QR'
-                    ? 'bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30'
-                    : 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
+                    : isSettled
+                    ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
+                    : isAck
+                    ? 'bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/30'
+                    : 'bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30'
                 } mb-2`}>
-                  {isTxExpired ? <Clock size={12} /> : createdTx.method === 'OFFLINE_QR' ? <WifiOff size={12} /> : <CheckCircle2 size={12} />}
-                  <span>{isTxExpired ? 'Payment Expired & Cancelled' : createdTx.method === 'OFFLINE_QR' ? 'Offline Payment QR (Pending Sync)' : 'Payment Settled'}</span>
+                  {isTxExpired ? <Clock size={12} /> : isSettled ? <CheckCircle2 size={12} /> : isAck ? <CheckCircle2 size={12} /> : <WifiOff size={12} />}
+                  <span>
+                    {isTxExpired
+                      ? 'Payment Expired & Cancelled'
+                      : isSettled
+                      ? 'Payment Settled by Server'
+                      : isAck
+                      ? 'Receiver Acknowledged — Sync Pending'
+                      : 'Offline Payment QR (Waiting for Scan)'}
+                  </span>
                 </span>
                 <h2 className="text-2xl font-black text-[#F8FAFC] tracking-tight">
                   {isTxExpired
                     ? 'Payment Expired & Cancelled'
-                    : createdTx.method === 'OFFLINE_QR'
-                    ? 'Ask the receiver to scan this QR'
-                    : 'Payment Settled Successfully'}
+                    : isSettled
+                    ? 'Payment Settled Successfully'
+                    : isAck
+                    ? 'Receiver Has Scanned Payment'
+                    : 'Ask the receiver to scan this QR'}
                 </h2>
                 <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
                   {isTxExpired
                     ? `Not scanned within 5 minutes. ${formatCurrency(createdTx.amount)} has been automatically refunded to your wallet balance.`
-                    : createdTx.method === 'OFFLINE_QR'
-                    ? 'Keep this screen open until the receiver scans and accepts the signed token.'
-                    : 'Your payment was settled and confirmed immediately.'}
+                    : isSettled
+                    ? 'Your payment was authoritatively settled on the central ledger.'
+                    : isAck
+                    ? 'The receiver successfully verified and claimed this offline payment. Central sync in progress.'
+                    : 'Keep this screen open until the receiver scans and accepts the signed token.'}
                 </p>
               </div>
 
-              {/* Countdown badge if active offline payment */}
-              {createdTx.method === 'OFFLINE_QR' && !isTxExpired && (
+              {/* Countdown badge only if strictly unclaimed offline payment */}
+              {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-[#A78BFA] mx-auto">
                   <Clock size={13} className="text-[#A78BFA] animate-pulse" />
                   <span>
@@ -1010,8 +1044,8 @@ function SendMoney() {
                 </Button>
               </div>
             </Card>
-          )
-        )}
+          );
+        })()}
       </div>
     </DashboardLayout>
   );

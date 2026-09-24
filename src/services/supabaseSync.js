@@ -565,7 +565,7 @@ export function subscribeToUserWalletAndTransactions(userId, onWalletUpdate, onT
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'transactions',
           filter: `receiver_id=eq.${userId}`,
@@ -579,10 +579,10 @@ export function subscribeToUserWalletAndTransactions(userId, onWalletUpdate, onT
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'transactions',
-          filter: `receiver_id=eq.${userId}`,
+          filter: `sender_id=eq.${userId}`,
         },
         (payload) => {
           if (payload.new && onTransactionReceived) {

@@ -655,7 +655,8 @@ export async function executeAtomicOfflineCreation({
 
 /**
  * executeAtomicOfflineAcceptance
- * Atomically credits receiver wallet and saves accepted OFFLINE_PENDING transaction.
+ * Atomically credits receiver wallet, marks transaction as RECEIVER_ACKNOWLEDGED,
+ * and adds to sync_queue for authoritative backend settlement.
  */
 export async function executeAtomicOfflineAcceptance({
   receiverId,
@@ -664,7 +665,7 @@ export async function executeAtomicOfflineAcceptance({
   const db = await getDB();
   await initSeedData();
 
-  const idbTx = db.transaction(['wallet', 'transactions', 'users'], 'readwrite');
+  const idbTx = db.transaction(['wallet', 'transactions', 'users', 'sync_queue'], 'readwrite');
 
   const walletStore = idbTx.objectStore('wallet');
   const allWallets = await walletStore.getAll();
@@ -694,8 +695,27 @@ export async function executeAtomicOfflineAcceptance({
   };
   await walletStore.put(updatedReceiverWallet);
 
-  // Save transaction as OFFLINE_PENDING
-  await idbTx.objectStore('transactions').put(transaction);
+  // Save transaction with explicit receiver acknowledgment
+  const acknowledgedTx = {
+    ...transaction,
+    status: transaction.status === 'SETTLED' ? 'SETTLED' : 'RECEIVER_ACKNOWLEDGED',
+    receiverAcknowledged: true,
+    acknowledgedAt: transaction.acknowledgedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await idbTx.objectStore('transactions').put(acknowledgedTx);
+
+  // Enqueue in sync queue so receiver device settles with backend
+  await idbTx.objectStore('sync_queue').put({
+    id: `sync-ack-${transaction.id}`,
+    transactionId: transaction.id,
+    type: 'TRANSACTION',
+    action: 'SETTLE_OFFLINE_PAYMENT',
+    status: 'PENDING',
+    attempts: 0,
+    createdAt: new Date().toISOString(),
+    payload: acknowledgedTx,
+  });
 
   await idbTx.done;
   return updatedReceiverWallet;
@@ -703,10 +723,10 @@ export async function executeAtomicOfflineAcceptance({
 
 /**
  * cancelAndRefundExpiredTransactions
- * Sweeps all pending transactions (OFFLINE_PENDING, RETRY_WAITING, SYNCING, PENDING)
+ * Sweeps ONLY un-scanned and unacknowledged OFFLINE_PENDING transactions
  * whose age exceeds timeoutMs (default 5 minutes).
- * Atomically marks them as EXPIRED, refunds the sender's balance and offline allowance,
- * removes them from sync_queue, and logs an audit security event.
+ * A transaction that has been scanned or acknowledged by the receiver
+ * (or is already in verification/settlement) is NEVER expired.
  */
 export async function cancelAndRefundExpiredTransactions({
   userId = null,
@@ -724,13 +744,30 @@ export async function cancelAndRefundExpiredTransactions({
   const allTxs = await txStore.getAll();
   const now = Date.now();
 
-  const PENDING_STATUSES = new Set(['OFFLINE_PENDING', 'RETRY_WAITING', 'SYNCING', 'PENDING']);
-  const expiredTxs = allTxs.filter(tx => {
-    if (!PENDING_STATUSES.has(tx.status)) return false;
+  const PENDING_STATUSES = new Set(['OFFLINE_PENDING']);
+  const expiredTxs = [];
+
+  for (const tx of allTxs) {
+    // 1. Only unacknowledged OFFLINE_PENDING transactions are candidates for voucher expiration
+    if (!PENDING_STATUSES.has(tx.status)) continue;
+
+    // 2. If already acknowledged or accepted by receiver, NEVER expire
+    if (tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === 'RECEIVER_ACKNOWLEDGED') continue;
+
+    // 3. If settled, verified, or syncing, NEVER expire
+    if (tx.settledAt || tx.status === 'SETTLED' || tx.status === 'VERIFIED' || tx.status === 'SYNCING') continue;
+
+    // 4. A receiver holding an incoming offline payment voucher must NEVER expire it
+    // The timeout strictly applies to the sender's un-scanned voucher
+    if (userId && tx.receiverId === userId && tx.senderId !== userId) continue;
+
+    // 5. Check age against timeout
     const createdAtTime = new Date(tx.createdAt || tx.timestamp).getTime();
-    if (isNaN(createdAtTime)) return false;
-    return (now - createdAtTime) >= timeoutMs;
-  });
+    if (isNaN(createdAtTime)) continue;
+    if ((now - createdAtTime) < timeoutMs) continue;
+
+    expiredTxs.push(tx);
+  }
 
   if (expiredTxs.length === 0) {
     await idbTx.done;
@@ -756,7 +793,7 @@ export async function cancelAndRefundExpiredTransactions({
       ...tx,
       status: 'EXPIRED',
       expiredAt: new Date().toISOString(),
-      rejectionReason: 'Payment expired: 5-minute timeout exceeded without receiver settlement.',
+      rejectionReason: 'Payment expired: 5-minute timeout exceeded without receiver scan.',
       updatedAt: new Date().toISOString(),
     };
     await txStore.put(updatedTx);

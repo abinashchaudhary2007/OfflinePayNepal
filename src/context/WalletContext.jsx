@@ -636,22 +636,61 @@ export function WalletProvider({ children }) {
 
   // ─── Accept Incoming Offline Payment (Receiver) ──────────
   const acceptIncomingPayment = useCallback(async (incomingTx) => {
-    const tx = {
+    let finalTx = {
       ...incomingTx,
-      status: TX_STATUS.OFFLINE_PENDING,
+      status: TX_STATUS.RECEIVER_ACKNOWLEDGED,
+      receiverAcknowledged: true,
+      acknowledgedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // Atomically credit receiver wallet in IndexedDB and save transaction
+    // Atomically credit receiver wallet in IndexedDB, save transaction, and queue sync
     const updatedReceiverWallet = await executeAtomicOfflineAcceptance({
       receiverId: incomingTx.receiverId,
-      transaction: tx,
+      transaction: finalTx,
     });
 
     setWallet(updatedReceiverWallet);
-    await refreshTransactions();
 
-    return tx;
+    // If online, immediately settle with backend / Supabase
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { executeRemoteAtomicTransfer, canSyncWithSupabase } = await import('../services/supabaseSync');
+        if (canSyncWithSupabase()) {
+          const remoteResult = await executeRemoteAtomicTransfer({
+            senderId: incomingTx.senderId,
+            receiverId: incomingTx.receiverId,
+            amount: incomingTx.amount,
+            txRef: incomingTx.id,
+            senderName: incomingTx.senderName,
+            receiverName: incomingTx.receiverName,
+            note: incomingTx.note || 'Reconciled Offline Payment',
+            nonce: incomingTx.nonce,
+            paymentType: 'OFFLINE_QR',
+          });
+
+          if (remoteResult && remoteResult.success) {
+            finalTx = {
+              ...finalTx,
+              status: TX_STATUS.SETTLED,
+              settledAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            await updateTransactionStatus(finalTx.id, TX_STATUS.SETTLED, {
+              settledAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            await removeSyncItem(`sync-ack-${finalTx.id}`).catch(() => {});
+            await removeSyncItem(finalTx.id).catch(() => {});
+          }
+        }
+      } catch (syncErr) {
+        console.info('[wallet] Immediate online settlement queued for background sync:', syncErr.message);
+      }
+    }
+
+    await refreshTransactions();
+    return finalTx;
   }, [refreshTransactions]);
 
   // ─── Synchronization Engine ──────────────────────────────
@@ -682,9 +721,11 @@ export function WalletProvider({ children }) {
           continue;
         }
 
-        // Check if transaction has exceeded the 5-minute timeout without settlement
+        // Check if transaction has exceeded the 5-minute timeout without receiver scan
+        // An acknowledged or received transaction must NEVER be marked as expired
+        const isAcknowledged = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === TX_STATUS.RECEIVER_ACKNOWLEDGED;
         const txAge = Date.now() - new Date(tx.createdAt || tx.timestamp).getTime();
-        if (txAge >= 5 * 60 * 1000) {
+        if (!isAcknowledged && txAge >= 5 * 60 * 1000 && tx.status === TX_STATUS.OFFLINE_PENDING) {
           await expirePendingTransactions();
           rejected++;
           continue;

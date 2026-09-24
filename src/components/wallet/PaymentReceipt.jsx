@@ -89,6 +89,18 @@ export function PaymentReceipt({
         </div>
       </div>
     );
+  } else if (status === 'RECEIVER_ACKNOWLEDGED') {
+    statusBanner = (
+      <div className="p-3.5 rounded-xl bg-[#38BDF8]/15 border border-[#38BDF8]/30 text-[#38BDF8] text-xs flex items-start gap-2.5 text-left">
+        <CheckCircle2 size={18} className="text-[#38BDF8] shrink-0 mt-0.5" />
+        <div>
+          <p className="font-bold text-[#F8FAFC]">Receiver Acknowledged — Verification Pending</p>
+          <p className="text-[#94A3B8] mt-0.5 leading-relaxed">
+            The receiver has scanned and verified this offline payment. It is safely claimed on this device and awaiting central reconciliation.
+          </p>
+        </div>
+      </div>
+    );
   } else if (status === 'EXPIRED') {
     statusBanner = (
       <div className="p-3.5 rounded-xl bg-[#172337] border border-[#263449] text-[#94A3B8] text-xs flex items-start gap-2.5 text-left">
@@ -107,9 +119,9 @@ export function PaymentReceipt({
       <div className="p-3.5 rounded-xl bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-[#A78BFA] text-xs flex items-start gap-2.5 text-left">
         <Clock size={18} className="text-[#A78BFA] shrink-0 mt-0.5" />
         <div>
-          <p className="font-bold text-[#F8FAFC]">Payment Accepted Locally (Offline Pending)</p>
+          <p className="font-bold text-[#F8FAFC]">Payment Created Locally (Offline Pending)</p>
           <p className="text-[#94A3B8] mt-0.5 leading-relaxed">
-            Cryptographic signature verified on device. Final server reconciliation will execute when either device reconnects to the internet.
+            Signed with device key and waiting for receiver to scan. Reconciles with server once scanned and connected.
           </p>
         </div>
       </div>
@@ -139,6 +151,8 @@ export function PaymentReceipt({
             ? 'bg-[#172337] text-[#94A3B8] border border-[#263449]'
             : status === 'SETTLED'
             ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
+            : status === 'RECEIVER_ACKNOWLEDGED'
+            ? 'bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/30'
             : status === 'OFFLINE_PENDING'
             ? 'bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30'
             : isSender
@@ -157,7 +171,7 @@ export function PaymentReceipt({
         </div>
 
         <p className="text-xs font-bold uppercase tracking-wider text-[#94A3B8]">
-          {status === 'EXPIRED' ? 'Payment Expired & Cancelled' : isSender ? 'Payment Submitted' : 'Payment Received'}
+          {status === 'EXPIRED' ? 'Payment Expired & Cancelled' : status === 'RECEIVER_ACKNOWLEDGED' ? 'Receiver Acknowledged' : isSender ? 'Payment Submitted' : 'Payment Received'}
         </p>
 
         <h2 className="text-3xl font-black text-[#F8FAFC] mt-1 tracking-tight">

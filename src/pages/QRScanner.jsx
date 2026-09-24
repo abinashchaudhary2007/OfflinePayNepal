@@ -211,11 +211,14 @@ function QRScanner() {
     if (!scannedTx) return;
     setIsAccepting(true);
     try {
-      await acceptIncomingPayment({
+      const acceptedResult = await acceptIncomingPayment({
         ...scannedTx,
         receiverId: currentUser.id,
         receiverName: currentUser.name,
       });
+      if (acceptedResult) {
+        setScannedTx(acceptedResult);
+      }
       setScanState(SCAN_STATES.ACCEPTED);
     } catch (e) {
       setErrorMsg(e.message || 'Failed to accept payment');
@@ -475,7 +478,7 @@ function QRScanner() {
           <PaymentReceipt
             transaction={{
               ...scannedTx,
-              status: 'OFFLINE_PENDING',
+              status: scannedTx.status || 'RECEIVER_ACKNOWLEDGED',
               method: 'OFFLINE_QR',
               receiverName: currentUser?.name || 'Receiver',
             }}

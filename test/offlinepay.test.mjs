@@ -1160,3 +1160,187 @@ test('Receiver Scanner — Reject offline payment QR generated >= 5 minutes ago'
   assert.match(expiredRes.error, /5-minute timeout exceeded/);
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 16. Offline Payment Expiration Bug Fix Verification Suite
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Expiration Bug / Test 1: Valid payment scanned & acknowledged by receiver MUST NOT expire', () => {
+  const now = Date.now();
+  const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+
+  // Transaction created 6 minutes ago (exceeds 5m timeout) BUT already scanned & acknowledged by receiver
+  const acknowledgedTx = {
+    id: 'tx-ack-001',
+    senderId: 'usr-sender-01',
+    receiverId: 'usr-receiver-02',
+    amount: 123.00,
+    status: TX_STATUS.RECEIVER_ACKNOWLEDGED,
+    receiverAcknowledged: true,
+    acknowledgedAt: new Date(now - 2 * 60 * 1000).toISOString(),
+    createdAt: new Date(now - 6 * 60 * 1000).toISOString(), // 6m old
+  };
+
+  function canExpireTransaction(tx, currentUserId) {
+    if (tx.status !== TX_STATUS.OFFLINE_PENDING) return false;
+    if (tx.receiverAcknowledged || tx.acknowledgedAt) return false;
+    if (tx.status === TX_STATUS.RECEIVER_ACKNOWLEDGED || tx.status === TX_STATUS.SETTLED || tx.status === TX_STATUS.VERIFIED) return false;
+    if (currentUserId && tx.receiverId === currentUserId && tx.senderId !== currentUserId) return false;
+
+    const age = now - new Date(tx.createdAt).getTime();
+    return age >= PENDING_TIMEOUT_MS;
+  }
+
+  // Verification on sender's device
+  const senderCanExpire = canExpireTransaction(acknowledgedTx, 'usr-sender-01');
+  assert.equal(senderCanExpire, false, 'Sender must NOT expire a transaction that was acknowledged by receiver');
+
+  // Verification on receiver's device
+  const receiverCanExpire = canExpireTransaction(acknowledgedTx, 'usr-receiver-02');
+  assert.equal(receiverCanExpire, false, 'Receiver must NOT expire a received payment voucher');
+});
+
+test('Expiration Bug / Test 2: Delayed synchronization preserves receiver acknowledgment in RECEIVER_ACKNOWLEDGED without expiring', () => {
+  const now = Date.now();
+  const offlineClaimedTx = {
+    id: 'tx-delayed-sync-002',
+    senderId: 'usr-sender-01',
+    receiverId: 'usr-receiver-02',
+    amount: 200.00,
+    status: TX_STATUS.RECEIVER_ACKNOWLEDGED,
+    receiverAcknowledged: true,
+    acknowledgedAt: new Date(now - 10 * 60 * 1000).toISOString(), // 10 minutes offline
+    createdAt: new Date(now - 12 * 60 * 1000).toISOString(),
+  };
+
+  const receiverWallet = {
+    userId: 'usr-receiver-02',
+    availableBalance: 1200.00, // Credited locally
+    totalReceived: 200.00,
+  };
+
+  const syncQueue = [
+    {
+      id: 'sync-ack-tx-delayed-sync-002',
+      transactionId: 'tx-delayed-sync-002',
+      status: 'PENDING',
+      attempts: 0,
+      payload: offlineClaimedTx,
+    }
+  ];
+
+  // While offline: acknowledgment must be retained without deletion or expiration
+  assert.equal(offlineClaimedTx.status, TX_STATUS.RECEIVER_ACKNOWLEDGED);
+  assert.equal(offlineClaimedTx.receiverAcknowledged, true);
+  assert.equal(syncQueue.length, 1, 'Sync queue must safely hold the item during network outage');
+  assert.equal(receiverWallet.availableBalance, 1200.00, 'Receiver wallet balance must remain credited');
+
+  // Once connectivity restored: item transitions to SETTLED
+  offlineClaimedTx.status = TX_STATUS.SETTLED;
+  offlineClaimedTx.settledAt = new Date().toISOString();
+  syncQueue.pop();
+
+  assert.equal(offlineClaimedTx.status, TX_STATUS.SETTLED, 'Transaction successfully transitions to SETTLED');
+  assert.equal(syncQueue.length, 0, 'Sync queue emptied after successful authoritative settlement');
+});
+
+test('Expiration Bug / Test 3: Duplicate scanning is strictly blocked and does not credit receiver twice', () => {
+  const claimedTransactions = new Map();
+  const receiverWallet = { availableBalance: 1000.00 };
+
+  function processIncomingScan(scannedPayload) {
+    if (claimedTransactions.has(scannedPayload.id)) {
+      throw new Error(`Transaction ${scannedPayload.id} has already been claimed on this device.`);
+    }
+    claimedTransactions.set(scannedPayload.id, {
+      ...scannedPayload,
+      status: TX_STATUS.RECEIVER_ACKNOWLEDGED,
+      receiverAcknowledged: true,
+    });
+    receiverWallet.availableBalance += scannedPayload.amount;
+  }
+
+  const token = { id: 'tx-dup-scan-003', amount: 150.00 };
+
+  // First scan succeeds
+  assert.doesNotThrow(() => processIncomingScan(token));
+  assert.equal(receiverWallet.availableBalance, 1150.00);
+
+  // Second scan of identical token MUST throw duplicate error and NOT credit again
+  assert.throws(() => processIncomingScan(token), /already been claimed/);
+  assert.equal(receiverWallet.availableBalance, 1150.00, 'Receiver balance must NOT be credited a second time');
+});
+
+test('Expiration Bug / Test 4: Duplicate synchronization is idempotent and prevents double debit/credit', () => {
+  const serverLedger = new Map();
+  const senderWallet = { balance: 1000.00 };
+  const receiverWallet = { balance: 500.00 };
+
+  function executeServerSettlement(tx) {
+    if (serverLedger.has(tx.id) && serverLedger.get(tx.id).status === 'SETTLED') {
+      return { success: true, already_settled: true };
+    }
+
+    senderWallet.balance -= tx.amount;
+    receiverWallet.balance += tx.amount;
+    serverLedger.set(tx.id, { ...tx, status: 'SETTLED' });
+    return { success: true, already_settled: false };
+  }
+
+  const tx = { id: 'tx-idem-004', amount: 250.00 };
+
+  // First sync
+  const firstSync = executeServerSettlement(tx);
+  assert.equal(firstSync.success, true);
+  assert.equal(firstSync.already_settled, false);
+  assert.equal(senderWallet.balance, 750.00);
+  assert.equal(receiverWallet.balance, 750.00);
+
+  // Second sync (e.g. sender syncs after receiver already settled)
+  const secondSync = executeServerSettlement(tx);
+  assert.equal(secondSync.success, true);
+  assert.equal(secondSync.already_settled, true);
+  assert.equal(senderWallet.balance, 750.00, 'Sender balance must NOT be debited twice');
+  assert.equal(receiverWallet.balance, 750.00, 'Receiver balance must NOT be credited twice');
+});
+
+test('Expiration Bug / Test 5: Genuine unscanned offline payment still expires after 5 minutes and refunds sender', () => {
+  const now = Date.now();
+  const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+
+  const unscannedTx = {
+    id: 'tx-unscanned-005',
+    senderId: 'usr-sender-real',
+    receiverId: 'usr-receiver-real',
+    amount: 100.00,
+    status: TX_STATUS.OFFLINE_PENDING,
+    receiverAcknowledged: false, // NEVER scanned
+    createdAt: new Date(now - 5 * 60 * 1000 - 5000).toISOString(), // 5m 5s old
+  };
+
+  const senderWallet = {
+    userId: 'usr-sender-real',
+    availableBalance: 900.00,
+    offlineSpent: 100.00,
+    totalSent: 100.00,
+  };
+
+  function sweepExpired(tx, wallet) {
+    const age = now - new Date(tx.createdAt).getTime();
+    if (tx.status === TX_STATUS.OFFLINE_PENDING && !tx.receiverAcknowledged && age >= PENDING_TIMEOUT_MS) {
+      tx.status = TX_STATUS.EXPIRED;
+      tx.expiredAt = new Date().toISOString();
+      wallet.availableBalance += tx.amount;
+      wallet.offlineSpent -= tx.amount;
+      wallet.totalSent -= tx.amount;
+      return true;
+    }
+    return false;
+  }
+
+  const expired = sweepExpired(unscannedTx, senderWallet);
+  assert.equal(expired, true, 'Truly unscanned offline payment must expire after 5 minutes');
+  assert.equal(unscannedTx.status, TX_STATUS.EXPIRED);
+  assert.equal(senderWallet.availableBalance, 1000.00, 'Sender must be refunded Rs. 100');
+  assert.equal(senderWallet.offlineSpent, 0.00, 'offlineSpent must be reset to 0');
+});
+

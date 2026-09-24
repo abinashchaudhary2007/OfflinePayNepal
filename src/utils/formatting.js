@@ -114,17 +114,18 @@ export function calcPercentage(used, total) {
  */
 export function getStatusBadgeClass(status) {
   const map = {
-    SETTLED:         'badge-settled',
-    VERIFIED:        'badge-verified',
-    OFFLINE_PENDING: 'badge-offline',
-    PENDING:         'badge-pending',
-    SYNCING:         'badge-syncing',
-    REJECTED:        'badge-rejected',
-    FAILED:          'badge-failed',
-    ACTIVE:          'badge-active',
-    CREATED:         'badge-syncing',
-    RETRY_WAITING:   'badge-pending',
-    EXPIRED:         'badge-failed',
+    SETTLED:               'badge-settled',
+    VERIFIED:              'badge-verified',
+    OFFLINE_PENDING:       'badge-offline',
+    RECEIVER_ACKNOWLEDGED: 'badge-offline',
+    PENDING:               'badge-pending',
+    SYNCING:               'badge-syncing',
+    REJECTED:              'badge-rejected',
+    FAILED:                'badge-failed',
+    ACTIVE:                'badge-active',
+    CREATED:               'badge-syncing',
+    RETRY_WAITING:         'badge-pending',
+    EXPIRED:               'badge-failed',
   };
   return map[status] || 'badge-syncing';
 }
@@ -134,15 +135,16 @@ export function getStatusBadgeClass(status) {
  */
 export function getStatusLabel(status) {
   const map = {
-    SETTLED:         'Settled',
-    VERIFIED:        'Verified',
-    OFFLINE_PENDING: 'Offline Pending',
-    PENDING:         'Pending',
-    SYNCING:         'Syncing',
-    RETRY_WAITING:   'Retrying',
-    REJECTED:        'Rejected',
-    FAILED:          'Failed',
-    ACTIVE:          'Active',
+    SETTLED:               'Settled',
+    VERIFIED:              'Verified',
+    OFFLINE_PENDING:       'Offline Pending',
+    RECEIVER_ACKNOWLEDGED: 'Receiver Acknowledged',
+    PENDING:               'Pending',
+    SYNCING:               'Syncing',
+    RETRY_WAITING:         'Retrying',
+    REJECTED:              'Rejected',
+    FAILED:                'Failed',
+    ACTIVE:                'Active',
     CREATED:         'Created',
     EXPIRED:         'Expired',
   };
