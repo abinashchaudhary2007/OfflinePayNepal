@@ -12,12 +12,10 @@ export function ThemeProvider({ children }) {
       if (stored === 'dark' || stored === 'light') {
         return stored;
       }
-      // 2. Check system preference
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
+      // 2. Default to light theme for clean blue-first fintech design system
+      return 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
   const isDark = theme === 'dark';

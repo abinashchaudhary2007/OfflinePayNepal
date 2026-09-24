@@ -26,24 +26,24 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl p-6 sm:p-7 text-[#F8FAFC]
-        border border-[#263449] shadow-lg transition-all duration-300
-        bg-gradient-to-br from-[#111C2E] to-[#172337] ${className}
+        relative overflow-hidden rounded-2xl p-6 sm:p-7 text-white
+        border border-white/15 shadow-xl transition-all duration-300
+        bg-gradient-to-br from-[#172B75] to-[#3155B8] ${className}
       `}
+      style={{ boxShadow: '0 10px 25px -5px rgba(23, 43, 117, 0.35)' }}
     >
       {/* Subtle ambient lighting */}
       <div
-        className="absolute -top-20 -right-20 w-52 h-52 rounded-full pointer-events-none opacity-20 blur-3xl"
-        style={{ background: '#14B8A6' }}
+        className="absolute -top-20 -right-20 w-52 h-52 rounded-full pointer-events-none opacity-20 blur-3xl bg-[#4F6FD8]"
       />
 
       {/* Top Bar: Card title & Privacy Toggle */}
       <div className="relative z-10 flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold tracking-wider uppercase text-[#94A3B8]">
+          <span className="text-xs font-semibold tracking-wider uppercase text-[#EAF0FF]/80">
             Available Balance
           </span>
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#14B8A6]/15 text-[#14B8A6] border border-[#14B8A6]/30">
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/20">
             NPR
           </span>
         </div>
@@ -51,8 +51,8 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
             isOffline
-              ? 'bg-[#A78BFA]/10 text-[#A78BFA] border-[#A78BFA]/30'
-              : 'bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/30'
+              ? 'bg-[#FFF6DD] text-[#8C6200] border-[#F2A900]/40 font-semibold'
+              : 'bg-white/15 text-white border-white/20'
           }`}>
             {isOffline ? (
               <>
@@ -61,7 +61,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
               </>
             ) : (
               <>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A66A] shadow-xs" />
                 <span>Connected</span>
               </>
             )}
@@ -69,7 +69,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
           <button
             onClick={() => setIsHidden(h => !h)}
-            className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#263449]/50 hover:bg-[#263449] text-[#94A3B8] hover:text-[#F8FAFC] transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/90 hover:text-white transition-colors cursor-pointer"
             aria-label={isHidden ? 'Show balance' : 'Hide balance'}
             title={isHidden ? 'Show balance' : 'Hide balance'}
           >
@@ -80,33 +80,33 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
       {/* Primary Balance Display */}
       <div className="relative z-10 mb-6">
-        <div className="font-black text-[#F8FAFC] tracking-tight text-3xl sm:text-4xl md:text-5xl select-none">
+        <div className="font-black text-white tracking-tight text-3xl sm:text-4xl md:text-5xl select-none">
           {hide(formatCurrency(wallet.availableBalance))}
         </div>
       </div>
 
       {/* Offline Reserve Progress & Inflow/Outflow */}
-      <div className="relative z-10 space-y-4 pt-4 border-t border-[#263449]">
+      <div className="relative z-10 space-y-4 pt-4 border-t border-white/15">
         {/* Reserve Bar */}
         <div>
           <div className="flex items-center justify-between text-xs mb-1.5">
-            <div className="flex items-center gap-1.5 text-[#94A3B8] font-medium">
-              <ShieldCheck size={14} className="text-[#14B8A6]" />
+            <div className="flex items-center gap-1.5 text-[#EAF0FF]/90 font-medium">
+              <ShieldCheck size={14} className="text-[#EAF0FF]" />
               <span>Offline Spending Reserve</span>
             </div>
-            <div className="text-[11px] font-semibold text-[#F8FAFC]">
-              {hide(formatCurrency(offlineRemaining))} <span className="text-[#94A3B8] font-normal">available</span>
+            <div className="text-[11px] font-semibold text-white">
+              {hide(formatCurrency(offlineRemaining))} <span className="text-[#EAF0FF]/70 font-normal">available</span>
             </div>
           </div>
 
-          <div className="h-1.5 w-full bg-[#0B1220] rounded-full overflow-hidden border border-[#263449]/60">
+          <div className="h-2 w-full bg-[#0C1740]/40 rounded-full overflow-hidden border border-white/10">
             <div
               className="h-full rounded-full transition-all duration-500 ease-out"
               style={{
                 width: `${Math.min(100, Math.max(0, 100 - offlineUsedPercent))}%`,
                 background: offlineRemaining < 100 && offlineLimit > 0
-                  ? '#F59E0B'
-                  : 'linear-gradient(90deg, #14B8A6, #38BDF8)',
+                  ? '#F2A900'
+                  : 'linear-gradient(90deg, #4F6FD8, #EAF0FF)',
               }}
             />
           </div>
@@ -115,19 +115,19 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
         {/* Received / Sent Summary */}
         <div className="flex items-center justify-between text-xs pt-1">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center">
-              <TrendingDown size={12} />
+            <div className="w-5 h-5 rounded-md bg-white/15 text-[#E8F8F1] flex items-center justify-center">
+              <TrendingDown size={12} className="text-[#16A66A]" />
             </div>
-            <span className="text-[#94A3B8]">Received:</span>
-            <span className="font-semibold text-[#F8FAFC]">{hide(formatCurrency(wallet.totalReceived || 0))}</span>
+            <span className="text-[#EAF0FF]/80">Received:</span>
+            <span className="font-bold text-white">{hide(formatCurrency(wallet.totalReceived || 0))}</span>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-[#EF4444]/15 text-[#EF4444] flex items-center justify-center">
-              <TrendingUp size={12} />
+            <div className="w-5 h-5 rounded-md bg-white/15 text-white flex items-center justify-center">
+              <TrendingUp size={12} className="text-[#FDECEC]" />
             </div>
-            <span className="text-[#94A3B8]">Sent:</span>
-            <span className="font-semibold text-[#F8FAFC]">{hide(formatCurrency(wallet.totalSent || 0))}</span>
+            <span className="text-[#EAF0FF]/80">Sent:</span>
+            <span className="font-bold text-white">{hide(formatCurrency(wallet.totalSent || 0))}</span>
           </div>
         </div>
       </div>
@@ -137,10 +137,10 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
 function BalanceCardSkeleton() {
   return (
-    <div className="rounded-2xl p-6 sm:p-7 bg-[#111C2E] border border-[#263449] animate-pulse">
-      <div className="h-4 w-28 bg-[#263449] rounded mb-4" />
-      <div className="h-10 w-48 bg-[#263449] rounded-lg mb-6" />
-      <div className="h-12 w-full bg-[#263449]/60 rounded-xl" />
+    <div className="rounded-2xl p-6 sm:p-7 bg-[#172B75] border border-white/10 animate-pulse">
+      <div className="h-4 w-28 bg-white/20 rounded mb-4" />
+      <div className="h-10 w-48 bg-white/20 rounded-lg mb-6" />
+      <div className="h-12 w-full bg-white/10 rounded-xl" />
     </div>
   );
 }

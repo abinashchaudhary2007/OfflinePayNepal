@@ -120,10 +120,10 @@ function ReceiveMoney() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#172033] tracking-tight">
               {isShowingSignedTx ? 'Payment QR Code' : 'Receive Hub'}
             </h1>
-            <p className="text-xs text-[#94A3B8] mt-0.5">
+            <p className="text-xs text-[#5F6B85] mt-0.5">
               {isShowingSignedTx
                 ? 'Scan this to accept offline payment'
                 : 'Share your QR to receive payments from anyone'}
@@ -143,13 +143,13 @@ function ReceiveMoney() {
 
         {/* Tab navigation (only shown if not in show_qr transaction mode) */}
         {!isShowingSignedTx && (
-          <div className="flex rounded-xl bg-[#111C2E] p-1 border border-[#263449]">
+          <div className="flex rounded-xl bg-white p-1 border border-[#DCE3F2] shadow-xs">
             <button
               onClick={() => setActiveTab(TABS.MY_QR)}
               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === TABS.MY_QR
-                  ? 'bg-[#172337] text-[#14B8A6] shadow-xs border border-[#14B8A6]/30'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  ? 'bg-[#172B75] text-white shadow-xs'
+                  : 'text-[#5F6B85] hover:text-[#172033]'
               }`}
             >
               My Identity QR
@@ -158,8 +158,8 @@ function ReceiveMoney() {
               onClick={() => setActiveTab(TABS.REQUEST)}
               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === TABS.REQUEST
-                  ? 'bg-[#172337] text-[#14B8A6] shadow-xs border border-[#14B8A6]/30'
-                  : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                  ? 'bg-[#172B75] text-white shadow-xs'
+                  : 'text-[#5F6B85] hover:text-[#172033]'
               }`}
             >
               Request Amount QR
@@ -169,13 +169,13 @@ function ReceiveMoney() {
 
         {/* Amount & Note Inputs (for Request tab) */}
         {!isShowingSignedTx && activeTab === TABS.REQUEST && (
-          <Card padding className="space-y-3 bg-[#172337] border border-[#263449]">
+          <Card padding className="space-y-3 bg-white border border-[#DCE3F2] shadow-xs">
             <div>
-              <label htmlFor="req-amount" className="text-xs font-bold text-[#F8FAFC] uppercase tracking-wider block mb-1">
+              <label htmlFor="req-amount" className="text-xs font-bold text-[#172033] uppercase tracking-wider block mb-1">
                 Requested Amount (NPR)
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#94A3B8]">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8993A8]">
                   Rs.
                 </span>
                 <input
@@ -184,13 +184,13 @@ function ReceiveMoney() {
                   placeholder="e.g. 250"
                   value={requestAmount}
                   onChange={e => setRequestAmount(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-base font-bold text-[#F8FAFC] bg-[#111C2E] border border-[#263449] focus:border-[#14B8A6] rounded-lg outline-none"
+                  className="w-full pl-10 pr-3 py-2 text-base font-bold text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="req-note" className="text-xs font-bold text-[#F8FAFC] uppercase tracking-wider block mb-1">
+              <label htmlFor="req-note" className="text-xs font-bold text-[#172033] uppercase tracking-wider block mb-1">
                 For (Optional note)
               </label>
               <input
@@ -199,22 +199,22 @@ function ReceiveMoney() {
                 placeholder="e.g. Lunch split, coffee"
                 value={requestNote}
                 onChange={e => setRequestNote(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-medium text-[#F8FAFC] bg-[#111C2E] border border-[#263449] focus:border-[#14B8A6] rounded-lg outline-none"
+                className="w-full px-3 py-2 text-xs font-medium text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
               />
             </div>
           </Card>
         )}
 
         {/* QR Code Presentation Card */}
-        <Card padding className="text-center space-y-4 bg-[#111C2E] border border-[#263449]">
+        <Card padding className="text-center space-y-4 bg-white border border-[#DCE3F2] shadow-sm">
           {qrError ? (
-            <div className="p-4 rounded-xl text-xs text-[#EF4444] bg-[#EF4444]/15 border border-[#EF4444]/30">
+            <div className="p-4 rounded-xl text-xs text-[#D64545] bg-[#FDECEC] border border-[#D64545]/30">
               {qrError}
             </div>
           ) : qrDataUrl ? (
             <>
               {/* QR Image Container */}
-              <div className="p-4 bg-white rounded-2xl inline-block shadow-md border border-[#263449]">
+              <div className="p-4 bg-white rounded-2xl inline-block shadow-sm border border-[#DCE3F2]">
                 <img
                   src={qrDataUrl}
                   alt="Payment QR Code"
@@ -226,10 +226,10 @@ function ReceiveMoney() {
               <div className="space-y-2">
                 {!isShowingSignedTx ? (
                   <>
-                    <h3 className="text-base font-bold text-[#F8FAFC]">
+                    <h3 className="text-base font-bold text-[#172033]">
                       {currentUser?.name}
                     </h3>
-                    <p className="text-xs text-[#94A3B8] max-w-xs mx-auto">
+                    <p className="text-xs text-[#5F6B85] max-w-xs mx-auto">
                       {activeTab === TABS.REQUEST && parseFloat(requestAmount) > 0
                         ? `Requesting ${formatCurrency(parseFloat(requestAmount))}${requestNote ? ` for "${requestNote}"` : ''}`
                         : 'Let the sender scan your QR to identify you and send funds.'}
@@ -238,32 +238,32 @@ function ReceiveMoney() {
                     {/* Copy Wallet Identifier */}
                     <div
                       onClick={handleCopyId}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#172337] hover:bg-[#1f2f49] border border-[#263449] cursor-pointer text-xs font-mono text-[#38BDF8] transition-colors mt-2"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F5F7FF] hover:bg-[#EAF0FF] border border-[#DCE3F2] cursor-pointer text-xs font-mono text-[#3155B8] transition-colors mt-2"
                       title="Click to copy Wallet ID"
                     >
                       <span>ID: {currentUser?.id}</span>
                       {copied ? (
-                        <CheckCircle2 size={13} className="text-[#22C55E]" />
+                        <CheckCircle2 size={13} className="text-[#16A66A]" />
                       ) : (
-                        <Copy size={13} className="text-[#94A3B8]" />
+                        <Copy size={13} className="text-[#8993A8]" />
                       )}
                     </div>
                   </>
                 ) : (
                   /* Signed Offline TX Details */
-                  <div className="text-left space-y-2 text-xs border-t border-[#263449] pt-3">
+                  <div className="text-left space-y-2 text-xs border-t border-[#DCE3F2] pt-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Amount:</span>
-                      <span className="font-black text-[#14B8A6] text-sm">
+                      <span className="text-[#5F6B85]">Amount:</span>
+                      <span className="font-black text-[#172B75] text-sm">
                         {formatCurrency(incomingTx.amount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Recipient:</span>
-                      <span className="font-semibold text-[#F8FAFC]">{incomingTx.receiverName}</span>
+                      <span className="text-[#5F6B85]">Recipient:</span>
+                      <span className="font-semibold text-[#172033]">{incomingTx.receiverName}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[#94A3B8]">Status:</span>
+                      <span className="text-[#5F6B85]">Status:</span>
                       <Badge status={incomingTx.status} />
                     </div>
                   </div>
@@ -271,8 +271,8 @@ function ReceiveMoney() {
               </div>
             </>
           ) : (
-            <div className="w-56 h-56 rounded-2xl bg-[#172337] border border-[#263449] animate-pulse mx-auto flex items-center justify-center">
-              <QrCode size={48} className="text-[#94A3B8]" />
+            <div className="w-56 h-56 rounded-2xl bg-[#F5F7FF] border border-[#DCE3F2] animate-pulse mx-auto flex items-center justify-center">
+              <QrCode size={48} className="text-[#8993A8]" />
             </div>
           )}
         </Card>
@@ -282,7 +282,7 @@ function ReceiveMoney() {
           <Button
             block
             size="lg"
-            variant="outline"
+            variant="accent"
             onClick={() => navigate('/scan')}
             leftIcon={<ScanLine size={18} />}
             id="btn-scan-payment-qr-bottom"

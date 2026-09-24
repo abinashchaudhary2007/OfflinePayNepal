@@ -295,6 +295,7 @@ export async function getTransaction(id) {
   const db = await getDB();
   return db.get('transactions', id);
 }
+export const getTransactionById = getTransaction;
 
 export async function getAllTransactions() {
   const db = await getDB();

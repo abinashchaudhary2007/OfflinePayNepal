@@ -1,7 +1,8 @@
 /**
  * OfflineAuthorization.jsx — Phase 4
  * Allows users to request and manage their offline spending authorization.
- * Styled with Midnight Navy (#111C2E / #172337), Electric Teal (#14B8A6), and Sky Blue (#38BDF8).
+ * Styled with UPI-inspired Nepali fintech design system:
+ * Primary Navy (#172B75), Primary Blue (#3155B8), Light Blue (#EAF0FF), White (#FFFFFF)
  */
 import { useState } from 'react';
 import { Shield, Wifi, WifiOff, Clock, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -57,43 +58,43 @@ function OfflineAuthorization() {
     <DashboardLayout>
       <div className="max-w-4xl space-y-5 animate-fade-in">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#F8FAFC]">Offline Authorization</h1>
-          <p className="text-xs sm:text-sm text-[#94A3B8] mt-1">Pre-authorize cryptographic spending limits on this device</p>
+          <h1 className="text-xl sm:text-2xl font-black text-[#172033]">Offline Authorization</h1>
+          <p className="text-xs sm:text-sm text-[#5F6B85] mt-1">Pre-authorize cryptographic spending limits on this device</p>
         </div>
 
         {/* Info callout */}
-        <div className="p-3.5 rounded-2xl text-xs flex items-center gap-2.5 text-[#38BDF8] bg-[#172337] border border-[#263449]">
-          <Shield size={16} className="text-[#14B8A6] flex-shrink-0" />
+        <div className="p-3.5 rounded-2xl text-xs flex items-center gap-2.5 text-[#172B75] bg-[#EAF0FF] border border-[#DCE3F2]">
+          <Shield size={16} className="text-[#3155B8] flex-shrink-0" />
           <span>Set an offline spending limit while connected. Valid for 30 days.</span>
         </div>
 
         {/* Device check */}
         {!device && (
-          <div className="p-4 rounded-2xl bg-[#F59E0B]/15 border border-[#F59E0B]/30">
-            <p className="text-sm font-bold text-[#F59E0B]">⚠ Device Required</p>
-            <p className="text-xs text-[#94A3B8] mt-1">
+          <div className="p-4 rounded-2xl bg-[#FFF6DD] border border-[#F2A900]/30">
+            <p className="text-sm font-bold text-[#B57F00]">⚠ Device Required</p>
+            <p className="text-xs text-[#5F6B85] mt-1">
               You need to register a device before getting offline authorization.
-              Go to <a href="/devices" className="text-[#38BDF8] underline font-semibold">Device Management</a>.
+              Go to <a href="/devices" className="text-[#3155B8] underline font-semibold">Device Management</a>.
             </p>
           </div>
         )}
 
         {/* Current Authorization */}
         {authorization && (
-          <Card padding className="bg-[#111C2E] border border-[#263449]">
+          <Card padding className="bg-white border border-[#DCE3F2]">
             <CardHeader title="Current Authorization" subtitle="Active cryptographic spending capacity" />
 
             <div className="space-y-3 mb-4">
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl bg-[#172337] border border-[#263449]">
-                  <p className="text-[10px] text-[#94A3B8] uppercase font-bold tracking-wide">Total Limit</p>
-                  <p className="text-base font-black text-[#F8FAFC] mt-0.5">
+                <div className="p-3.5 rounded-xl bg-[#F5F7FF] border border-[#DCE3F2]">
+                  <p className="text-[10px] text-[#8993A8] uppercase font-bold tracking-wide">Total Limit</p>
+                  <p className="text-base font-black text-[#172033] mt-0.5">
                     {formatCurrency(authorization.maximumAmount)}
                   </p>
                 </div>
-                <div className="p-3.5 rounded-xl bg-[#172337] border border-[#263449]">
-                  <p className="text-[10px] text-[#94A3B8] uppercase font-bold tracking-wide">Remaining</p>
-                  <p className="text-base font-black text-[#14B8A6] mt-0.5">
+                <div className="p-3.5 rounded-xl bg-[#EAF0FF] border border-[#DCE3F2]">
+                  <p className="text-[10px] text-[#3155B8] uppercase font-bold tracking-wide">Remaining</p>
+                  <p className="text-base font-black text-[#172B75] mt-0.5">
                     {formatCurrency(authorization.remainingAmount)}
                   </p>
                 </div>
@@ -102,17 +103,17 @@ function OfflineAuthorization() {
               {/* Progress bar */}
               <div>
                 <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-[#94A3B8]">Used: {formatCurrency(authorization.maximumAmount - authorization.remainingAmount)}</span>
-                  <span className="font-semibold text-[#F8FAFC]">{usedPercent}%</span>
+                  <span className="text-[#5F6B85]">Used: {formatCurrency(authorization.maximumAmount - authorization.remainingAmount)}</span>
+                  <span className="font-semibold text-[#172033]">{usedPercent}%</span>
                 </div>
-                <div className="h-2 rounded-full overflow-hidden bg-[#0B1220] border border-[#263449]">
+                <div className="h-2 rounded-full overflow-hidden bg-[#F5F7FF] border border-[#DCE3F2]">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${usedPercent}%`,
                       background: usedPercent > 80
-                        ? 'linear-gradient(90deg, #F59E0B, #EF4444)'
-                        : 'linear-gradient(90deg, #14B8A6, #38BDF8)',
+                        ? 'linear-gradient(90deg, #F2A900, #D64545)'
+                        : 'linear-gradient(90deg, #172B75, #3155B8)',
                     }}
                   />
                 </div>
@@ -127,7 +128,7 @@ function OfflineAuthorization() {
 
               {/* Expiry warning */}
               {new Date(authorization.expiresAt) - new Date() < 3 * 60 * 60 * 1000 && (
-                <div className="flex items-center gap-2 p-3 rounded-xl text-xs font-semibold bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">
+                <div className="flex items-center gap-2 p-3 rounded-xl text-xs font-semibold bg-[#FFF6DD] text-[#B57F00] border border-[#F2A900]/30">
                   <Clock size={14} />
                   Authorization expires {formatRelativeTime(authorization.expiresAt)} — renew soon
                 </div>
@@ -138,7 +139,7 @@ function OfflineAuthorization() {
 
         {/* Create / Renew Authorization */}
         {(!authorization || authorization.remainingAmount === 0) && device && (
-          <Card padding className="bg-[#111C2E] border border-[#263449]">
+          <Card padding className="bg-white border border-[#DCE3F2]">
             <CardHeader
               title={authorization ? 'Renew Authorization' : 'Get Offline Authorization'}
               subtitle="Generate a local spending token locked with your device key"
@@ -168,12 +169,12 @@ function OfflineAuthorization() {
               />
 
               {createError && (
-                <div className="p-3 rounded-xl text-xs font-semibold bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444]">
+                <div className="p-3 rounded-xl text-xs font-semibold bg-[#FDECEC] border border-[#D64545]/30 text-[#D64545]">
                   {createError}
                 </div>
               )}
               {createSuccess && (
-                <div className="p-3 rounded-xl text-xs font-semibold flex items-center gap-2 bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E]">
+                <div className="p-3 rounded-xl text-xs font-semibold flex items-center gap-2 bg-[#E8F8F1] border border-[#16A66A]/30 text-[#16A66A]">
                   <CheckCircle2 size={14} /> Authorization created successfully! Valid for 30 days.
                 </div>
               )}
@@ -189,7 +190,7 @@ function OfflineAuthorization() {
               </Button>
 
               {isOffline && (
-                <p className="text-xs text-center text-[#F59E0B]">
+                <p className="text-xs text-center text-[#B57F00]">
                   ⚠ You must be online to create an authorization.
                 </p>
               )}
@@ -199,7 +200,7 @@ function OfflineAuthorization() {
 
         {/* Renew button when auth exists */}
         {authorization && authorization.remainingAmount > 0 && device && (
-          <Card padding className="bg-[#111C2E] border border-[#263449]">
+          <Card padding className="bg-white border border-[#DCE3F2]">
             <CardHeader title="Renew or Change Authorization" subtitle="Update your offline limits" />
             <div className="space-y-4">
               <Input
@@ -219,7 +220,7 @@ function OfflineAuthorization() {
                 placeholder="500"
               />
               {createError && (
-                <div className="p-3 rounded-xl text-xs font-semibold bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444]">
+                <div className="p-3 rounded-xl text-xs font-semibold bg-[#FDECEC] border border-[#D64545]/30 text-[#D64545]">
                   {createError}
                 </div>
               )}
@@ -237,8 +238,8 @@ function OfflineAuthorization() {
 function InfoRow({ label, value }) {
   return (
     <div>
-      <p className="text-[10px] text-[#94A3B8] uppercase font-bold tracking-wide mb-0.5">{label}</p>
-      <div className="text-xs font-semibold text-[#F8FAFC]">{value}</div>
+      <p className="text-[10px] text-[#8993A8] uppercase font-bold tracking-wide mb-0.5">{label}</p>
+      <div className="text-xs font-semibold text-[#172033]">{value}</div>
     </div>
   );
 }

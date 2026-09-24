@@ -99,17 +99,17 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[var(--color-gray-50)] text-[var(--color-gray-900)]">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#F5F7FF] text-[#172033]">
       {/* ─── Left Panel: Fintech Showcase & Security Value Props ─── */}
-      <div className="hidden lg:flex flex-col justify-between w-5/12 p-10 xl:p-12 hero-bg relative overflow-hidden select-none">
+      <div className="hidden lg:flex flex-col justify-between w-5/12 p-10 xl:p-12 bg-gradient-to-br from-[#172B75] to-[#3155B8] relative overflow-hidden select-none text-white">
         {/* Ambient Gradient Glows */}
         <div
-          className="absolute -top-32 -left-32 w-96 h-96 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 70%)' }}
+          className="absolute -top-32 -left-32 w-96 h-96 rounded-full pointer-events-none opacity-25 blur-3xl"
+          style={{ background: '#4F6FD8' }}
         />
         <div
-          className="absolute bottom-10 right-0 w-80 h-80 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)' }}
+          className="absolute bottom-10 right-0 w-80 h-80 rounded-full pointer-events-none opacity-20 blur-3xl"
+          style={{ background: '#EAF0FF' }}
         />
 
         {/* Top Logo */}
@@ -117,36 +117,36 @@ function Login() {
           <img
             src="/logo.png"
             alt="OfflinePay Nepal Logo"
-            className="w-12 h-12 rounded-2xl object-contain bg-white p-1 shadow-lg shadow-indigo-500/25 transition-transform group-hover:scale-105 border border-white/20"
+            className="w-12 h-12 rounded-2xl object-contain bg-white p-1 shadow-md transition-transform group-hover:scale-105 border border-white/20"
           />
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="text-white font-black text-xl tracking-tight">OfflinePay</span>
-              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 uppercase tracking-wider">
+              <span className="text-white font-extrabold text-xl tracking-tight">OfflinePay</span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white border border-white/30 uppercase tracking-wider">
                 Nepal
               </span>
             </div>
-            <span className="text-[11px] text-slate-400 font-medium tracking-wide">
-              Simulated Offline Wallet System
+            <span className="text-[11px] text-[#EAF0FF]/80 font-medium tracking-wide">
+              Nepali Digital Payment Platform
             </span>
           </div>
         </Link>
 
         {/* Main Pitch */}
         <div className="relative z-10 my-auto py-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-5 shadow-xs">
-            <Sparkles size={14} className="text-indigo-400 animate-pulse" />
-            <span>Next-Gen Offline Fintech Architecture</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/15 text-white border border-white/25 mb-5 shadow-xs">
+            <Sparkles size={14} className="text-[#EAF0FF] animate-pulse" />
+            <span>Secure Offline Payment Architecture</span>
           </div>
 
-          <h2 className="text-3xl xl:text-4xl font-black text-white leading-[1.2] tracking-tight mb-4">
+          <h2 className="text-3xl xl:text-4xl font-extrabold text-white leading-[1.2] tracking-tight mb-4">
             Zero internet?{' '}
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#EAF0FF] to-white">
               Payments still go through.
             </span>
           </h2>
-          <p className="text-slate-300 text-sm xl:text-base leading-relaxed max-w-md font-normal">
+          <p className="text-[#EAF0FF]/90 text-sm xl:text-base leading-relaxed max-w-md font-normal">
             Designed specifically for Nepal's connectivity realities. Authorize cryptographic peer payments that verify locally in milliseconds.
           </p>
 
@@ -155,33 +155,33 @@ function Login() {
             {[
               {
                 icon: ShieldCheck,
-                color: 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30',
+                color: 'text-white bg-white/15 border-white/20',
                 title: 'ECDSA P-256 Asymmetric Signatures',
                 desc: 'Digital signatures generated locally inside your device’s secure WebCrypto keystore.',
               },
               {
                 icon: WifiOff,
-                color: 'text-emerald-400 bg-emerald-500/20 border-emerald-500/30',
+                color: 'text-white bg-white/15 border-white/20',
                 title: 'Offline QR & Mesh Settlement',
                 desc: 'Receivers verify payment tokens and anti-replay counters without cellular connectivity.',
               },
               {
                 icon: KeyRound,
-                color: 'text-amber-400 bg-amber-500/20 border-amber-500/30',
+                color: 'text-white bg-white/15 border-white/20',
                 title: 'Auto Cloud Reconciliation',
                 desc: 'Offline transactions automatically synchronize to Supabase once network is restored.',
               },
             ].map((f, i) => (
               <div
                 key={i}
-                className="flex items-start gap-3.5 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm shadow-sm"
+                className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-sm shadow-xs"
               >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${f.color}`}>
                   <f.icon size={18} />
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-white tracking-tight">{f.title}</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{f.desc}</p>
+                  <p className="text-[11px] text-[#EAF0FF]/80 mt-0.5 leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -189,13 +189,13 @@ function Login() {
         </div>
 
         {/* Security & Prototype Footer Guarantee */}
-        <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 pt-5 border-t border-slate-800">
+        <div className="relative z-10 flex items-center justify-between text-xs text-[#EAF0FF]/80 pt-5 border-t border-white/20">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="font-medium text-slate-300">Sandbox Environment Active</span>
+            <span className="w-2 h-2 rounded-full bg-[#16A66A] animate-ping" />
+            <span className="font-medium text-white">Trust & Security Certified</span>
           </div>
-          <span className="font-mono text-[11px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">
-            Simulated NPR Only
+          <span className="font-mono text-[11px] bg-white/15 px-2 py-0.5 rounded text-white border border-white/20">
+            NPR Ledger
           </span>
         </div>
       </div>
@@ -207,7 +207,7 @@ function Login() {
           <div className="flex items-center justify-between">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-indigo-600)] hover:text-[var(--color-indigo-700)] no-underline transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#3155B8] hover:text-[#172B75] no-underline transition-colors"
             >
               <ArrowLeft size={15} /> Back to Home
             </Link>
@@ -215,33 +215,33 @@ function Login() {
             <div className="flex items-center gap-2">
               <ThemeToggle size="sm" />
               {isOffline ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 animate-pulse">
-                  <WifiOff size={13} className="text-amber-600" /> Offline Mode Active
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FFF6DD] text-[#8C6200] border border-[#F2A900]/40 animate-pulse">
+                  <WifiOff size={13} className="text-[#8C6200]" /> Offline Mode Active
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online Sync Ready
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E8F8F1] text-[#16A66A] border border-[#16A66A]/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A66A]" /> Online Sync Ready
                 </span>
               )}
             </div>
           </div>
 
           {/* Main Card */}
-          <div className="bg-white border border-[var(--color-gray-200)] rounded-3xl p-6 sm:p-8 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white border border-[#DCE3F2] rounded-3xl p-6 sm:p-8 shadow-xs hover:shadow-md transition-shadow">
             {/* Header Titles */}
             <div className="mb-6">
-              <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-gray-900)] tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight">
                 Sign in to your wallet
               </h1>
-              <p className="text-xs sm:text-sm text-[var(--color-gray-500)] mt-1.5 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#5F6B85] mt-1.5 leading-relaxed">
                 Access your offline balance, cryptographic credentials, and transaction ledger.
               </p>
             </div>
 
             {/* Offline Notification Banner if offline */}
             {isOffline && (
-              <div className="mb-5 p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
-                <WifiOff size={16} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="mb-5 p-3.5 rounded-xl bg-[#FFF6DD] border border-[#F2A900]/30 text-[#8C6200] text-xs flex items-start gap-2.5">
+                <WifiOff size={16} className="text-[#8C6200] shrink-0 mt-0.5" />
                 <div className="leading-snug">
                   <span className="font-bold">Offline Device Sign-In: </span>
                   You can sign in to any account previously saved on this device without internet connectivity.
@@ -252,20 +252,20 @@ function Login() {
             {/* Error Message with Resend Confirmation Option */}
             {error && (
               <div
-                className="p-4 rounded-xl text-xs mb-5 border border-red-200 bg-red-50 text-red-800 space-y-2.5 animate-shake"
+                className="p-4 rounded-xl text-xs mb-5 border border-[#D64545]/30 bg-[#FDECEC] text-[#D64545] space-y-2.5 animate-shake"
                 role="alert"
               >
                 <div className="flex items-start gap-2.5">
-                  <AlertCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                  <AlertCircle size={16} className="text-[#D64545] shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="font-bold">Unable to Sign In</p>
-                    <p className="text-red-700 mt-0.5 leading-relaxed">{error}</p>
+                    <p className="text-[#D64545] mt-0.5 leading-relaxed">{error}</p>
                   </div>
                 </div>
 
                 {error.toLowerCase().includes('not confirmed') && (
-                  <div className="pt-2 border-t border-red-200">
-                    <p className="text-[11px] text-red-700 mb-2 leading-relaxed">
+                  <div className="pt-2 border-t border-[#D64545]/20">
+                    <p className="text-[11px] text-[#D64545] mb-2 leading-relaxed">
                       Supabase requires verifying your email before cloud login. Check your inbox or click to resend a verification link.
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
@@ -279,7 +279,7 @@ function Login() {
                         {resendLoading ? 'Sending link...' : 'Resend Verification Link'}
                       </Button>
                       {resendMsg && (
-                        <span className={`text-[11px] font-medium flex items-center gap-1 ${resendMsg.includes('sent') ? 'text-emerald-700' : 'text-red-700'}`}>
+                        <span className={`text-[11px] font-medium flex items-center gap-1 ${resendMsg.includes('sent') ? 'text-[#16A66A]' : 'text-[#D64545]'}`}>
                           {resendMsg.includes('sent') && <CheckCircle2 size={13} />}
                           {resendMsg}
                         </span>
@@ -328,8 +328,8 @@ function Login() {
 
                 {/* Friendly Caps Lock Warning */}
                 {isCapsLockOn && (
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
-                    <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#8C6200] bg-[#FFF6DD] border border-[#F2A900]/30 px-2.5 py-1 rounded-lg">
+                    <AlertTriangle size={13} className="text-[#F2A900] shrink-0" />
                     <span>Warning: Caps Lock is ON</span>
                   </div>
                 )}
@@ -337,12 +337,12 @@ function Login() {
 
               {/* Remember Me & Help Actions */}
               <div className="flex items-center justify-between pt-1 text-xs">
-                <label className="flex items-center gap-2 text-[var(--color-gray-600)] cursor-pointer select-none">
+                <label className="flex items-center gap-2 text-[#5F6B85] cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-[var(--color-gray-300)] text-[var(--color-indigo-600)] focus:ring-[var(--color-indigo-500)] cursor-pointer"
+                    className="w-4 h-4 rounded border-[#DCE3F2] text-[#172B75] focus:ring-[#3155B8] cursor-pointer"
                   />
                   <span>Remember my email</span>
                 </label>
@@ -350,13 +350,13 @@ function Login() {
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(true)}
-                  className="font-semibold text-[var(--color-indigo-600)] hover:text-[var(--color-indigo-700)] hover:underline cursor-pointer bg-transparent border-0 p-0 text-xs"
+                  className="font-semibold text-[#3155B8] hover:text-[#172B75] hover:underline cursor-pointer bg-transparent border-0 p-0 text-xs"
                 >
                   Forgot password?
                 </button>
               </div>
 
-              {/* Sign In CTA Button */}
+              {/* Sign In CTA Button (Primary CTA: Background #172B75, Text #FFFFFF) */}
               <Button
                 type="submit"
                 block
@@ -364,23 +364,23 @@ function Login() {
                 loading={isLoading}
                 rightIcon={<ArrowRight size={18} />}
                 id="login-submit-btn"
-                className="mt-3 font-bold text-sm shadow-md shadow-indigo-600/20"
+                className="mt-3 font-bold text-sm shadow-sm"
               >
                 {isLoading ? 'Signing In...' : 'Sign In to Wallet'}
               </Button>
             </form>
 
             {/* Bottom Register Prompt */}
-            <div className="mt-6 pt-5 border-t border-[var(--color-gray-100)] text-center text-xs sm:text-sm text-[var(--color-gray-600)]">
+            <div className="mt-6 pt-5 border-t border-[#DCE3F2] text-center text-xs sm:text-sm text-[#5F6B85]">
               Don't have an account yet?{' '}
               <Link
                 to="/register"
-                className="font-bold text-[var(--color-indigo-600)] hover:text-[var(--color-indigo-700)] hover:underline"
+                className="font-bold text-[#3155B8] hover:text-[#172B75] hover:underline"
                 id="link-create-account"
               >
                 Create an account
               </Link>
-              <div className="text-[11px] text-[var(--color-gray-400)] mt-1">
+              <div className="text-[11px] text-[#8993A8] mt-1">
                 Includes Rs. 1,000 initial test balance + auto keypair generation
               </div>
             </div>
@@ -388,7 +388,7 @@ function Login() {
 
           {/* Educational Sandbox Guarantee */}
           <div className="text-center space-y-1">
-            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-gray-500)] bg-slate-100 py-1.5 px-3.5 rounded-full border border-slate-200">
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-[#5F6B85] bg-white py-1.5 px-3.5 rounded-full border border-[#DCE3F2] shadow-xs">
               <span>🎭</span>
               <span>Educational prototype · Uses simulated NPR test tokens only</span>
             </span>

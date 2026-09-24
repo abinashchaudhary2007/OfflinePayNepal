@@ -49,25 +49,25 @@ function Sidebar({ isOpen, onClose }) {
       {/* Sidebar panel */}
       <aside
         className={`
-          fixed md:static inset-y-0 left-0 h-full w-72 md:w-64 bg-[#111C2E] border-r border-[#263449]
+          fixed md:static inset-y-0 left-0 h-full w-72 md:w-64 bg-white border-r border-[#DCE3F2]
           flex flex-col z-30 transition-transform duration-300 shadow-xl md:shadow-none flex-shrink-0 min-h-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         {/* Mobile drawer header with brand logo */}
-        <div className="md:hidden flex items-center justify-between p-3.5 border-b border-[#263449]">
+        <div className="md:hidden flex items-center justify-between p-3.5 border-b border-[#DCE3F2]">
           <Link to="/dashboard" onClick={onClose} className="flex items-center gap-2 no-underline">
             <img
               src="/logo.png"
               alt="OfflinePay Nepal"
-              className="w-8 h-8 rounded-lg object-contain bg-white shadow-xs p-0.5 border border-[#263449]"
+              className="w-8 h-8 rounded-lg object-contain bg-white shadow-xs p-0.5 border border-[#DCE3F2]"
             />
-            <span className="font-extrabold text-sm tracking-tight text-[#F8FAFC]">
-              OfflinePay <span className="text-[#14B8A6]">Nepal</span>
+            <span className="font-extrabold text-sm tracking-tight text-[#172B75]">
+              OfflinePay <span className="text-[#3155B8]">Nepal</span>
             </span>
           </Link>
           <button
-            className="p-1.5 rounded-lg hover:bg-[#172337] text-[#94A3B8] hover:text-[#F8FAFC]"
+            className="p-1.5 rounded-lg hover:bg-[#F5F7FF] text-[#5F6B85] hover:text-[#172B75] cursor-pointer"
             onClick={onClose}
             aria-label="Close sidebar"
           >
@@ -77,7 +77,7 @@ function Sidebar({ isOpen, onClose }) {
 
         {/* Nav links */}
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          <p className="text-[10px] font-bold tracking-widest text-[#94A3B8]/70 uppercase px-3 pb-1 pt-1">
+          <p className="text-[10px] font-bold tracking-widest text-[#8993A8] uppercase px-3 pb-1 pt-1">
             Menu
           </p>
 
@@ -87,7 +87,7 @@ function Sidebar({ isOpen, onClose }) {
               to={to}
               onClick={onClose}
               className={({ isActive }) =>
-                `nav-item ${isActive ? 'active font-bold' : ''}`
+                `nav-item ${isActive ? 'active' : ''}`
               }
             >
               <Icon size={18} />
@@ -96,8 +96,8 @@ function Sidebar({ isOpen, onClose }) {
           ))}
 
           {/* DEMO / SECURITY section */}
-          <div className="pt-4 mt-2 border-t border-[#263449]">
-            <p className="text-[10px] font-bold tracking-widest text-[#94A3B8]/70 uppercase px-3 pb-1">
+          <div className="pt-4 mt-2 border-t border-[#DCE3F2]">
+            <p className="text-[10px] font-bold tracking-widest text-[#8993A8] uppercase px-3 pb-1">
               Demo & Security Tools
             </p>
             {SECURITY_TOOL_ITEMS.map(({ to, icon: Icon, label }) => (
@@ -106,7 +106,7 @@ function Sidebar({ isOpen, onClose }) {
                 to={to}
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `nav-item text-xs ${isActive ? 'active font-bold' : ''}`
+                  `nav-item text-xs ${isActive ? 'active' : ''}`
                 }
               >
                 <Icon size={16} />
@@ -117,8 +117,8 @@ function Sidebar({ isOpen, onClose }) {
 
           {/* Admin section — only visible to admins */}
           {currentUser?.role === 'admin' && (
-            <div className="pt-4 mt-2 border-t border-[#263449]">
-              <p className="text-[10px] font-bold tracking-widest text-[#94A3B8]/70 uppercase px-3 pb-1">
+            <div className="pt-4 mt-2 border-t border-[#DCE3F2]">
+              <p className="text-[10px] font-bold tracking-widest text-[#8993A8] uppercase px-3 pb-1">
                 Administration
               </p>
               {ADMIN_ITEMS.map(({ to, icon: Icon, label }) => (
@@ -127,7 +127,7 @@ function Sidebar({ isOpen, onClose }) {
                   to={to}
                   onClick={onClose}
                   className={({ isActive }) =>
-                    `nav-item text-xs ${isActive ? 'active font-bold' : ''}`
+                    `nav-item text-xs ${isActive ? 'active' : ''}`
                   }
                 >
                   <Icon size={16} />
@@ -139,25 +139,25 @@ function Sidebar({ isOpen, onClose }) {
         </nav>
 
         {/* Bottom — Theme Toggle & Device status info */}
-        <div className="p-3 border-t border-[#263449] flex-shrink-0 bg-[#0B1220]/60 space-y-2">
+        <div className="p-3 border-t border-[#DCE3F2] flex-shrink-0 bg-[#F5F7FF] space-y-2">
           <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-semibold text-[#94A3B8]">Appearance</span>
+            <span className="text-[11px] font-semibold text-[#5F6B85]">Appearance</span>
             <ThemeToggle size="sm" showLabel={true} />
           </div>
 
           {device ? (
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#172337] border border-[#263449] shadow-xs">
-              <div className="w-2 h-2 rounded-full bg-[#22C55E] flex-shrink-0 animate-pulse" />
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white border border-[#DCE3F2] shadow-xs">
+              <div className="w-2 h-2 rounded-full bg-[#16A66A] flex-shrink-0 animate-pulse" />
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider">Device Linked</p>
-                <p className="text-xs font-mono font-semibold text-[#F8FAFC] truncate">
+                <p className="text-[10px] font-semibold text-[#8993A8] uppercase tracking-wider">Device Linked</p>
+                <p className="text-xs font-mono font-semibold text-[#172033] truncate">
                   {device.id}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-2 py-1 text-[#94A3B8] text-xs">
-              <span className="w-2 h-2 rounded-full bg-[#F59E0B] flex-shrink-0" />
+            <div className="flex items-center gap-2 px-2 py-1 text-[#8993A8] text-xs">
+              <span className="w-2 h-2 rounded-full bg-[#F2A900] flex-shrink-0" />
               <span>Device pending</span>
             </div>
           )}

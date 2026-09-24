@@ -73,10 +73,10 @@ function Transactions() {
         {/* Header */}
         <div className="flex items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[#F8FAFC] tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-[#172033] tracking-tight">
               Transaction History
             </h1>
-            <p className="text-[#94A3B8] text-xs sm:text-sm mt-1">
+            <p className="text-[#5F6B85] text-xs sm:text-sm mt-1">
               {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} total · {filtered.length} showing
             </p>
           </div>
@@ -106,8 +106,8 @@ function Transactions() {
                 onClick={() => setActiveFilter(f)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap cursor-pointer ${
                   activeFilter === f
-                    ? 'bg-[#14B8A6] text-[#0B1220] border-[#14B8A6] shadow-xs'
-                    : 'bg-[#111C2E] text-[#94A3B8] border-[#263449] hover:border-[#14B8A6]/40 hover:text-[#F8FAFC] hover:bg-[#172337]'
+                    ? 'bg-[#172B75] text-white border-[#172B75] shadow-xs'
+                    : 'bg-white text-[#5F6B85] border-[#DCE3F2] hover:border-[#3155B8] hover:text-[#172B75] hover:bg-[#F5F7FF]'
                 }`}
               >
                 {f}
@@ -117,15 +117,15 @@ function Transactions() {
         </div>
 
         {/* Transaction list */}
-        <Card padding={false} className="bg-[#111C2E] border border-[#263449]">
+        <Card padding={false} className="bg-white border border-[#DCE3F2] shadow-xs overflow-hidden">
           {filtered.length === 0 ? (
-            <div className="py-16 text-center text-[#94A3B8]">
-              <Filter size={32} className="mx-auto mb-3 opacity-30 text-[#94A3B8]" />
-              <p className="text-sm font-semibold text-[#F8FAFC]">No transactions found</p>
-              <p className="text-xs mt-1 text-[#94A3B8]">Try a different filter or search term</p>
+            <div className="py-16 text-center text-[#5F6B85]">
+              <Filter size={32} className="mx-auto mb-3 opacity-30 text-[#8993A8]" />
+              <p className="text-sm font-semibold text-[#172033]">No transactions found</p>
+              <p className="text-xs mt-1 text-[#8993A8]">Try a different filter or search term</p>
             </div>
           ) : (
-            <div className="divide-y divide-[#263449]">
+            <div className="divide-y divide-[#DCE3F2]">
               {filtered.map(tx => {
                 const isSent = tx.senderId === userId;
                 const other = isSent ? tx.receiverName : tx.senderName;
@@ -133,13 +133,13 @@ function Transactions() {
                   <Link
                     key={tx.id}
                     to={`/transactions/${tx.id}`}
-                    className="flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 hover:bg-[#172337] transition-colors no-underline group"
+                    className="flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 hover:bg-[#F5F7FF] transition-colors no-underline group"
                   >
                     <div
                       className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ${
                         isSent
-                          ? 'bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30'
-                          : 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
+                          ? 'bg-[#FDECEC] text-[#D64545] border border-[#D64545]/25'
+                          : 'bg-[#E8F8F1] text-[#16A66A] border border-[#16A66A]/25'
                       }`}
                     >
                       {isSent
@@ -148,26 +148,26 @@ function Transactions() {
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm font-bold text-[#F8FAFC] truncate group-hover:text-[#14B8A6] transition-colors">{other}</p>
+                      <p className="text-xs sm:text-sm font-bold text-[#172033] truncate group-hover:text-[#3155B8] transition-colors">{other}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <Badge status={tx.status} className="!py-0 !px-1.5 text-[9px]" />
-                        <span className="text-[10px] text-[#94A3B8] hidden sm:inline">
+                        <span className="text-[10px] text-[#8993A8] hidden sm:inline">
                           {formatDateTime(tx.timestamp)}
                         </span>
-                        <span className="text-[10px] text-[#94A3B8] sm:hidden">
+                        <span className="text-[10px] text-[#8993A8] sm:hidden">
                           {formatRelativeTime(tx.timestamp)}
                         </span>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`text-xs sm:text-sm font-extrabold ${isSent ? 'text-[#EF4444]' : 'text-[#22C55E]'}`}>
+                      <p className={`text-xs sm:text-sm font-extrabold ${isSent ? 'text-[#D64545]' : 'text-[#16A66A]'}`}>
                         {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
                       </p>
-                      <p className={`text-[10px] mt-0.5 hidden sm:block font-medium ${tx.method === 'OFFLINE_QR' ? 'text-[#A78BFA]' : 'text-[#38BDF8]'}`}>
+                      <p className={`text-[10px] mt-0.5 hidden sm:block font-medium ${tx.method === 'OFFLINE_QR' ? 'text-[#3155B8]' : 'text-[#4F6FD8]'}`}>
                         {tx.method === 'OFFLINE_QR' ? '🔐 Offline' : '🌐 Online'}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-[#94A3B8]/40 group-hover:text-[#F8FAFC] flex-shrink-0" />
+                    <ChevronRight size={14} className="text-[#8993A8]/40 group-hover:text-[#172033] flex-shrink-0" />
                   </Link>
                 );
               })}
@@ -176,7 +176,7 @@ function Transactions() {
         </Card>
 
         {syncStatus === 'done' && (
-          <div className="text-center text-xs text-[#22C55E] font-semibold">
+          <div className="text-center text-xs text-[#16A66A] font-semibold">
             ✓ Sync complete — all transactions up to date
           </div>
         )}
