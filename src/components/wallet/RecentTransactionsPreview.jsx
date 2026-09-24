@@ -20,27 +20,22 @@ function RecentTransactionsPreview() {
   return (
     <div className="rounded-2xl border border-[#263449] bg-[#111C2E] shadow-sm p-5 sm:p-6 transition-all">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-[#172337] border border-[#263449] text-[#38BDF8] flex items-center justify-center shrink-0">
-            <History size={18} />
+          <div className="w-8 h-8 rounded-xl bg-[#172337] border border-[#263449] text-[#38BDF8] flex items-center justify-center shrink-0">
+            <History size={16} />
           </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
-              Audit Feed
-            </p>
-            <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] tracking-tight">
-              Recent Transactions
-            </h3>
-          </div>
+          <h3 className="text-sm sm:text-base font-bold text-[#F8FAFC] tracking-tight">
+            Recent Activity
+          </h3>
         </div>
 
         <Link
           to="/transactions"
-          className="text-xs font-bold text-[#38BDF8] hover:text-[#14B8A6] flex items-center gap-1 group no-underline transition-colors"
+          className="text-xs font-semibold text-[#38BDF8] hover:text-[#14B8A6] flex items-center gap-1 group no-underline transition-colors"
         >
           <span>View all</span>
-          <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+          <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </div>
 
