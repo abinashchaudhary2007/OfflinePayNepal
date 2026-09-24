@@ -66,19 +66,19 @@ function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5 sm:space-y-6 animate-fade-in max-w-5xl mx-auto pb-6">
-        {/* ─── Dashboard Header: "Dashboard" + Date + Bell ─── */}
-        <div className="flex items-center justify-between gap-3">
+      <div className="animate-fade-in pb-10">
+
+        {/* ─── Dashboard Header ─── */}
+        <div className="flex items-center justify-between gap-3 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
               Dashboard
             </h1>
-            <p className="text-xs sm:text-sm text-[#5F6B85] mt-0.5">
+            <p className="text-xs sm:text-sm text-[#5F6B85] mt-1">
               {formattedDate}
             </p>
           </div>
 
-          {/* Top-right notification bell matching reference */}
           <div className="flex items-center gap-2">
             <button
               className="w-10 h-10 rounded-2xl bg-[#EAF0FF] hover:bg-[#D6E3FF] text-[#3155B8] flex items-center justify-center transition-colors cursor-pointer border border-[#DCE3F2]"
@@ -90,29 +90,38 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* ─── 1. Hero Available Balance Card ─── */}
-        {isInitialized ? (
-          <BalanceCard wallet={harmonizedWallet} isOffline={isOffline} />
-        ) : (
-          <div className="rounded-2xl sm:rounded-3xl p-8 bg-white border border-[#DCE3F2] animate-pulse h-52 shadow-xs" />
-        )}
+        {/* ─── 1. Balance Card ─── */}
+        <div className="mb-8">
+          {isInitialized ? (
+            <BalanceCard wallet={harmonizedWallet} isOffline={isOffline} />
+          ) : (
+            <div className="rounded-2xl sm:rounded-3xl p-8 bg-white border border-[#DCE3F2] animate-pulse h-52 shadow-xs" />
+          )}
+        </div>
 
-        {/* ─── 2. 4 Quick Actions (Send, Receive, Scan QR, Pay Merchant) ─── */}
-        <PaymentActions isOffline={isOffline} />
+        {/* ─── 2. Quick Actions ─── */}
+        <div className="mb-8">
+          <PaymentActions isOffline={isOffline} />
+        </div>
 
-        {/* ─── 3. Offline Payments Ready Horizontal Card ─── */}
-        <OfflineReadinessCard
-          device={device}
-          authorization={authorization}
-          isOffline={isOffline}
-          onRegisterDevice={handleRegisterDevice}
-          totalUnsynced={totalUnsynced}
-          syncStatus={syncStatus}
-          onSync={handleSync}
-        />
+        {/* ─── 3. Offline Readiness ─── */}
+        <div className="mb-8">
+          <OfflineReadinessCard
+            device={device}
+            authorization={authorization}
+            isOffline={isOffline}
+            onRegisterDevice={handleRegisterDevice}
+            totalUnsynced={totalUnsynced}
+            syncStatus={syncStatus}
+            onSync={handleSync}
+          />
+        </div>
 
         {/* ─── 4. Recent Transactions ─── */}
-        <RecentTransactionsPreview />
+        <div>
+          <RecentTransactionsPreview />
+        </div>
+
       </div>
     </DashboardLayout>
   );

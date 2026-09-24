@@ -26,7 +26,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white
+        relative overflow-hidden rounded-2xl sm:rounded-3xl p-7 sm:p-9 text-white
         bg-gradient-to-r from-[#172B75] via-[#1C358A] to-[#2B4DAE]
         border border-white/10 shadow-lg ${className}
       `}
@@ -59,18 +59,18 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
       </div>
 
       {/* Balance Amount Display */}
-      <div className="relative z-10 my-2 sm:my-3">
-        <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight select-none">
+      <div className="relative z-10 my-3 sm:my-4">
+        <div className="text-4xl sm:text-5xl font-black text-white tracking-tight select-none">
           {hide(formatCurrency(wallet.availableBalance))}
         </div>
-        <p className="text-xs font-semibold text-white/70 mt-1 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-white/70 mt-1.5 uppercase tracking-wider">
           NPR
         </p>
       </div>
 
       {/* Offline spending limit status line */}
-      <div className="relative z-10 mt-5 pt-3 border-t border-white/10 flex items-center gap-2 text-xs sm:text-sm font-medium text-white/90">
-        <span className="w-2 h-2 rounded-full bg-[#16A66A] shadow-xs" />
+      <div className="relative z-10 mt-6 pt-4 border-t border-white/10 flex items-center gap-2 text-xs sm:text-sm font-medium text-white/90">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#16A66A] shadow-xs" />
         <span>
           Offline spending limit:{' '}
           <strong className="font-bold text-white">

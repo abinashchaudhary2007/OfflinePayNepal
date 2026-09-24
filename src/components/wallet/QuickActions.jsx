@@ -45,24 +45,24 @@ function PaymentActions({ isOffline }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       {actions.map(({ to, id, icon: Icon, label, iconBg, iconColor }) => (
         <Link
           key={label}
           to={to}
           id={id}
           className="
-            group flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl no-underline
+            group flex flex-col items-center justify-center p-5 sm:p-6 rounded-2xl no-underline
             bg-white border border-[#DCE3F2] shadow-xs hover:shadow-md hover:border-[#3155B8]/40
             transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer
           "
         >
           <div
-            className={`w-12 h-12 rounded-2xl ${iconBg} ${iconColor} flex items-center justify-center mb-2.5 transition-transform group-hover:scale-105`}
+            className={`w-13 h-13 rounded-2xl ${iconBg} ${iconColor} flex items-center justify-center mb-3 transition-transform group-hover:scale-105`}
           >
-            <Icon size={22} strokeWidth={2.4} />
+            <Icon size={24} strokeWidth={2.2} />
           </div>
-          <span className="text-xs sm:text-sm font-bold text-[#172033] tracking-tight text-center">
+          <span className="text-sm font-bold text-[#172033] tracking-tight text-center">
             {label}
           </span>
         </Link>

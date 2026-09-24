@@ -23,7 +23,7 @@ function DashboardLayout({ children }) {
   } = useOfflineSimulation();
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)]">
+    <div className="h-screen flex flex-col bg-[var(--color-gray-50)] text-[var(--color-gray-900)] overflow-hidden">
       {/* Demo watermark banner */}
       <div className="demo-banner">
         OfflinePay Nepal · Educational Prototype (Simulated Money Only)
@@ -46,7 +46,7 @@ function DashboardLayout({ children }) {
       />
 
       {/* Body: Sidebar + Main */}
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden gap-6">
         {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
@@ -55,9 +55,9 @@ function DashboardLayout({ children }) {
 
         {/* Main content */}
         <main
-          className="flex-1 overflow-y-auto pb-24 md:pb-10 min-h-0"
+          className="flex-1 overflow-y-auto pb-24 md:pb-10"
         >
-          <div className="container-app py-4 sm:py-6 md:py-8">
+          <div className="max-w-3xl mx-auto px-10 py-10">
             {children}
           </div>
         </main>
