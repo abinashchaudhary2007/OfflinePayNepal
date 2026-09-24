@@ -76,6 +76,7 @@ function AppCore() {
       <Route path="/transactions"      element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/transactions/:id"  element={<ProtectedRoute><TransactionDetail /></ProtectedRoute>} />
       <Route path="/security"          element={<ProtectedRoute><Security /></ProtectedRoute>} />
+      <Route path="/settings"          element={<ProtectedRoute><Security /></ProtectedRoute>} />
       <Route path="/devices"           element={<ProtectedRoute><DeviceManagement /></ProtectedRoute>} />
       <Route path="/profile"           element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/admin"             element={<AdminRoute><AdminDashboard /></AdminRoute>} />
