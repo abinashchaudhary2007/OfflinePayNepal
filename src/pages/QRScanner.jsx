@@ -5,6 +5,7 @@ import {
   ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck
 } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import QRCode from 'qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -22,6 +23,8 @@ const SCAN_STATES = {
   SCANNING: 'scanning',
   VERIFYING: 'verifying',
   OFFLINE_VERIFIED: 'offline_verified',
+  SHOW_ACK_QR: 'show_ack_qr',
+  ACK_RECORDED: 'ack_recorded',
   REQUEST_DETECTED: 'request_detected',
   INVALID: 'invalid',
   ACCEPTED: 'accepted',
@@ -30,14 +33,17 @@ const SCAN_STATES = {
 
 function QRScanner() {
   const { currentUser } = useAuth();
-  const { acceptIncomingPayment } = useWallet();
+  const { acceptIncomingPayment, createReceiverAcknowledgment, recordSenderAcknowledgment } = useWallet();
   const navigate = useNavigate();
 
   const [scanState, setScanState] = useState(SCAN_STATES.IDLE);
   const [scannedTx, setScannedTx] = useState(null);
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [verifyResult, setVerifyResult] = useState(null);
+  const [ackPayload, setAckPayload] = useState(null);
+  const [ackQrDataUrl, setAckQrDataUrl] = useState('');
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isGeneratingAck, setIsGeneratingAck] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [showManual, setShowManual] = useState(false);
@@ -197,7 +203,34 @@ function QRScanner() {
         return;
       }
 
-      // ─── CASE 3: Unknown QR payload ───
+      // ─── CASE 3: RECEIVER ACKNOWLEDGMENT (Sender scans receiver's signed acknowledgment) ───
+      if (parsed.type === 'OFFLINE_PAYMENT_ACK') {
+        if (!parsed.transactionRef || !parsed.signature || !parsed.ackNonce) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Malformed acknowledgment token: Required cryptographic fields are missing from QR code.');
+          return;
+        }
+
+        if (parsed.senderId && parsed.senderId !== currentUser?.id) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('This acknowledgment was generated for a different sender account.');
+          return;
+        }
+
+        try {
+          const updatedTx = await recordSenderAcknowledgment(parsed);
+          setScannedTx(updatedTx);
+          setAckPayload(parsed);
+          setScanState(SCAN_STATES.ACK_RECORDED);
+          return;
+        } catch (ackErr) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg(ackErr.message || 'Failed to verify and record receiver acknowledgment.');
+          return;
+        }
+      }
+
+      // ─── CASE 4: Unknown QR payload ───
       setScanState(SCAN_STATES.INVALID);
       setErrorMsg('This QR code is not a valid OfflinePay payment or request.');
     } catch (err) {
@@ -206,7 +239,46 @@ function QRScanner() {
     }
   }
 
-  // Accept incoming offline payment into local wallet
+  // Receiver generates signed acknowledgment QR for sender to scan
+  const handleGenerateAcknowledgment = async () => {
+    if (!scannedTx) return;
+    setIsGeneratingAck(true);
+    setErrorMsg('');
+    try {
+      // 1. Accept and record incoming payment locally on receiver device
+      const acceptedResult = await acceptIncomingPayment({
+        ...scannedTx,
+        receiverId: currentUser.id,
+        receiverName: currentUser.name,
+      });
+
+      if (acceptedResult) {
+        setScannedTx(acceptedResult);
+      }
+
+      // 2. Cryptographically sign the acknowledgment payload with receiver's device key
+      const ack = await createReceiverAcknowledgment(scannedTx);
+      setAckPayload(ack);
+
+      // 3. Render Acknowledgment QR
+      const dataUrl = await QRCode.toDataURL(JSON.stringify(ack), {
+        width: 260,
+        margin: 2,
+        color: { dark: '#0F172A', light: '#FFFFFF' },
+        errorCorrectionLevel: 'M',
+      });
+      setAckQrDataUrl(dataUrl);
+      setScanState(SCAN_STATES.SHOW_ACK_QR);
+    } catch (err) {
+      console.error('[scanner] Error generating acknowledgment:', err);
+      setErrorMsg(err.message || 'Could not generate signed acknowledgment.');
+      setScanState(SCAN_STATES.ERROR);
+    } finally {
+      setIsGeneratingAck(false);
+    }
+  };
+
+  // Accept incoming offline payment into local wallet directly (legacy claim fallback)
   const handleAcceptOfflinePayment = async () => {
     if (!scannedTx) return;
     setIsAccepting(true);
@@ -419,14 +491,14 @@ function QRScanner() {
           </Card>
         )}
 
-        {/* ─── STATE 5: OFFLINE PAYMENT CLAIM / ACCEPTANCE ─── */}
+        {/* ─── STATE 5: OFFLINE PAYMENT VALIDATED — GENERATE ACKNOWLEDGMENT ─── */}
         {scanState === SCAN_STATES.OFFLINE_VERIFIED && scannedTx && (
           <Card padding className="space-y-5 bg-[#111C2E] border border-[#263449]">
             <div className="flex items-center gap-3 p-3 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30">
               <ShieldCheck size={26} className="text-[#22C55E] flex-shrink-0" />
               <div>
-                <p className="text-sm font-bold text-[#F8FAFC]">Offline Payment Verified</p>
-                <p className="text-[11px] text-[#22C55E]">{verifyResult?.sigNote}</p>
+                <p className="text-sm font-bold text-[#F8FAFC]">Payment Validated Offline</p>
+                <p className="text-[11px] text-[#22C55E]">{verifyResult?.sigNote || 'ECDSA P-256 Signature Verified ✓'}</p>
               </div>
             </div>
 
@@ -437,43 +509,162 @@ function QRScanner() {
               <p className="text-3xl font-black text-[#22C55E] mt-0.5">
                 +{formatCurrency(scannedTx.amount)}
               </p>
-              <p className="text-xs text-[#94A3B8]">From: {scannedTx.senderName}</p>
+              <p className="text-xs text-[#94A3B8]">Sender: <strong className="text-[#F8FAFC]">{scannedTx.senderName || 'Sender'}</strong></p>
             </div>
 
             <div className="divide-y divide-[#263449] border border-[#263449] rounded-xl overflow-hidden bg-[#172337] text-xs">
               <div className="flex items-center justify-between p-3 bg-[#111C2E]">
-                <span className="text-[#94A3B8]">Sender ID:</span>
-                <span className="font-mono text-[11px] text-[#F8FAFC]">{scannedTx.senderId}</span>
+                <span className="text-[#94A3B8]">Sender:</span>
+                <span className="font-bold text-[#F8FAFC]">{scannedTx.senderName || 'Sender'}</span>
               </div>
               <div className="flex items-center justify-between p-3">
-                <span className="text-[#94A3B8]">Transaction ID:</span>
-                <span className="font-mono text-[11px] text-[#F8FAFC]">{scannedTx.id}</span>
+                <span className="text-[#94A3B8]">Transaction Ref:</span>
+                <span className="font-mono text-[11px] text-[#38BDF8]">{scannedTx.id}</span>
               </div>
               <div className="flex items-center justify-between p-3 bg-[#111C2E]">
-                <span className="text-[#94A3B8]">Signature Type:</span>
-                <span className="font-bold text-[#22C55E] text-[11px]">ECDSA P-256</span>
+                <span className="text-[#94A3B8]">Validation Status:</span>
+                <span className="font-bold text-[#22C55E] text-[11px]">Valid Offline Payment</span>
               </div>
             </div>
 
-            <div className="flex gap-2.5 pt-1">
-              <Button variant="outline" onClick={handleReset} className="w-1/3">
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+              <Button variant="outline" onClick={handleReset} className="w-full sm:w-1/3">
                 Dismiss
               </Button>
               <Button
                 variant="primary"
-                onClick={handleAcceptOfflinePayment}
-                loading={isAccepting}
-                className="w-2/3"
-                leftIcon={<ArrowDownLeft size={16} />}
-                id="btn-claim-offline-payment"
+                onClick={handleGenerateAcknowledgment}
+                loading={isGeneratingAck}
+                disabled={isGeneratingAck}
+                className="w-full sm:w-2/3 font-bold"
+                leftIcon={<QrCode size={16} />}
+                id="btn-generate-ack-qr"
               >
-                Claim & Accept
+                Generate Acknowledgment QR
               </Button>
             </div>
           </Card>
         )}
 
-        {/* ─── STATE 6: PAYMENT ACCEPTED RESULT ─── */}
+        {/* ─── STATE 5B: RECEIVER ACKNOWLEDGMENT QR (Show to Sender) ─── */}
+        {scanState === SCAN_STATES.SHOW_ACK_QR && (
+          <Card padding className="space-y-5 text-center bg-[#111C2E] border border-[#263449]">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#38BDF8]/15 border border-[#38BDF8]/30 text-[#38BDF8] mb-2">
+                <CheckCircle2 size={13} className="text-[#38BDF8]" />
+                <span>Locally Acknowledged — Awaiting Settlement</span>
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
+                Receiver Acknowledgment QR
+              </h2>
+              <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
+                Show this QR to the sender so their device records that you have validated and claimed the payment offline.
+              </p>
+            </div>
+
+            {/* Acknowledgment QR Display */}
+            {ackQrDataUrl && (
+              <div className="p-4 rounded-2xl border border-[#263449] bg-[#172337] max-w-xs mx-auto space-y-2.5">
+                <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#263449]">
+                  <img src={ackQrDataUrl} alt="Receiver Acknowledgment QR" className="w-56 h-56 mx-auto" />
+                </div>
+                <div className="text-[11px] text-[#94A3B8] space-y-0.5">
+                  <p className="font-semibold text-[#F8FAFC]">Ref: {scannedTx?.id}</p>
+                  <p>Amount: <strong className="text-[#22C55E]">+{formatCurrency(scannedTx?.amount)}</strong></p>
+                  <p className="text-[10px] text-[#38BDF8]">Signed with your ECDSA P-256 receiver key</p>
+                </div>
+              </div>
+            )}
+
+            <div className="p-3 rounded-xl bg-[#172337] border border-[#263449] text-xs text-left max-w-xs mx-auto space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-[#F8FAFC]">
+                <ShieldCheck size={14} className="text-[#38BDF8]" />
+                <span>Notice: Not Authoritatively Settled Yet</span>
+              </div>
+              <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                Funds are held and credited locally. Final ledger settlement will occur automatically once either device reconnects to the network.
+              </p>
+            </div>
+
+            <div className="pt-1 max-w-xs mx-auto">
+              <Button
+                block
+                variant="primary"
+                onClick={() => navigate('/dashboard')}
+                id="btn-done-ack"
+              >
+                Done
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* ─── STATE 5C: SENDER SCANNED ACKNOWLEDGMENT CONFIRMATION ─── */}
+        {scanState === SCAN_STATES.ACK_RECORDED && (
+          <Card padding className="space-y-5 text-center bg-[#111C2E] border border-[#263449]">
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#22C55E] mb-2">
+                <CheckCircle2 size={13} className="text-[#22C55E]" />
+                <span>Receiver Acknowledged Offline</span>
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
+                Payment Acknowledged Offline
+              </h2>
+              <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
+                Awaiting Synchronization — The receiver has cryptographically verified and acknowledged this offline transaction.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#172337] border border-[#263449] max-w-sm mx-auto space-y-3 text-left text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[#94A3B8]">Payment Ref:</span>
+                <span className="font-mono text-[#F8FAFC] font-bold">{ackPayload?.transactionRef || scannedTx?.id}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#94A3B8]">Receiver:</span>
+                <span className="font-bold text-[#F8FAFC]">{ackPayload?.receiverName || scannedTx?.receiverName || 'Receiver'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#94A3B8]">Amount:</span>
+                <span className="font-black text-[#14B8A6] text-sm">{formatCurrency(ackPayload?.amount || scannedTx?.amount)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#94A3B8]">Ack Status:</span>
+                <span className="text-[#38BDF8] font-bold">RECEIVER_ACKNOWLEDGED</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#94A3B8]">Timer Protection:</span>
+                <span className="text-[#22C55E] font-semibold">Exempt from 5m unclaimed timeout</span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-[#172337] border border-[#263449] text-xs text-left max-w-sm mx-auto space-y-1">
+              <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                Both devices now hold a signed record of this transaction. Central authoritative settlement will occur when internet connectivity returns.
+              </p>
+            </div>
+
+            <div className="pt-1 max-w-sm mx-auto flex gap-2.5">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/transactions')}
+                className="w-1/2"
+              >
+                View History
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => navigate('/dashboard')}
+                className="w-1/2 font-bold"
+                id="btn-sender-ack-done"
+              >
+                Done
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* ─── STATE 6: PAYMENT ACCEPTED RESULT (Direct claim fallback) ─── */}
         {scanState === SCAN_STATES.ACCEPTED && scannedTx && (
           <PaymentReceipt
             transaction={{

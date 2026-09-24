@@ -722,6 +722,102 @@ export async function executeAtomicOfflineAcceptance({
 }
 
 /**
+ * executeSenderRecordAcknowledgment
+ * Records a verified receiver acknowledgment on the sender's device.
+ * Transitions transaction to RECEIVER_ACKNOWLEDGED, registers ackNonce,
+ * prevents unclaimed expiration, updates sync_queue, and logs security audit event.
+ */
+export async function executeSenderRecordAcknowledgment({
+  transactionId,
+  acknowledgment,
+}) {
+  const db = await getDB();
+  await initSeedData();
+
+  const idbTx = db.transaction(['transactions', 'nonces', 'sync_queue', 'security_events'], 'readwrite');
+  const txStore = idbTx.objectStore('transactions');
+  const existingTx = await txStore.get(transactionId);
+
+  if (!existingTx) {
+    idbTx.abort();
+    throw new Error(`Transaction ${transactionId} not found on sender device.`);
+  }
+
+  // Idempotency: if already settled
+  if (existingTx.status === 'SETTLED') {
+    await idbTx.done;
+    return existingTx;
+  }
+
+  // Anti-replay check on acknowledgment nonce
+  const nonceStore = idbTx.objectStore('nonces');
+  if (acknowledgment?.ackNonce) {
+    const existingNonce = await nonceStore.get(acknowledgment.ackNonce);
+    if (existingNonce) {
+      idbTx.abort();
+      throw new Error('Replay protection check failed: acknowledgment nonce already used.');
+    }
+    await nonceStore.put({
+      nonce: acknowledgment.ackNonce,
+      transactionId,
+      usedAt: new Date().toISOString(),
+      type: 'ACKNOWLEDGMENT',
+    });
+  }
+
+  const updatedTx = {
+    ...existingTx,
+    status: 'RECEIVER_ACKNOWLEDGED',
+    receiverAcknowledged: true,
+    acknowledgedAt: acknowledgment?.ackTimestamp || new Date().toISOString(),
+    acknowledgmentPayload: acknowledgment,
+    updatedAt: new Date().toISOString(),
+  };
+  await txStore.put(updatedTx);
+
+  // Update sync queue item
+  const syncStore = idbTx.objectStore('sync_queue');
+  const existingSync = await syncStore.get(transactionId);
+  if (existingSync) {
+    await syncStore.put({
+      ...existingSync,
+      status: 'PENDING',
+      action: 'SETTLE_OFFLINE_PAYMENT',
+      payload: updatedTx,
+      updatedAt: new Date().toISOString(),
+    });
+  } else {
+    await syncStore.put({
+      id: transactionId,
+      transactionId,
+      type: 'TRANSACTION',
+      action: 'SETTLE_OFFLINE_PAYMENT',
+      status: 'PENDING',
+      attempts: 0,
+      createdAt: updatedTx.acknowledgedAt,
+      payload: updatedTx,
+    });
+  }
+
+  // Security event
+  const secStore = idbTx.objectStore('security_events');
+  await secStore.put({
+    id: `SEC-ACK-${transactionId.slice(0, 16)}-${Date.now().toString(36)}`,
+    userId: existingTx.senderId,
+    deviceId: existingTx.deviceId || 'SENDER-DEVICE',
+    eventType: 'RECEIVER_ACKNOWLEDGED_OFFLINE',
+    severity: 'LOW',
+    description: `Offline payment ${transactionId} acknowledged by receiver ${acknowledgment?.receiverId || existingTx.receiverId}`,
+    status: 'LOGGED',
+    relatedTxId: transactionId,
+    createdAt: new Date().toISOString(),
+  });
+
+  await idbTx.done;
+  return updatedTx;
+}
+
+/**
  * cancelAndRefundExpiredTransactions
  * Sweeps ONLY un-scanned and unacknowledged OFFLINE_PENDING transactions
  * whose age exceeds timeoutMs (default 5 minutes).

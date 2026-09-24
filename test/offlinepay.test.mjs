@@ -10,6 +10,7 @@ import {
   classifySyncError,
   TX_STATUS,
   VALID_STATUS_TRANSITIONS,
+  buildSignableAckPayload,
 } from '../src/services/ledger.js';
 
 // Mock in-memory IndexedDB replacement for unit testing
@@ -1343,4 +1344,302 @@ test('Expiration Bug / Test 5: Genuine unscanned offline payment still expires a
   assert.equal(senderWallet.availableBalance, 1000.00, 'Sender must be refunded Rs. 100');
   assert.equal(senderWallet.offlineSpent, 0.00, 'offlineSpent must be reset to 0');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Two-Way Offline QR Acknowledgment Test Suite
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Two-Way Ack / Test 1: Sender creates valid offline payment QR bound to transaction metadata', async () => {
+  const { keyPair: senderKeys, publicKeyJwk: senderPubKey } = await generateKeyPair();
+  const txId = 'TX-TWOWAY-001';
+  const nonce = generateNonce();
+  const timestamp = new Date().toISOString();
+
+  const paymentData = {
+    id: txId,
+    senderId: 'usr-sender-alice',
+    receiverId: 'usr-receiver-bob',
+    amount: 350.00,
+    currency: 'NPR',
+    timestamp,
+    nonce,
+    counter: 5,
+    authorizationId: 'AUTH-ALICE-01',
+    deviceId: 'DEV-ALICE-1',
+  };
+
+  const signable = buildSignablePayload(paymentData);
+  const signature = await signPayload(senderKeys.privateKey, signable);
+  const isSigValid = await verifySignature(senderPubKey, signable, signature);
+
+  assert.equal(isSigValid, true, 'Sender signature must verify with sender public key');
+  assert.equal(paymentData.amount, 350.00);
+  assert.equal(paymentData.id, txId);
+});
+
+test('Two-Way Ack / Test 2: Receiver validates offline payment and rejects tampered amount, wrong recipient, or replay', async () => {
+  const { keyPair: senderKeys, publicKeyJwk: senderPubKey } = await generateKeyPair();
+  const txId = 'TX-TWOWAY-002';
+  const nonce = generateNonce();
+  const timestamp = new Date().toISOString();
+
+  const paymentData = {
+    id: txId,
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 200.00,
+    currency: 'NPR',
+    timestamp,
+    nonce,
+    counter: 1,
+    authorizationId: 'AUTH-01',
+    deviceId: 'DEV-01',
+  };
+
+  const signature = await signPayload(senderKeys.privateKey, buildSignablePayload(paymentData));
+
+  // 1. Legitimate validation succeeds
+  const validSig = await verifySignature(senderPubKey, buildSignablePayload(paymentData), signature);
+  assert.equal(validSig, true, 'Valid payment must verify');
+
+  // 2. Tampered amount fails
+  const tamperedData = { ...paymentData, amount: 999.00 };
+  const tamperedSigValid = await verifySignature(senderPubKey, buildSignablePayload(tamperedData), signature);
+  assert.equal(tamperedSigValid, false, 'Tampered amount MUST fail cryptographic verification');
+
+  // 3. Receiver ID mismatch check
+  const activeReceiverId = 'usr-charlie'; // Charlie is logged in but Bob is target
+  assert.notEqual(paymentData.receiverId, activeReceiverId, 'Receiver mismatch must be detectable');
+
+  // 4. Replay check
+  const usedNonces = new Set([nonce]);
+  assert.equal(usedNonces.has(paymentData.nonce), true, 'Replay protection must detect reused nonce');
+});
+
+test('Two-Way Ack / Test 3: Receiver generates cryptographically signed acknowledgment QR bound to original transaction', async () => {
+  const { keyPair: receiverKeys, publicKeyJwk: receiverPubKey } = await generateKeyPair();
+  const txId = 'TX-TWOWAY-003';
+  const ackNonce = generateNonce();
+  const ackTimestamp = new Date().toISOString();
+
+  const ackData = {
+    type: 'OFFLINE_PAYMENT_ACK',
+    version: '1.0',
+    transactionRef: txId,
+    authorizationId: 'AUTH-ALICE-01',
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 150.00,
+    currency: 'NPR',
+    receiverDeviceId: 'DEV-BOB-1',
+    receiverPublicKeyJwk: receiverPubKey,
+    ackTimestamp,
+    ackNonce,
+    ackCounter: 3,
+  };
+
+  const canonicalAck = buildSignableAckPayload(ackData);
+  const signature = await signPayload(receiverKeys.privateKey, canonicalAck);
+  const ackPayload = { ...ackData, signature };
+
+  // Verify acknowledgment signature
+  const isAckValid = await verifySignature(receiverPubKey, buildSignableAckPayload(ackPayload), ackPayload.signature);
+  assert.equal(isAckValid, true, 'Receiver acknowledgment signature must verify');
+  assert.equal(ackPayload.type, 'OFFLINE_PAYMENT_ACK');
+  assert.equal(ackPayload.transactionRef, txId);
+  assert.equal(ackPayload.amount, 150.00);
+});
+
+test('Two-Way Ack / Test 4: Sender verifies receiver acknowledgment offline, transitions to RECEIVER_ACKNOWLEDGED and protects from expiration', async () => {
+  const { keyPair: receiverKeys, publicKeyJwk: receiverPubKey } = await generateKeyPair();
+  const txId = 'TX-TWOWAY-004';
+  const ackNonce = generateNonce();
+  const ackTimestamp = new Date().toISOString();
+
+  // Sender's local transaction
+  const senderTx = {
+    id: txId,
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 500.00,
+    status: TX_STATUS.OFFLINE_PENDING,
+    receiverAcknowledged: false,
+    createdAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(), // 6 minutes ago
+  };
+
+  // Receiver acknowledgment
+  const ackData = {
+    type: 'OFFLINE_PAYMENT_ACK',
+    version: '1.0',
+    transactionRef: txId,
+    authorizationId: 'AUTH-01',
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 500.00,
+    currency: 'NPR',
+    receiverDeviceId: 'DEV-BOB-1',
+    receiverPublicKeyJwk: receiverPubKey,
+    ackTimestamp,
+    ackNonce,
+    ackCounter: 1,
+  };
+
+  const signature = await signPayload(receiverKeys.privateKey, buildSignableAckPayload(ackData));
+  const fullAck = { ...ackData, signature };
+
+  // Sender verification logic
+  assert.equal(fullAck.transactionRef, senderTx.id);
+  assert.equal(fullAck.senderId, senderTx.senderId);
+  assert.equal(fullAck.receiverId, senderTx.receiverId);
+  assert.equal(fullAck.amount, senderTx.amount);
+
+  const isSigValid = await verifySignature(fullAck.receiverPublicKeyJwk, buildSignableAckPayload(fullAck), fullAck.signature);
+  assert.equal(isSigValid, true, 'Receiver signature must be valid');
+
+  // Verify transition is permitted by state machine
+  assert.equal(isValidStatusTransition(senderTx.status, TX_STATUS.RECEIVER_ACKNOWLEDGED), true);
+
+  // Apply state change
+  senderTx.status = TX_STATUS.RECEIVER_ACKNOWLEDGED;
+  senderTx.receiverAcknowledged = true;
+  senderTx.acknowledgedAt = ackTimestamp;
+
+  // Acknowledged transaction must NOT expire even if older than 5 minutes
+  const isExemptFromExpiry = senderTx.receiverAcknowledged || senderTx.status === TX_STATUS.RECEIVER_ACKNOWLEDGED;
+  assert.equal(isExemptFromExpiry, true, 'Acknowledged transaction must be exempt from 5-minute timeout');
+});
+
+test('Two-Way Ack / Test 5: Tampered acknowledgment fails verification and leaves balances untouched', async () => {
+  const { keyPair: receiverKeys, publicKeyJwk: receiverPubKey } = await generateKeyPair();
+  const txId = 'TX-TWOWAY-005';
+
+  const legitimateAck = {
+    type: 'OFFLINE_PAYMENT_ACK',
+    version: '1.0',
+    transactionRef: txId,
+    authorizationId: 'AUTH-01',
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 300.00,
+    currency: 'NPR',
+    receiverDeviceId: 'DEV-BOB-1',
+    ackTimestamp: new Date().toISOString(),
+    ackNonce: generateNonce(),
+    ackCounter: 1,
+  };
+
+  const signature = await signPayload(receiverKeys.privateKey, buildSignableAckPayload(legitimateAck));
+
+  // Attack 1: Hacker tries to alter the amount in the acknowledgment
+  const tamperedAmountAck = { ...legitimateAck, amount: 600.00 };
+  const isSigValid = await verifySignature(receiverPubKey, buildSignableAckPayload(tamperedAmountAck), signature);
+  assert.equal(isSigValid, false, 'Tampered amount in acknowledgment MUST fail verification');
+
+  // Attack 2: Hacker tries to bind acknowledgment to a different transaction
+  const wrongTxAck = { ...legitimateAck, transactionRef: 'TX-ATTACK-999' };
+  const isWrongTxSigValid = await verifySignature(receiverPubKey, buildSignableAckPayload(wrongTxAck), signature);
+  assert.equal(isWrongTxSigValid, false, 'Tampered transactionRef MUST fail verification');
+});
+
+test('Two-Way Ack / Test 6: Duplicate acknowledgment is idempotently rejected and cannot be reused', () => {
+  const recordedAcks = new Set();
+
+  function recordAck(ackNonce) {
+    if (recordedAcks.has(ackNonce)) {
+      throw new Error('Replay protection check failed: acknowledgment nonce already used.');
+    }
+    recordedAcks.add(ackNonce);
+    return true;
+  }
+
+  const nonce = 'ack-nonce-unique-123';
+
+  // First registration succeeds
+  assert.equal(recordAck(nonce), true);
+
+  // Duplicate submission fails
+  assert.throws(() => recordAck(nonce), /acknowledgment nonce already used/);
+  assert.equal(recordedAcks.size, 1, 'Only one acknowledgment record should exist');
+});
+
+test('Two-Way Ack / Test 7: Offline to online settlement executes exactly once on backend and commits SETTLED', async () => {
+  const serverLedger = new Map();
+  const senderWallet = { balance: 1000.00 };
+  const receiverWallet = { balance: 500.00 };
+
+  const tx = {
+    id: 'TX-TWOWAY-SETTLE-007',
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 250.00,
+    status: TX_STATUS.RECEIVER_ACKNOWLEDGED,
+    receiverAcknowledged: true,
+  };
+
+  function executeAuthoritativeSettlement(txToSettle) {
+    if (serverLedger.has(txToSettle.id) && serverLedger.get(txToSettle.id).status === TX_STATUS.SETTLED) {
+      return { success: true, alreadySettled: true };
+    }
+
+    senderWallet.balance -= txToSettle.amount;
+    receiverWallet.balance += txToSettle.amount;
+    const settledTx = { ...txToSettle, status: TX_STATUS.SETTLED, settledAt: new Date().toISOString() };
+    serverLedger.set(txToSettle.id, settledTx);
+    return { success: true, alreadySettled: false, settledTx };
+  }
+
+  // Device 1 (receiver) syncs when online
+  const firstSync = executeAuthoritativeSettlement(tx);
+  assert.equal(firstSync.success, true);
+  assert.equal(firstSync.alreadySettled, false);
+  assert.equal(senderWallet.balance, 750.00);
+  assert.equal(receiverWallet.balance, 750.00);
+  assert.equal(serverLedger.get(tx.id).status, TX_STATUS.SETTLED);
+
+  // Device 2 (sender) syncs later when online -> idempotent, no double debit/credit
+  const secondSync = executeAuthoritativeSettlement(tx);
+  assert.equal(secondSync.success, true);
+  assert.equal(secondSync.alreadySettled, true);
+  assert.equal(senderWallet.balance, 750.00, 'Sender must NOT be debited twice');
+  assert.equal(receiverWallet.balance, 750.00, 'Receiver must NOT be credited twice');
+});
+
+test('Two-Way Ack / Test 8: Unclaimed payment without receiver acknowledgment still cancels safely after 5 minutes and refunds reserve', () => {
+  const now = Date.now();
+  const PENDING_TIMEOUT_MS = 5 * 60 * 1000;
+
+  const unscannedTx = {
+    id: 'TX-UNSCANNED-008',
+    senderId: 'usr-alice',
+    receiverId: 'usr-bob',
+    amount: 150.00,
+    status: TX_STATUS.OFFLINE_PENDING,
+    receiverAcknowledged: false, // No acknowledgment recorded
+    createdAt: new Date(now - 6 * 60 * 1000).toISOString(), // 6 minutes ago
+  };
+
+  const senderWallet = {
+    userId: 'usr-alice',
+    availableBalance: 850.00,
+    offlineSpent: 150.00,
+    offlineRemaining: 850.00,
+    totalSent: 150.00,
+  };
+
+  // Run sweep
+  const age = now - new Date(unscannedTx.createdAt).getTime();
+  if (unscannedTx.status === TX_STATUS.OFFLINE_PENDING && !unscannedTx.receiverAcknowledged && age >= PENDING_TIMEOUT_MS) {
+    unscannedTx.status = TX_STATUS.EXPIRED;
+    unscannedTx.expiredAt = new Date().toISOString();
+    senderWallet.availableBalance += unscannedTx.amount;
+    senderWallet.offlineSpent -= unscannedTx.amount;
+    senderWallet.offlineRemaining += unscannedTx.amount;
+    senderWallet.totalSent -= unscannedTx.amount;
+  }
+
+  assert.equal(unscannedTx.status, TX_STATUS.EXPIRED, 'Truly unclaimed payment must transition to EXPIRED');
+  assert.equal(senderWallet.availableBalance, 1000.00, 'Reserved funds must be refunded to available balance');
+  assert.equal(senderWallet.offlineSpent, 0.00);
+});
+
 

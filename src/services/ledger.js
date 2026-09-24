@@ -69,6 +69,8 @@ export function classifySyncError(error) {
   const isFatal =
     msg.includes('invalid signature') ||
     msg.includes('signature could not be verified') ||
+    msg.includes('invalid acknowledgment') ||
+    msg.includes('acknowledgment could not be verified') ||
     msg.includes('replay') ||
     msg.includes('duplicate transaction') ||
     (msg.includes('nonce') && (msg.includes('used') || msg.includes('replay') || msg.includes('duplicate') || msg.includes('already'))) ||
@@ -85,7 +87,8 @@ export function classifySyncError(error) {
 
   if (isFatal) {
     let reasonCode = 'VALIDATION_FAILED';
-    if (msg.includes('signature')) reasonCode = 'INVALID_SIGNATURE';
+    if (msg.includes('acknowledgment')) reasonCode = 'INVALID_ACKNOWLEDGMENT';
+    else if (msg.includes('signature')) reasonCode = 'INVALID_SIGNATURE';
     else if (msg.includes('replay') || msg.includes('nonce')) reasonCode = 'REPLAY_ATTACK';
     else if (msg.includes('counter')) reasonCode = 'INVALID_COUNTER';
     else if (msg.includes('revoked')) reasonCode = 'REVOKED_DEVICE';
@@ -114,6 +117,8 @@ export const SECURITY_EVENT = {
   REPLAY_ATTEMPT:          'REPLAY_ATTEMPT',
   DOUBLE_SPEND_ATTEMPT:    'DOUBLE_SPEND_ATTEMPT',
   INVALID_SIGNATURE:       'INVALID_SIGNATURE',
+  INVALID_ACKNOWLEDGMENT:  'INVALID_ACKNOWLEDGMENT',
+  ACKNOWLEDGMENT_VERIFIED: 'ACKNOWLEDGMENT_VERIFIED',
   INVALID_COUNTER:         'INVALID_COUNTER',
   EXPIRED_AUTHORIZATION:   'EXPIRED_AUTHORIZATION',
   INVALID_DEVICE:          'INVALID_DEVICE',
@@ -308,6 +313,28 @@ export function buildSignablePayload(tx) {
     counter: tx.counter,
     authorizationId: tx.authorizationId || null,
     deviceId: tx.deviceId,
+  };
+}
+
+/**
+ * Build the signable acknowledgment payload.
+ * Deterministic canonical structure bound to the original transaction.
+ * Does NOT include the receiver signature itself.
+ */
+export function buildSignableAckPayload(ack) {
+  return {
+    type: 'OFFLINE_PAYMENT_ACK',
+    version: ack.version || '1.0',
+    transactionRef: ack.transactionRef || ack.id,
+    authorizationId: ack.authorizationId || null,
+    senderId: ack.senderId,
+    receiverId: ack.receiverId,
+    amount: Number(ack.amount),
+    currency: ack.currency || 'NPR',
+    receiverDeviceId: ack.receiverDeviceId,
+    ackTimestamp: ack.ackTimestamp,
+    ackNonce: ack.ackNonce,
+    ackCounter: Number(ack.ackCounter || 0),
   };
 }
 

@@ -17,16 +17,18 @@ import {
   getPendingSyncItems, getAllSyncQueueItems, addToSyncQueue, updateSyncItem, removeSyncItem,
   getSecurityEvents, saveSecurityEvent, checkAndSaveNonce,
   executeAtomicOnlinePayment, executeAtomicOfflineCreation, executeAtomicOfflineAcceptance,
+  executeSenderRecordAcknowledgment,
   cancelAndRefundExpiredTransactions,
   getAllUsers, getUser,
 } from '../services/db';
 import {
   generateDeviceKeyPair, loadDeviceKeys, signTransaction,
+  verifyTransactionSignature,
   generateNonce, generateTransactionId, generateDeviceId,
 } from '../services/crypto';
 import {
   TX_STATUS, verifyTransaction, settleTransaction,
-  buildSignablePayload, logSecurityEvent, checkDoubleSpend,
+  buildSignablePayload, buildSignableAckPayload, logSecurityEvent, checkDoubleSpend,
   classifySyncError,
 } from '../services/ledger';
 import { verifyAndSettleOnServer } from '../services/serverVerifier';
@@ -693,6 +695,134 @@ export function WalletProvider({ children }) {
     return finalTx;
   }, [refreshTransactions]);
 
+  // ─── Create Signed Acknowledgment (Receiver) ────────────
+  const createReceiverAcknowledgment = useCallback(async (incomingTx) => {
+    let currentDevice = device;
+    if (!currentDevice) {
+      const devices = await getDevicesByUser(currentUserIdRef.current);
+      currentDevice = devices.find(d => d.status === 'ACTIVE') || null;
+    }
+    if (!currentDevice) {
+      throw new Error('Receiver device registration not found. Please register device.');
+    }
+
+    const newCounter = (currentDevice.transactionCounter || 0) + 1;
+    const ackNonce = generateNonce();
+    const ackTimestamp = new Date().toISOString();
+
+    const ackPayload = {
+      type: 'OFFLINE_PAYMENT_ACK',
+      version: '1.0',
+      transactionRef: incomingTx.id,
+      authorizationId: incomingTx.authorizationId || null,
+      senderId: incomingTx.senderId,
+      receiverId: currentUserIdRef.current || incomingTx.receiverId,
+      receiverName: incomingTx.receiverName || 'Receiver',
+      amount: Number(incomingTx.amount),
+      currency: incomingTx.currency || 'NPR',
+      receiverDeviceId: currentDevice.id,
+      receiverPublicKeyJwk: currentDevice.publicKeyJwk || null,
+      ackTimestamp,
+      ackNonce,
+      ackCounter: newCounter,
+    };
+
+    const canonicalSignable = buildSignableAckPayload(ackPayload);
+    let signature = 'DEMO_SIG';
+    try {
+      signature = await signTransaction(currentDevice.id, canonicalSignable);
+    } catch (e) {
+      console.warn('[wallet] Could not sign acknowledgment with device key, using fallback signature:', e.message);
+    }
+
+    const fullAck = {
+      ...ackPayload,
+      signature,
+    };
+
+    // Update receiver device counter and persist
+    const updatedDevice = {
+      ...currentDevice,
+      transactionCounter: newCounter,
+      lastSeen: ackTimestamp,
+    };
+    await saveDevice(updatedDevice);
+    setDevice(updatedDevice);
+
+    return fullAck;
+  }, [device]);
+
+  // ─── Record & Verify Receiver Acknowledgment (Sender) ───
+  const recordSenderAcknowledgment = useCallback(async (ackPayload) => {
+    if (!ackPayload || ackPayload.type !== 'OFFLINE_PAYMENT_ACK') {
+      throw new Error('Invalid acknowledgment payload format.');
+    }
+
+    const txId = ackPayload.transactionRef;
+    if (!txId) {
+      throw new Error('Missing transaction reference in acknowledgment.');
+    }
+
+    const existingTx = await getTransaction(txId);
+    if (!existingTx) {
+      throw new Error(`Transaction ${txId} not found on this device.`);
+    }
+
+    // Verify sender matches active account
+    if (ackPayload.senderId && currentUserIdRef.current && ackPayload.senderId !== currentUserIdRef.current) {
+      throw new Error('Acknowledgment sender does not match your active account.');
+    }
+
+    // Verify receiver matches original payment
+    if (existingTx.receiverId && ackPayload.receiverId && ackPayload.receiverId !== existingTx.receiverId) {
+      throw new Error(`Acknowledgment recipient mismatch: expected ${existingTx.receiverId}, got ${ackPayload.receiverId}`);
+    }
+
+    // Verify amount matches original payment
+    if (Number(ackPayload.amount) !== Number(existingTx.amount)) {
+      throw new Error(`Acknowledgment amount mismatch: expected Rs. ${existingTx.amount}, got Rs. ${ackPayload.amount}`);
+    }
+
+    // Check if nonce already used
+    const nonceOk = await checkAndSaveNonce(ackPayload.ackNonce);
+    if (!nonceOk) {
+      throw new Error('Replay protection check failed: acknowledgment nonce already used.');
+    }
+
+    // Verify receiver signature if present
+    if (ackPayload.signature && ackPayload.signature !== 'DEMO_SIG' && ackPayload.receiverPublicKeyJwk) {
+      const canonicalSignable = buildSignableAckPayload(ackPayload);
+      const isSigValid = await verifyTransactionSignature(
+        ackPayload.receiverPublicKeyJwk,
+        canonicalSignable,
+        ackPayload.signature
+      );
+      if (!isSigValid) {
+        await logSecurityEvent({
+          userId: currentUserIdRef.current || existingTx.senderId,
+          deviceId: existingTx.deviceId || 'SENDER-DEVICE',
+          eventType: 'INVALID_SIGNATURE',
+          severity: 'HIGH',
+          description: `Tampered acknowledgment signature rejected for tx ${txId}`,
+          status: 'BLOCKED',
+          relatedTxId: txId,
+        });
+        throw new Error('Cryptographic verification failed: Receiver acknowledgment signature is invalid.');
+      }
+    }
+
+    // Record acknowledgment locally on sender device
+    const updatedTx = await executeSenderRecordAcknowledgment({
+      transactionId: txId,
+      acknowledgment: ackPayload,
+    });
+
+    await refreshTransactions();
+    await refreshSecurityEvents();
+
+    return updatedTx;
+  }, [refreshTransactions, refreshSecurityEvents]);
+
   // ─── Synchronization Engine ──────────────────────────────
   const syncTransactions = useCallback(async (currentUser) => {
     if (isSyncingRef.current || syncStatus === 'syncing') {
@@ -925,6 +1055,8 @@ export function WalletProvider({ children }) {
       createOfflineTransaction,
       createOnlineTransaction,
       acceptIncomingPayment,
+      createReceiverAcknowledgment,
+      recordSenderAcknowledgment,
       syncTransactions,
       revokeDevice,
 

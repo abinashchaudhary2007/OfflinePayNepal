@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowUpRight, Wifi, WifiOff, ChevronRight, Search, QrCode,
   CheckCircle2, AlertTriangle, ShieldCheck, Copy, ArrowLeft, RefreshCw,
-  Wallet, User, FileText, Store, Eye, ChevronDown, Clock
+  Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -33,6 +34,7 @@ function SendMoney() {
   const {
     wallet, device, authorization, transactions,
     createOfflineTransaction, createOnlineTransaction,
+    recordSenderAcknowledgment,
     expirePendingTransactions,
     registerDevice, TX_STATUS
   } = useWallet();
@@ -61,6 +63,11 @@ function SendMoney() {
   const [showReceiptView, setShowReceiptView] = useState(false);
   const [remainingSecs, setRemainingSecs] = useState(300);
   const [isTxExpired, setIsTxExpired] = useState(false);
+  const [showAckScanner, setShowAckScanner] = useState(false);
+  const [ackScanError, setAckScanError] = useState('');
+  const [manualAckInput, setManualAckInput] = useState('');
+  const [isVerifyingAck, setIsVerifyingAck] = useState(false);
+  const ackScannerRef = useRef(null);
 
   // Load all registered users
   useEffect(() => {
@@ -293,6 +300,72 @@ function SendMoney() {
       setTimeout(() => setCopiedId(false), 2000);
     }
   };
+
+  const handleStartAckScanner = () => {
+    setShowAckScanner(true);
+    setAckScanError('');
+    setManualAckInput('');
+    setTimeout(() => {
+      if (!document.getElementById('ack-qr-reader')) return;
+      try {
+        const scanner = new Html5QrcodeScanner('ack-qr-reader', {
+          fps: 10,
+          qrbox: { width: 220, height: 220 },
+          rememberLastUsedCamera: true,
+        }, false);
+
+        scanner.render(
+          async (decodedText) => {
+            scanner.clear().catch(() => {});
+            await handleProcessAckPayload(decodedText);
+          },
+          () => {}
+        );
+        ackScannerRef.current = scanner;
+      } catch (err) {
+        console.warn('[ack-scanner init error]', err);
+      }
+    }, 200);
+  };
+
+  const handleStopAckScanner = () => {
+    if (ackScannerRef.current) {
+      ackScannerRef.current.clear().catch(() => {});
+      ackScannerRef.current = null;
+    }
+    setShowAckScanner(false);
+    setAckScanError('');
+  };
+
+  const handleProcessAckPayload = async (rawPayload) => {
+    setIsVerifyingAck(true);
+    setAckScanError('');
+    try {
+      const parsed = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+      if (parsed.type !== 'OFFLINE_PAYMENT_ACK') {
+        throw new Error('Scanned QR is not a valid OfflinePay Receiver Acknowledgment.');
+      }
+      if (parsed.transactionRef !== createdTx.id) {
+        throw new Error(`Acknowledgment reference mismatch: expected ${createdTx.id}, got ${parsed.transactionRef}`);
+      }
+      const updated = await recordSenderAcknowledgment(parsed);
+      setCreatedTx(updated);
+      setIsTxExpired(false);
+      handleStopAckScanner();
+    } catch (err) {
+      setAckScanError(err.message || 'Failed to verify receiver acknowledgment.');
+    } finally {
+      setIsVerifyingAck(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (ackScannerRef.current) {
+        ackScannerRef.current.clear().catch(() => {});
+      }
+    };
+  }, []);
 
   return (
     <DashboardLayout>
@@ -925,8 +998,8 @@ function SendMoney() {
                       : isSettled
                       ? 'Payment Settled by Server'
                       : isAck
-                      ? 'Receiver Acknowledged — Sync Pending'
-                      : 'Offline Payment QR (Waiting for Scan)'}
+                      ? 'Receiver Acknowledged Offline'
+                      : 'Waiting for Receiver'}
                   </span>
                 </span>
                 <h2 className="text-2xl font-black text-[#F8FAFC] tracking-tight">
@@ -935,8 +1008,8 @@ function SendMoney() {
                     : isSettled
                     ? 'Payment Settled Successfully'
                     : isAck
-                    ? 'Receiver Has Scanned Payment'
-                    : 'Ask the receiver to scan this QR'}
+                    ? 'Receiver Acknowledged Offline'
+                    : 'Waiting for Receiver'}
                 </h2>
                 <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
                   {isTxExpired
@@ -944,8 +1017,8 @@ function SendMoney() {
                     : isSettled
                     ? 'Your payment was authoritatively settled on the central ledger.'
                     : isAck
-                    ? 'The receiver successfully verified and claimed this offline payment. Central sync in progress.'
-                    : 'Keep this screen open until the receiver scans and accepts the signed token.'}
+                    ? 'Awaiting Synchronization — The receiver has cryptographically verified and claimed this offline payment.'
+                    : 'Show this QR to the receiver. Once they validate it offline, scan their acknowledgment QR.'}
                 </p>
               </div>
 
@@ -954,7 +1027,7 @@ function SendMoney() {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-[#A78BFA] mx-auto">
                   <Clock size={13} className="text-[#A78BFA] animate-pulse" />
                   <span>
-                    Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not scanned
+                    Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not claimed
                   </span>
                 </div>
               )}
@@ -971,6 +1044,23 @@ function SendMoney() {
                   Paying: <strong className="text-[#F8FAFC]">{createdTx.receiverName}</strong>
                 </p>
               </div>
+
+              {/* Acknowledged Status Box if already verified by receiver */}
+              {isAck && !isSettled && (
+                <div className="p-4 rounded-2xl bg-[#172337] border border-[#38BDF8]/40 max-w-sm mx-auto space-y-2.5 text-left text-xs">
+                  <div className="flex items-center gap-2 text-[#38BDF8] font-bold">
+                    <CheckCircle2 size={16} />
+                    <span>Receiver Acknowledged Offline</span>
+                  </div>
+                  <p className="text-[11px] text-[#94A3B8] leading-relaxed">
+                    This offline payment was claimed and verified by <strong className="text-[#F8FAFC]">{currentTx.receiverName}</strong>. It is permanently protected from expiration and will settle authoritatively once connectivity is available.
+                  </p>
+                  <div className="pt-1 flex items-center justify-between text-[10px] text-[#94A3B8] border-t border-[#263449]">
+                    <span>Status: <strong className="text-[#38BDF8]">RECEIVER_ACKNOWLEDGED</strong></span>
+                    <span>Sync: <strong>PENDING_SYNC</strong></span>
+                  </div>
+                </div>
+              )}
 
               {/* Offline QR Presentation or Expired Box */}
               {createdTx.method === 'OFFLINE_QR' && (
@@ -996,6 +1086,78 @@ function SendMoney() {
                     </div>
                   )
                 )
+              )}
+
+              {/* Two-Way Offline Acknowledgment Scanning Block */}
+              {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
+                <div className="p-4 rounded-2xl bg-[#172337] border border-[#38BDF8]/30 max-w-sm mx-auto space-y-3">
+                  <div className="flex items-center gap-2.5 text-left">
+                    <div className="w-9 h-9 rounded-xl bg-[#38BDF8]/20 text-[#38BDF8] flex items-center justify-center flex-shrink-0">
+                      <Camera size={18} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#F8FAFC]">Scan Receiver Acknowledgment</p>
+                      <p className="text-[10px] text-[#94A3B8]">
+                        After the receiver scans your payment, scan their signed acknowledgment QR
+                      </p>
+                    </div>
+                  </div>
+
+                  {showAckScanner ? (
+                    <div className="space-y-3">
+                      <div
+                        id="ack-qr-reader"
+                        className="w-full rounded-xl overflow-hidden border border-[#38BDF8]/40 bg-black min-h-[220px]"
+                      />
+                      {ackScanError && (
+                        <div className="p-2.5 rounded-lg bg-[#EF4444]/15 border border-[#EF4444]/30 text-[#EF4444] text-xs font-medium">
+                          {ackScanError}
+                        </div>
+                      )}
+                      {/* Manual JSON fallback in case camera is blocked */}
+                      <div className="space-y-1.5 text-left">
+                        <span className="text-[10px] text-[#94A3B8] font-semibold">Or paste receiver acknowledgment JSON:</span>
+                        <textarea
+                          rows={2}
+                          value={manualAckInput}
+                          onChange={e => setManualAckInput(e.target.value)}
+                          placeholder='Paste acknowledgment payload...'
+                          className="w-full p-2 text-[10px] font-mono bg-[#111C2E] text-[#F8FAFC] border border-[#263449] rounded-lg outline-none"
+                        />
+                        {manualAckInput.trim() && (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            block
+                            loading={isVerifyingAck}
+                            onClick={() => handleProcessAckPayload(manualAckInput.trim())}
+                          >
+                            Verify & Record Acknowledgment
+                          </Button>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        block
+                        onClick={handleStopAckScanner}
+                      >
+                        Close Scanner
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      block
+                      variant="primary"
+                      onClick={handleStartAckScanner}
+                      leftIcon={<Camera size={16} />}
+                      id="btn-scan-receiver-ack"
+                      className="bg-[#0284C7] hover:bg-[#0369A1] font-bold"
+                    >
+                      Scan Receiver Acknowledgment
+                    </Button>
+                  )}
+                </div>
               )}
 
               {/* Collapsible Technical Payload Drawer */}

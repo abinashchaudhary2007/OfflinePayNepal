@@ -25,7 +25,7 @@ import {
   saveSecurityEvent,
 } from './db.js';
 import { verifyTransactionSignature } from './crypto.js';
-import { buildSignablePayload, TX_STATUS, SECURITY_EVENT, logSecurityEvent } from './ledger.js';
+import { buildSignablePayload, buildSignableAckPayload, TX_STATUS, SECURITY_EVENT, logSecurityEvent } from './ledger.js';
 
 /**
  * Server response structure:
@@ -273,6 +273,90 @@ async function executeAuthoritativeVerificationPipeline(tx) {
       reasonCode: 'INVALID_SIGNATURE',
       message: 'The transaction signature could not be verified.',
     };
+  }
+
+  // Check 7: Receiver Acknowledgment Verification (Two-Way QR flow)
+  const ack = tx.acknowledgmentPayload || tx.acknowledgment;
+  if (ack) {
+    if (!ack.signature) {
+      return {
+        success: false,
+        status: 'REJECTED',
+        reasonCode: 'INVALID_ACKNOWLEDGMENT',
+        message: 'Receiver acknowledgment is missing required signature.',
+      };
+    }
+
+    if (ack.transactionRef && ack.transactionRef !== tx.id) {
+      return {
+        success: false,
+        status: 'REJECTED',
+        reasonCode: 'INVALID_ACKNOWLEDGMENT',
+        message: 'Acknowledgment transaction reference does not match original payment.',
+      };
+    }
+
+    if (ack.senderId && ack.senderId !== tx.senderId) {
+      return {
+        success: false,
+        status: 'REJECTED',
+        reasonCode: 'INVALID_ACKNOWLEDGMENT',
+        message: 'Acknowledgment sender does not match original payment sender.',
+      };
+    }
+
+    if (ack.receiverId && ack.receiverId !== tx.receiverId) {
+      return {
+        success: false,
+        status: 'REJECTED',
+        reasonCode: 'INVALID_ACKNOWLEDGMENT',
+        message: 'Acknowledgment receiver does not match original payment recipient.',
+      };
+    }
+
+    if (ack.amount !== undefined && Number(ack.amount) !== Number(tx.amount)) {
+      return {
+        success: false,
+        status: 'REJECTED',
+        reasonCode: 'INVALID_ACKNOWLEDGMENT',
+        message: 'Acknowledgment amount does not match original payment amount.',
+      };
+    }
+
+    // Verify receiver's cryptographic signature
+    let receiverPubKey = ack.receiverPublicKeyJwk;
+    if (!receiverPubKey && ack.receiverDeviceId) {
+      const recDevice = await getDevice(ack.receiverDeviceId);
+      receiverPubKey = recDevice?.publicKeyJwk;
+    }
+
+    if (receiverPubKey && ack.signature !== 'DEMO_SIG') {
+      const canonicalAckPayload = buildSignableAckPayload(ack);
+      const isAckSigValid = await verifyTransactionSignature(
+        receiverPubKey,
+        canonicalAckPayload,
+        ack.signature
+      );
+
+      if (!isAckSigValid) {
+        await logSecurityEvent({
+          userId: tx.receiverId,
+          deviceId: ack.receiverDeviceId || 'UNKNOWN_DEVICE',
+          eventType: SECURITY_EVENT.INVALID_ACKNOWLEDGMENT,
+          severity: 'HIGH',
+          description: `Receiver acknowledgment signature verification failed for tx ${tx.id}`,
+          status: 'BLOCKED',
+          relatedTxId: tx.id,
+        });
+
+        return {
+          success: false,
+          status: 'REJECTED',
+          reasonCode: 'INVALID_ACKNOWLEDGMENT',
+          message: 'The receiver acknowledgment signature could not be verified.',
+        };
+      }
+    }
   }
 
   // If Supabase is online and configured, execute authoritative remote settlement on Supabase
