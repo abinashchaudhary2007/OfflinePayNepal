@@ -865,6 +865,44 @@ export async function cancelAndRefundExpiredTransactions({
     expiredTxs.push(tx);
   }
 
+  // Authoritative server check: If online, check whether any candidate was already settled on Supabase by receiver
+  if (typeof navigator !== 'undefined' && navigator.onLine && expiredTxs.length > 0) {
+    try {
+      const { supabase, canSyncWithSupabase } = await import('./supabaseSync.js');
+      if (canSyncWithSupabase && canSyncWithSupabase()) {
+        const candidateRefs = expiredTxs.map(t => t.id);
+        const { data: remoteTxs } = await supabase
+          .from('transactions')
+          .select('id, transaction_ref, status, settled_at')
+          .in('transaction_ref', candidateRefs);
+
+        if (remoteTxs && remoteTxs.length > 0) {
+          const settledMap = new Map(
+            remoteTxs
+              .filter(r => r.status === 'SETTLED' || r.status === 'RECEIVER_ACKNOWLEDGED')
+              .map(r => [r.transaction_ref, r])
+          );
+
+          for (let i = expiredTxs.length - 1; i >= 0; i--) {
+            const cand = expiredTxs[i];
+            if (settledMap.has(cand.id)) {
+              const remote = settledMap.get(cand.id);
+              // Mark transaction with authoritative server status instead of expiring
+              cand.status = remote.status;
+              cand.settledAt = remote.settled_at || new Date().toISOString();
+              cand.receiverAcknowledged = true;
+              cand.updatedAt = new Date().toISOString();
+              await txStore.put(cand);
+              expiredTxs.splice(i, 1);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[db] Remote check during expiration sweep notice:', e.message);
+    }
+  }
+
   if (expiredTxs.length === 0) {
     await idbTx.done;
     return { expiredCount: 0, refundedAmount: 0, updatedWallet: null, updatedAuth: null };
@@ -881,7 +919,6 @@ export async function cancelAndRefundExpiredTransactions({
   let totalRefunded = 0;
   let currentUserUpdatedWallet = null;
   let currentUserUpdatedAuth = null;
-  const walletsToPush = [];
 
   for (const tx of expiredTxs) {
     // 1. Mark transaction as EXPIRED
@@ -902,7 +939,7 @@ export async function cancelAndRefundExpiredTransactions({
       await syncQueueStore.delete(q.id);
     }
 
-    // 3. Refund sender wallet if found and amount > 0
+    // 3. Refund sender wallet locally if found and amount > 0
     const parsedAmount = Math.round(Number(tx.amount) * 100) / 100;
     const senderWallet = allWallets.find(w => w.userId === tx.senderId);
     if (senderWallet && parsedAmount > 0) {
@@ -916,7 +953,6 @@ export async function cancelAndRefundExpiredTransactions({
       senderWallet.updatedAt = new Date().toISOString();
 
       await walletStore.put(senderWallet);
-      walletsToPush.push(senderWallet);
 
       if (userId && tx.senderId === userId) {
         currentUserUpdatedWallet = { ...senderWallet };
@@ -957,15 +993,6 @@ export async function cancelAndRefundExpiredTransactions({
   }
 
   await idbTx.done;
-
-  // Asynchronously synchronize refunded wallets to Supabase when online
-  if (typeof navigator !== 'undefined' && navigator.onLine && walletsToPush.length > 0) {
-    import('./supabaseSync.js').then(({ pushWalletToSupabase }) => {
-      for (const w of walletsToPush) {
-        pushWalletToSupabase(w).catch(() => {});
-      }
-    }).catch(() => {});
-  }
 
   return {
     expiredCount: expiredTxs.length,

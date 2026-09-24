@@ -211,6 +211,14 @@ export function WalletProvider({ children }) {
       try {
         const { fetchRemoteWallet, syncInboundTransactions, canSyncWithSupabase } = await import('../services/supabaseSync');
         if (canSyncWithSupabase()) {
+          // 1. Reconcile inbound remote transactions from Supabase first
+          const { newCount } = await syncInboundTransactions(user.id);
+          if (newCount > 0) {
+            txs = await getTransactionsByUser(user.id);
+            setTransactions(txs);
+          }
+
+          // 2. Fetch authoritative remote wallet balance from Supabase
           const remoteWallet = await fetchRemoteWallet(user.id);
           if (remoteWallet && remoteWallet.balance !== undefined) {
             storedWallet = {
@@ -222,12 +230,9 @@ export function WalletProvider({ children }) {
             };
             await saveWallet(storedWallet);
             setWallet(storedWallet);
-          }
-
-          const { newCount } = await syncInboundTransactions(user.id);
-          if (newCount > 0) {
-            txs = await getTransactionsByUser(user.id);
-            setTransactions(txs);
+          } else {
+            const freshLocal = await getWalletByUserId(user.id);
+            if (freshLocal) setWallet(freshLocal);
           }
         }
       } catch (syncErr) {

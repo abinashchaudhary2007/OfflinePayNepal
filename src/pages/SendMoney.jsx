@@ -151,11 +151,11 @@ function SendMoney() {
     }
   }, [createdTx]);
 
-  // 5-minute timeout countdown for offline QR payments
+  // 5-minute timeout countdown for offline QR payments with active server settlement polling
   useEffect(() => {
     if (!createdTx || createdTx.method !== 'OFFLINE_QR' || step !== STEPS.STATUS) return;
 
-    // Check if transaction has already been acknowledged or settled
+    // Check if transaction has already been acknowledged or settled locally
     const latestTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
     if (latestTx.status === 'SETTLED' || latestTx.status === 'RECEIVER_ACKNOWLEDGED' || latestTx.receiverAcknowledged) {
       setIsTxExpired(false);
@@ -163,12 +163,41 @@ function SendMoney() {
     }
 
     const txTime = new Date(createdTx.createdAt || createdTx.timestamp).getTime();
+    let pollCount = 0;
+
     const checkExpiration = async () => {
-      // Re-verify latest transaction status from transactions list
+      // 1. Re-verify latest transaction status from transactions list
       const currentTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
       if (currentTx.status === 'SETTLED' || currentTx.status === 'RECEIVER_ACKNOWLEDGED' || currentTx.receiverAcknowledged) {
         setIsTxExpired(false);
         return;
+      }
+
+      // 2. Poll Supabase every 3 seconds: if receiver claimed & settled online, immediately update sender UI
+      pollCount++;
+      if (pollCount % 3 === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          const { supabase, canSyncWithSupabase } = await import('../services/supabaseSync');
+          if (canSyncWithSupabase && canSyncWithSupabase()) {
+            const { data: remoteTx } = await supabase
+              .from('transactions')
+              .select('id, status, settled_at')
+              .eq('transaction_ref', createdTx.id)
+              .maybeSingle();
+
+            if (remoteTx && remoteTx.status === 'SETTLED') {
+              setIsTxExpired(false);
+              setCreatedTx(prev => ({
+                ...prev,
+                status: 'SETTLED',
+                settledAt: remoteTx.settled_at,
+                receiverAcknowledged: true,
+              }));
+              if (refreshTransactions) await refreshTransactions();
+              return;
+            }
+          }
+        } catch (_) {}
       }
 
       const elapsed = Math.floor((Date.now() - txTime) / 1000);
@@ -176,6 +205,32 @@ function SendMoney() {
       setRemainingSecs(left);
 
       if (left <= 0) {
+        // Authoritative pre-expiration check against server
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          try {
+            const { supabase, canSyncWithSupabase } = await import('../services/supabaseSync');
+            if (canSyncWithSupabase && canSyncWithSupabase()) {
+              const { data: remoteTx } = await supabase
+                .from('transactions')
+                .select('id, status, settled_at')
+                .eq('transaction_ref', createdTx.id)
+                .maybeSingle();
+
+              if (remoteTx && remoteTx.status === 'SETTLED') {
+                setIsTxExpired(false);
+                setCreatedTx(prev => ({
+                  ...prev,
+                  status: 'SETTLED',
+                  settledAt: remoteTx.settled_at,
+                  receiverAcknowledged: true,
+                }));
+                if (refreshTransactions) await refreshTransactions();
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+
         if (currentTx.status === 'OFFLINE_PENDING' && !currentTx.receiverAcknowledged) {
           setIsTxExpired(true);
           if (expirePendingTransactions) {
@@ -188,7 +243,7 @@ function SendMoney() {
     checkExpiration();
     const timer = setInterval(checkExpiration, 1000);
     return () => clearInterval(timer);
-  }, [createdTx, step, transactions, expirePendingTransactions]);
+  }, [createdTx, step, transactions, expirePendingTransactions, refreshTransactions]);
 
   // Available recipients: registered users except self and admin
   const availableReceivers = directoryUsers.filter(

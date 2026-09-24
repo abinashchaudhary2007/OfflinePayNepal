@@ -170,15 +170,34 @@ export async function pushWalletToSupabase(wallet) {
   if (!canSyncWithSupabase() || !wallet) return false;
 
   try {
-    const { error } = await supabase.from('wallets').upsert({
+    // Check if remote wallet already exists in Supabase
+    const { data: existingRemote } = await supabase
+      .from('wallets')
+      .select('id, balance')
+      .eq('user_id', wallet.userId)
+      .maybeSingle();
+
+    if (existingRemote) {
+      // Remote wallet exists: NEVER clobber the authoritative double-entry server balance!
+      const { error } = await supabase.from('wallets').update({
+        offline_limit: wallet.offlineLimit || 0,
+        offline_reserve: wallet.offlineReserve || 0,
+        updated_at: new Date().toISOString()
+      }).eq('user_id', wallet.userId);
+      return !error;
+    }
+
+    // Only insert initial wallet record if none exists on Supabase
+    const { error } = await supabase.from('wallets').insert({
       id: wallet.id,
       user_id: wallet.userId,
       balance: wallet.availableBalance !== undefined ? wallet.availableBalance : (wallet.balance || 0),
       offline_limit: wallet.offlineLimit || 0,
       offline_reserve: wallet.offlineReserve || 0,
       currency: wallet.currency || 'NPR',
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
+    });
 
     return !error;
   } catch (err) {
@@ -525,6 +544,19 @@ export async function syncInboundTransactions(userId) {
         await db.put('transactions', mappedTx);
         newCount++;
       } else if (existing.status !== mappedTx.status || (!existing.settledAt && mappedTx.settledAt)) {
+        // If transaction was previously marked EXPIRED locally on sender device, but server is SETTLED:
+        // reverse the premature local refund so local balance matches the authoritative central ledger
+        if (existing.status === 'EXPIRED' && mappedTx.status === 'SETTLED' && existing.senderId === userId) {
+          const allWallets = await db.getAll('wallet');
+          const userWallet = allWallets.find(w => w.userId === userId);
+          if (userWallet) {
+            const amt = Number(mappedTx.amount || 0);
+            userWallet.availableBalance = Math.max(0, Math.round(((userWallet.availableBalance || 0) - amt) * 100) / 100);
+            userWallet.totalSent = Math.round(((userWallet.totalSent || 0) + amt) * 100) / 100;
+            userWallet.updatedAt = new Date().toISOString();
+            await db.put('wallet', userWallet);
+          }
+        }
         await db.put('transactions', { ...existing, ...mappedTx });
         newCount++;
       }
