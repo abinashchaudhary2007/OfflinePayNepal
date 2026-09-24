@@ -1,6 +1,6 @@
 import { NavLink, Link } from 'react-router-dom';
 import {
-  LayoutDashboard, Wallet2, ArrowUpRight, ArrowDownLeft,
+  LayoutDashboard, ArrowUpRight, ArrowDownLeft,
   WifiOff, History, Shield, User, ShieldAlert,
   Settings, BarChart3, X, QrCode
 } from 'lucide-react';
@@ -11,7 +11,6 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 
 const MAIN_NAV_ITEMS = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/wallet',       icon: Wallet2,         label: 'Wallet' },
   { to: '/send',         icon: ArrowUpRight,    label: 'Pay / Send' },
   { to: '/receive',      icon: ArrowDownLeft,   label: 'Receive Hub' },
   { to: '/transactions', icon: History,         label: 'Transactions' },

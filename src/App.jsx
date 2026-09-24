@@ -9,7 +9,6 @@ import Landing           from './pages/Landing';
 import Login             from './pages/Login';
 import Register          from './pages/Register';
 import Dashboard         from './pages/Dashboard';
-import Wallet            from './pages/Wallet';
 import SendMoney         from './pages/SendMoney';
 import ReceiveMoney      from './pages/ReceiveMoney';
 import OfflinePayment    from './pages/OfflinePayment';
@@ -69,7 +68,7 @@ function AppCore() {
 
       {/* Protected dashboard routes */}
       <Route path="/dashboard"         element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/wallet"            element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
+      <Route path="/wallet"            element={<Navigate to="/dashboard" replace />} />
       <Route path="/send"              element={<ProtectedRoute><SendMoney /></ProtectedRoute>} />
       <Route path="/receive"           element={<ProtectedRoute><ReceiveMoney /></ProtectedRoute>} />
       <Route path="/offline"           element={<ProtectedRoute><OfflinePayment /></ProtectedRoute>} />

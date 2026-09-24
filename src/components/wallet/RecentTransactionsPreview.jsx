@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownLeft, ChevronRight, History, ArrowRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
@@ -14,13 +15,25 @@ function RecentTransactionsPreview() {
   const { transactions } = useWallet();
   const userId = currentUser?.id;
 
-  // Real transactions for this user
-  const userTxs = (transactions || []).slice(0, 5);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'received' | 'sent' | 'offline'
+
+  // Filtered transactions for this user
+  const userTxs = useMemo(() => {
+    let list = transactions || [];
+    if (activeTab === 'received') {
+      list = list.filter(tx => tx.receiverId === userId);
+    } else if (activeTab === 'sent') {
+      list = list.filter(tx => tx.senderId === userId);
+    } else if (activeTab === 'offline') {
+      list = list.filter(tx => tx.isOffline);
+    }
+    return list.slice(0, 6);
+  }, [transactions, activeTab, userId]);
 
   return (
-    <div className="rounded-2xl border border-[#263449] bg-[#111C2E] shadow-sm p-5 sm:p-6 transition-all">
+    <div className="rounded-2xl border border-[#263449] bg-[#111C2E] shadow-sm p-5 sm:p-6 transition-all space-y-3.5">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3.5">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#172337] border border-[#263449] text-[#38BDF8] flex items-center justify-center shrink-0">
             <History size={16} />
@@ -30,13 +43,37 @@ function RecentTransactionsPreview() {
           </h3>
         </div>
 
-        <Link
-          to="/transactions"
-          className="text-xs font-semibold text-[#38BDF8] hover:text-[#14B8A6] flex items-center gap-1 group no-underline transition-colors"
-        >
-          <span>View all</span>
-          <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-        </Link>
+        {/* Filter Pills & View All */}
+        <div className="flex items-center gap-2">
+          <div className="hidden xs:flex items-center gap-1 bg-[#172337] p-0.5 rounded-lg border border-[#263449]">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'received', label: 'In' },
+              { id: 'sent', label: 'Out' },
+              { id: 'offline', label: 'Offline' },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-[#14B8A6] text-[#0B1220] font-bold shadow-xs'
+                    : 'text-[#94A3B8] hover:text-[#F8FAFC]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <Link
+            to="/transactions"
+            className="text-xs font-semibold text-[#38BDF8] hover:text-[#14B8A6] flex items-center gap-1 group no-underline transition-colors pl-1"
+          >
+            <span>View all</span>
+            <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        </div>
       </div>
 
       {userTxs.length === 0 ? (

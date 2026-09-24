@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Shield, CheckCircle2, RefreshCw,
   WifiOff, ExternalLink, Copy, Check
@@ -16,7 +16,7 @@ import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 function Dashboard() {
   const { currentUser } = useAuth();
   const {
-    wallet, device, authorization,
+    wallet, device, authorization, transactions,
     pendingSyncCount, retryWaitingCount, lastSyncTime, syncStatus, syncTransactions, isInitialized,
     registerDevice,
   } = useWallet();
@@ -27,6 +27,25 @@ function Dashboard() {
 
   const totalUnsynced = (pendingSyncCount || 0) + (retryWaitingCount || 0);
   const firstName = currentUser?.name?.split(' ')[0] || 'User';
+
+  // Harmonized wallet metrics from live transactions
+  const totalSent = useMemo(() => (
+    (transactions || [])
+      .filter(tx => tx.senderId === currentUser?.id && tx.status === 'SETTLED')
+      .reduce((s, tx) => s + tx.amount, 0)
+  ), [transactions, currentUser?.id]);
+
+  const totalReceived = useMemo(() => (
+    (transactions || [])
+      .filter(tx => tx.receiverId === currentUser?.id && tx.status === 'SETTLED')
+      .reduce((s, tx) => s + tx.amount, 0)
+  ), [transactions, currentUser?.id]);
+
+  const harmonizedWallet = wallet ? {
+    ...wallet,
+    totalSent,
+    totalReceived,
+  } : null;
 
   const handleSync = async () => {
     if (isOffline) return;
@@ -102,7 +121,7 @@ function Dashboard() {
           <div className="lg:col-span-7 xl:col-span-8 space-y-4 sm:space-y-5">
             {/* Hero Balance Card */}
             {isInitialized ? (
-              <BalanceCard wallet={wallet} isOffline={isOffline} />
+              <BalanceCard wallet={harmonizedWallet} isOffline={isOffline} />
             ) : (
               <div className="rounded-2xl p-8 bg-[#111C2E] border border-[#263449] animate-pulse h-56" />
             )}
