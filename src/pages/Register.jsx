@@ -63,14 +63,13 @@ function Register() {
     >
       {/* ─── Left Panel ─── */}
       <div className="hidden lg:flex flex-col justify-between w-2/5 p-10 hero-bg">
-        <Link to="/" className="flex items-center gap-2 no-underline">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold"
-            style={{ background: 'rgba(255,255,255,0.15)' }}
-          >
-            OP
-          </div>
-          <span className="text-white font-bold text-lg">OfflinePay Nepal</span>
+        <Link to="/" className="flex items-center gap-3 no-underline group">
+          <img
+            src="/logo.png"
+            alt="OfflinePay Nepal Logo"
+            className="w-11 h-11 rounded-2xl object-contain bg-white p-1 shadow-md border border-white/20 transition-transform group-hover:scale-105"
+          />
+          <span className="text-white font-black text-xl tracking-tight">OfflinePay Nepal</span>
         </Link>
 
         <div className="relative z-10">
@@ -107,14 +106,13 @@ function Register() {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 overflow-y-auto">
         <div className="w-full max-w-md py-6 sm:py-8">
           {/* Mobile logo */}
-          <Link to="/" className="lg:hidden flex items-center gap-2 no-underline mb-6">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold"
-              style={{ background: 'var(--color-navy-900)' }}
-            >
-              OP
-            </div>
-            <span className="font-bold text-lg text-[var(--color-navy-900)]">OfflinePay Nepal</span>
+          <Link to="/" className="lg:hidden flex items-center gap-2.5 no-underline mb-6">
+            <img
+              src="/logo.png"
+              alt="OfflinePay Nepal Logo"
+              className="w-10 h-10 rounded-xl object-contain bg-white p-1 shadow-xs border border-slate-200"
+            />
+            <span className="font-extrabold text-lg text-[var(--color-navy-900)]">OfflinePay Nepal</span>
           </Link>
 
           <h1 className="text-2xl font-bold tracking-tight text-[var(--color-gray-900)] mb-1">Create an account</h1>

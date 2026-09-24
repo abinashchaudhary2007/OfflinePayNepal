@@ -35,23 +35,23 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
   return (
     <div
       className={`
-        relative overflow-hidden rounded-3xl p-6 sm:p-7 md:p-8 text-white
-        border border-slate-800/80 shadow-2xl transition-all duration-300
-        ${className}
+        relative overflow-hidden rounded-2xl p-6 sm:p-7 md:p-8 text-[#F8FAFC]
+        border border-[#263449] shadow-xl transition-all duration-300
+        bg-[#172337] ${className}
       `}
       style={{
-        background: 'linear-gradient(135deg, #0A0F1D 0%, #0F172A 45%, #1E1B4B 100%)',
-        boxShadow: '0 20px 40px -15px rgba(15, 23, 42, 0.45), 0 0 1px 1px rgba(255, 255, 255, 0.08) inset',
+        background: 'linear-gradient(145deg, #111C2E 0%, #172337 100%)',
+        boxShadow: '0 12px 30px -10px rgba(11, 18, 32, 0.6), 0 0 0 1px rgba(38, 52, 73, 0.5) inset',
       }}
     >
-      {/* Background Decorative Mesh Glows */}
+      {/* Subtle Ambient Teal and Sky Accent Accents */}
       <div
-        className="absolute -top-24 -right-24 w-72 h-72 rounded-full pointer-events-none opacity-40 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #6366F1 0%, transparent 70%)' }}
+        className="absolute -top-24 -right-24 w-64 h-64 rounded-full pointer-events-none opacity-20 blur-3xl"
+        style={{ background: 'radial-gradient(circle, #14B8A6 0%, transparent 70%)' }}
       />
       <div
-        className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full pointer-events-none opacity-25 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}
+        className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full pointer-events-none opacity-15 blur-3xl"
+        style={{ background: 'radial-gradient(circle, #38BDF8 0%, transparent 70%)' }}
       />
 
       {/* ─── Top Header: EMV Chip, Card Type & Privacy Toggle ─── */}
@@ -79,23 +79,27 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
             <span className="w-2 h-5 border-r-2 border-white/80 rounded-full" />
           </div>
 
-          <span className="hidden xs:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-white/10 text-white/90 border border-white/10 backdrop-blur-md">
-            <Zap size={11} className="text-amber-400" /> Offline Wallet
+          <span className="hidden xs:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#111C2E]/80 text-[#38BDF8] border border-[#263449]">
+            <Zap size={11} className="text-[#14B8A6]" /> Offline Wallet
           </span>
         </div>
 
         {/* Right status & Eye Toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 border border-white/10 backdrop-blur-md text-white/90">
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md border ${
+            isOffline
+              ? 'bg-[#A78BFA]/15 text-[#A78BFA] border-[#A78BFA]/30'
+              : 'bg-[#22C55E]/15 text-[#22C55E] border-[#22C55E]/30'
+          }`}>
             {isOffline ? (
               <>
-                <WifiOff size={13} className="text-amber-400" />
-                <span className="hidden sm:inline">Offline Mode</span>
+                <WifiOff size={13} className="text-[#A78BFA]" />
+                <span className="hidden sm:inline font-bold">Offline Mode</span>
               </>
             ) : (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="hidden sm:inline">Online Sync</span>
+                <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
+                <span className="hidden sm:inline font-bold">Online Sync</span>
               </>
             )}
           </div>
@@ -113,81 +117,81 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
       {/* ─── Hero Balance Display ─── */}
       <div className="relative z-10 mb-6">
-        <p className="text-xs font-semibold tracking-wider uppercase text-white/60 mb-1">
+        <p className="text-xs font-semibold tracking-wider uppercase text-[#94A3B8] mb-1">
           Available Spendable Balance
         </p>
         <div className="flex items-baseline gap-2.5 flex-wrap">
           <span
-            className="font-black text-white tracking-tight select-none"
+            className="font-black text-[#F8FAFC] tracking-tight select-none"
             style={{ fontSize: 'clamp(2rem, 5.5vw, 3.25rem)', lineHeight: 1.1 }}
           >
             {hide(formatCurrency(wallet.availableBalance))}
           </span>
-          <span className="text-xs sm:text-sm font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-400/20">
+          <span className="text-xs sm:text-sm font-bold px-2 py-0.5 rounded-md bg-[#14B8A6]/15 text-[#14B8A6] border border-[#14B8A6]/30">
             NPR
           </span>
         </div>
       </div>
 
       {/* ─── Offline Allowance Reserve Section ─── */}
-      <div className="relative z-10 bg-slate-900/60 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 border border-white/10 mb-5 shadow-inner">
+      <div className="relative z-10 bg-[#111C2E] rounded-2xl p-4 sm:p-4.5 border border-[#263449] mb-5 shadow-inner">
         <div className="flex items-center justify-between gap-2 mb-2 text-xs">
-          <div className="flex items-center gap-1.5 font-bold text-white/90">
-            <ShieldCheck size={15} className="text-emerald-400" />
+          <div className="flex items-center gap-1.5 font-bold text-[#F8FAFC]">
+            <ShieldCheck size={15} className="text-[#14B8A6]" />
             <span>Offline Spending Reserve</span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-white/70">
+          <div className="flex items-center gap-1 text-[11px] text-[#94A3B8]">
             <span>Total Limit:</span>
-            <span className="font-bold text-white">{hide(formatCurrency(offlineLimit))}</span>
+            <span className="font-bold text-[#F8FAFC]">{hide(formatCurrency(offlineLimit))}</span>
           </div>
         </div>
 
         {/* Dynamic Progress Bar */}
-        <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden my-2 border border-white/5">
+        <div className="h-2 w-full bg-[#0B1220] rounded-full overflow-hidden my-2 border border-[#263449]">
           <div
             className="h-full rounded-full transition-all duration-700 ease-out shadow-xs"
             style={{
               width: `${Math.min(100, Math.max(0, 100 - offlineUsedPercent))}%`,
               background: offlineRemaining < 100 && offlineLimit > 0
                 ? 'linear-gradient(90deg, #F59E0B, #EF4444)'
-                : 'linear-gradient(90deg, #10B981, #34D399)',
+                : 'linear-gradient(90deg, #14B8A6, #38BDF8)',
             }}
           />
         </div>
 
         <div className="flex items-center justify-between text-[11px] pt-0.5">
-          <span className="text-white/60">
+          <span className="text-[#94A3B8]">
             {hide(formatCurrency(offlineSpent))} spent offline
           </span>
-          <span className="font-bold text-emerald-400">
+          <span className="font-bold text-[#14B8A6]">
             {hide(formatCurrency(offlineRemaining))} ready to spend
           </span>
         </div>
       </div>
 
       {/* ─── Bottom Metrics & Action Row ─── */}
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-white/10">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-[#263449]">
         {/* Inflow & Outflow Pill Cards */}
         <div className="grid grid-cols-2 gap-2.5 sm:gap-4 flex-1">
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-[#111C2E]/60 border border-[#263449]">
+            <div className="w-7 h-7 rounded-lg bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0">
               <TrendingDown size={15} />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase font-bold text-white/50 tracking-wider">Received</p>
-              <p className="text-xs sm:text-sm font-bold text-white truncate">
+              <p className="text-[10px] uppercase font-bold text-[#94A3B8] tracking-wider">Received</p>
+              <p className="text-xs sm:text-sm font-bold text-[#F8FAFC] truncate">
                 {hide(formatCurrency(wallet.totalReceived || 0))}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/5">
-            <div className="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-[#111C2E]/60 border border-[#263449]">
+            <div className="w-7 h-7 rounded-lg bg-[#EF4444]/15 text-[#EF4444] flex items-center justify-center shrink-0">
               <TrendingUp size={15} />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] uppercase font-bold text-white/50 tracking-wider">Sent</p>
-              <p className="text-xs sm:text-sm font-bold text-white truncate">
+              <p className="text-[10px] uppercase font-bold text-[#94A3B8] tracking-wider">Sent</p>
+              <p className="text-xs sm:text-sm font-bold text-[#F8FAFC] truncate">
                 {hide(formatCurrency(wallet.totalSent || 0))}
               </p>
             </div>
@@ -198,7 +202,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
         <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <Link
             to="/receive"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/15 transition-all no-underline shadow-xs hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#111C2E] hover:bg-[#172337] text-[#38BDF8] hover:text-white text-xs font-semibold border border-[#263449] transition-all no-underline shadow-xs hover:border-[#38BDF8]/40"
             title="Open Receive QR"
           >
             <QrCode size={14} />
@@ -206,7 +210,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
           </Link>
           <Link
             to="/send"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/30 transition-all no-underline hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#14B8A6] hover:bg-[#0D9488] text-[#0B1220] text-xs font-black shadow-md shadow-[#14B8A6]/20 transition-all no-underline hover:scale-105 active:scale-95"
           >
             <span>Send</span>
             <ArrowUpRight size={14} />

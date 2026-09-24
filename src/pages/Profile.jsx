@@ -3,6 +3,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { useAuth } from '../context/DemoAuthContext';
+import { useWallet } from '../context/WalletContext';
 import { formatDate } from '../utils/formatting';
 import { User, Mail, Phone, Cpu, LogOut, Trash2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import Button from '../components/ui/Button';
@@ -12,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 
 function Profile() {
   const { currentUser, logout, deleteAccount } = useAuth();
+  const { device } = useWallet();
   const navigate = useNavigate();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -88,7 +90,7 @@ function Profile() {
         </Card>
 
         {/* Device info */}
-        {currentUser?.device && (
+        {device && (
           <Card>
             <CardHeader title="Registered Device" subtitle="Your current device details" />
             <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
@@ -96,10 +98,10 @@ function Profile() {
                 <Cpu size={24} color="var(--color-indigo-600)" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-[var(--color-gray-800)] font-mono">{currentUser.device.id}</p>
-                <p className="text-xs text-[var(--color-gray-500)] mt-0.5">Transaction counter: {currentUser.device.transactionCounter}</p>
+                <p className="text-sm font-bold text-[var(--color-gray-800)] font-mono">{device.id}</p>
+                <p className="text-xs text-[var(--color-gray-500)] mt-0.5">Transaction counter: {device.transactionCounter || 0}</p>
               </div>
-              <Badge status={currentUser.device.status} />
+              <Badge status={device.status} />
             </div>
           </Card>
         )}

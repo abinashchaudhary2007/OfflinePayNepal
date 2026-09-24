@@ -113,14 +113,85 @@ export function WalletProvider({ children }) {
     }
     setTransactions(txs);
 
-    // Load device
+    // Load device or auto-register ECDSA P-256 key pair
     const devices = await getDevicesByUser(user.id);
-    const activeDevice = devices.find(d => d.status === 'ACTIVE') || null;
+    let activeDevice = devices.find(d => d.status === 'ACTIVE') || null;
+
+    if (!activeDevice) {
+      try {
+        const deviceId = `DEV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        const { publicKeyJwk } = await generateDeviceKeyPair(deviceId);
+        activeDevice = {
+          id: deviceId,
+          userId: user.id,
+          publicKeyJwk,
+          status: 'ACTIVE',
+          algorithm: 'P-256',
+          createdAt: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          transactionCounter: 0,
+          offlineLimit: 1000.00,
+          offlineSpent: 0,
+        };
+        await saveDevice(activeDevice);
+        await logSecurityEvent({
+          userId: user.id,
+          deviceId,
+          eventType: 'DEVICE_REGISTERED',
+          severity: 'LOW',
+          description: `Device ${deviceId} auto-registered with ECDSA P-256 key pair`,
+          status: 'LOGGED',
+        });
+      } catch (err) {
+        console.warn('[wallet] Auto device registration failed:', err);
+      }
+    }
     setDevice(activeDevice);
 
-    // Load authorization
+    // Load authorization or auto-provision 30-day authorization
     if (activeDevice) {
-      const auth = await getActiveAuthorization(activeDevice.id);
+      let auth = await getActiveAuthorization(activeDevice.id);
+      if (!auth && storedWallet) {
+        try {
+          const authLimit = Math.min(storedWallet.availableBalance || 1000, 1000);
+          const maxSingle = Math.min(authLimit, 500);
+          auth = {
+            id: `AUTH-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+            userId: user.id,
+            deviceId: activeDevice.id,
+            maximumAmount: authLimit,
+            remainingAmount: authLimit,
+            currency: 'NPR',
+            issuedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+            maxSingleTransaction: maxSingle,
+            status: 'ACTIVE',
+            nonce: generateNonce(),
+          };
+          await saveAuthorization(auth);
+
+          storedWallet = {
+            ...storedWallet,
+            offlineLimit: authLimit,
+            offlineRemaining: authLimit,
+            offlineSpent: 0,
+            updatedAt: new Date().toISOString(),
+          };
+          await saveWallet(storedWallet);
+          setWallet(storedWallet);
+
+          await logSecurityEvent({
+            userId: user.id,
+            deviceId: activeDevice.id,
+            eventType: 'OFFLINE_AUTH_CREATED',
+            severity: 'LOW',
+            description: `Offline authorization auto-provisioned: Rs. ${authLimit} limit (valid for 30 days)`,
+            status: 'LOGGED',
+          });
+        } catch (err) {
+          console.warn('[wallet] Auto offline authorization failed:', err);
+        }
+      }
       setAuthorization(auth);
     }
 
@@ -334,7 +405,7 @@ export function WalletProvider({ children }) {
       remainingAmount: amount,
       currency: 'NPR',
       issuedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
       maxSingleTransaction: maxSingle,
       status: 'ACTIVE',
       nonce: generateNonce(),
@@ -360,7 +431,7 @@ export function WalletProvider({ children }) {
       deviceId,
       eventType: 'OFFLINE_AUTH_CREATED',
       severity: 'LOW',
-      description: `Offline authorization created: Rs. ${amount} limit for 24 hours`,
+      description: `Offline authorization created: Rs. ${amount} limit for 30 days`,
       status: 'LOGGED',
     });
     await refreshSecurityEvents();

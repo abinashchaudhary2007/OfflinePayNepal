@@ -256,16 +256,16 @@ function QRScanner() {
           <div className="flex items-center gap-2">
             <Link
               to="/dashboard"
-              className="p-1.5 rounded-lg hover:bg-[var(--color-gray-100)] text-[var(--color-gray-600)] transition-colors no-underline"
+              className="p-1.5 rounded-lg hover:bg-[#172337] text-[#94A3B8] hover:text-[#F8FAFC] transition-colors no-underline"
               aria-label="Back to dashboard"
             >
               <ArrowLeft size={18} />
             </Link>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)] tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
                 Scan Payment QR
               </h1>
-              <p className="text-xs text-[var(--color-gray-500)] mt-0.5">
+              <p className="text-xs text-[#94A3B8] mt-0.5">
                 Scan to pay someone or claim an offline transfer
               </p>
             </div>
@@ -273,7 +273,7 @@ function QRScanner() {
 
           <button
             onClick={() => setShowManual(p => !p)}
-            className="text-xs font-semibold text-[var(--color-indigo-600)] hover:underline flex items-center gap-1"
+            className="text-xs font-semibold text-[#38BDF8] hover:text-[#14B8A6] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
           >
             <Edit3 size={13} /> {showManual ? 'Hide Manual' : 'Paste Code'}
           </button>
@@ -281,8 +281,8 @@ function QRScanner() {
 
         {/* Manual Payload Fallback (Convenient for quick testing or camera restriction) */}
         {showManual && (
-          <Card padding className="bg-indigo-50/40 border border-indigo-100 space-y-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--color-indigo-900)]">
+          <Card padding className="bg-[#172337] border border-[#263449] space-y-2.5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#38BDF8]">
               Manual QR Code Payload
             </h2>
             <textarea
@@ -290,7 +290,7 @@ function QRScanner() {
               placeholder='Paste JSON payload or QR string here...'
               value={manualInput}
               onChange={e => setManualInput(e.target.value)}
-              className="w-full p-2.5 text-xs font-mono bg-white border border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-lg outline-none"
+              className="w-full p-2.5 text-xs font-mono bg-[#111C2E] text-[#F8FAFC] border border-[#263449] focus:border-[#14B8A6] rounded-lg outline-none"
             />
             <Button
               size="sm"
@@ -306,13 +306,13 @@ function QRScanner() {
 
         {/* ─── STATE 1: IDLE ─── */}
         {scanState === SCAN_STATES.IDLE && (
-          <Card padding className="text-center py-8 space-y-4">
-            <div className="w-20 h-20 rounded-2xl bg-indigo-50 text-[var(--color-indigo-600)] flex items-center justify-center mx-auto shadow-xs">
+          <Card padding className="text-center py-8 space-y-4 bg-[#111C2E] border border-[#263449]">
+            <div className="w-20 h-20 rounded-2xl bg-[#172337] border border-[#263449] text-[#14B8A6] flex items-center justify-center mx-auto shadow-xs">
               <Camera size={40} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[var(--color-gray-900)]">Ready to Scan</h2>
-              <p className="text-xs text-[var(--color-gray-500)] max-w-xs mx-auto mt-1">
+              <h2 className="text-base font-bold text-[#F8FAFC]">Ready to Scan</h2>
+              <p className="text-xs text-[#94A3B8] max-w-xs mx-auto mt-1">
                 Scan another user's identity QR to send them money, or scan a signed payment QR to claim offline funds.
               </p>
             </div>
@@ -332,14 +332,14 @@ function QRScanner() {
 
         {/* ─── STATE 2: SCANNING (Camera Active) ─── */}
         {scanState === SCAN_STATES.SCANNING && (
-          <Card padding className="space-y-4">
+          <Card padding className="space-y-4 bg-[#111C2E] border border-[#263449]">
             <CardHeader
               title="Camera Viewfinder"
               subtitle="Hold steady over the QR code"
             />
             <div
               id="qr-reader"
-              className="w-full rounded-2xl overflow-hidden border border-[var(--color-gray-200)] shadow-inner"
+              className="w-full rounded-2xl overflow-hidden border-2 border-[#14B8A6]/40 shadow-inner bg-black"
             />
             <Button block variant="outline" onClick={stopScanner}>
               Cancel Scanner
@@ -349,52 +349,52 @@ function QRScanner() {
 
         {/* ─── STATE 3: VERIFYING ─── */}
         {scanState === SCAN_STATES.VERIFYING && (
-          <Card padding className="text-center py-10 space-y-3">
-            <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin mx-auto" />
-            <p className="font-bold text-sm text-[var(--color-gray-800)]">Verifying QR Data...</p>
-            <p className="text-xs text-[var(--color-gray-400)]">Checking cryptographic signature & payload structure</p>
+          <Card padding className="text-center py-10 space-y-3 bg-[#111C2E] border border-[#263449]">
+            <div className="w-12 h-12 rounded-full border-4 border-[#263449] border-t-[#14B8A6] animate-spin mx-auto" />
+            <p className="font-bold text-sm text-[#F8FAFC]">Verifying QR Data...</p>
+            <p className="text-xs text-[#94A3B8]">Checking cryptographic signature & payload structure</p>
           </Card>
         )}
 
         {/* ─── STATE 4: PAYMENT REQUEST DETECTED ─── */}
         {scanState === SCAN_STATES.REQUEST_DETECTED && paymentRequest && (
-          <Card padding className="space-y-5">
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-50 border border-indigo-100">
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-indigo-600)] text-white flex items-center justify-center flex-shrink-0">
-                <ArrowUpRight size={22} />
+          <Card padding className="space-y-5 bg-[#111C2E] border border-[#263449]">
+            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#172337] border border-[#263449]">
+              <div className="w-10 h-10 rounded-xl bg-[#14B8A6] text-[#0B1220] flex items-center justify-center flex-shrink-0">
+                <ArrowUpRight size={22} strokeWidth={2.5} />
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-indigo-700)]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#38BDF8]">
                   Payment Request
                 </span>
-                <p className="text-sm font-bold text-[var(--color-gray-900)] truncate">
+                <p className="text-sm font-bold text-[#F8FAFC] truncate">
                   Pay {paymentRequest.receiverName || 'Recipient'}
                 </p>
               </div>
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
-                <span className="text-[var(--color-gray-500)]">Recipient:</span>
-                <span className="font-bold text-[var(--color-gray-900)]">{paymentRequest.receiverName}</span>
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#172337]">
+                <span className="text-[#94A3B8]">Recipient:</span>
+                <span className="font-bold text-[#F8FAFC]">{paymentRequest.receiverName}</span>
               </div>
               {paymentRequest.amount ? (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
-                  <span className="text-[var(--color-gray-500)]">Requested Amount:</span>
-                  <span className="font-black text-emerald-600 text-sm">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#172337]">
+                  <span className="text-[#94A3B8]">Requested Amount:</span>
+                  <span className="font-black text-[#14B8A6] text-sm">
                     {formatCurrency(paymentRequest.amount)}
                   </span>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
-                  <span className="text-[var(--color-gray-500)]">Amount:</span>
-                  <span className="font-medium text-[var(--color-gray-700)]">Enter upon payment</span>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#172337]">
+                  <span className="text-[#94A3B8]">Amount:</span>
+                  <span className="font-medium text-[#F8FAFC]">Enter upon payment</span>
                 </div>
               )}
               {paymentRequest.note && (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--color-gray-50)]">
-                  <span className="text-[var(--color-gray-500)]">Note:</span>
-                  <span className="text-[var(--color-gray-700)] italic">{paymentRequest.note}</span>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#172337]">
+                  <span className="text-[#94A3B8]">Note:</span>
+                  <span className="text-[#F8FAFC] italic">{paymentRequest.note}</span>
                 </div>
               )}
             </div>
@@ -418,37 +418,37 @@ function QRScanner() {
 
         {/* ─── STATE 5: OFFLINE PAYMENT CLAIM / ACCEPTANCE ─── */}
         {scanState === SCAN_STATES.OFFLINE_VERIFIED && scannedTx && (
-          <Card padding className="space-y-5">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-              <ShieldCheck size={26} className="text-emerald-600 flex-shrink-0" />
+          <Card padding className="space-y-5 bg-[#111C2E] border border-[#263449]">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/30">
+              <ShieldCheck size={26} className="text-[#22C55E] flex-shrink-0" />
               <div>
-                <p className="text-sm font-bold text-emerald-950">Offline Payment Verified</p>
-                <p className="text-[11px] text-emerald-700">{verifyResult?.sigNote}</p>
+                <p className="text-sm font-bold text-[#F8FAFC]">Offline Payment Verified</p>
+                <p className="text-[11px] text-[#22C55E]">{verifyResult?.sigNote}</p>
               </div>
             </div>
 
             <div className="text-center py-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
                 Incoming Amount To Claim
               </span>
-              <p className="text-3xl font-black text-emerald-600 mt-0.5">
+              <p className="text-3xl font-black text-[#22C55E] mt-0.5">
                 +{formatCurrency(scannedTx.amount)}
               </p>
-              <p className="text-xs text-[var(--color-gray-500)]">From: {scannedTx.senderName}</p>
+              <p className="text-xs text-[#94A3B8]">From: {scannedTx.senderName}</p>
             </div>
 
-            <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-xl overflow-hidden bg-white text-xs">
-              <div className="flex items-center justify-between p-3">
-                <span className="text-[var(--color-gray-500)]">Sender ID:</span>
-                <span className="font-mono text-[11px] text-[var(--color-gray-700)]">{scannedTx.senderId}</span>
+            <div className="divide-y divide-[#263449] border border-[#263449] rounded-xl overflow-hidden bg-[#172337] text-xs">
+              <div className="flex items-center justify-between p-3 bg-[#111C2E]">
+                <span className="text-[#94A3B8]">Sender ID:</span>
+                <span className="font-mono text-[11px] text-[#F8FAFC]">{scannedTx.senderId}</span>
               </div>
               <div className="flex items-center justify-between p-3">
-                <span className="text-[var(--color-gray-500)]">Transaction ID:</span>
-                <span className="font-mono text-[11px] text-[var(--color-gray-700)]">{scannedTx.id}</span>
+                <span className="text-[#94A3B8]">Transaction ID:</span>
+                <span className="font-mono text-[11px] text-[#F8FAFC]">{scannedTx.id}</span>
               </div>
-              <div className="flex items-center justify-between p-3">
-                <span className="text-[var(--color-gray-500)]">Signature Type:</span>
-                <span className="font-bold text-emerald-700 text-[11px]">ECDSA P-256</span>
+              <div className="flex items-center justify-between p-3 bg-[#111C2E]">
+                <span className="text-[#94A3B8]">Signature Type:</span>
+                <span className="font-bold text-[#22C55E] text-[11px]">ECDSA P-256</span>
               </div>
             </div>
 
@@ -486,13 +486,13 @@ function QRScanner() {
 
         {/* ─── STATE 7: INVALID / ERROR ─── */}
         {(scanState === SCAN_STATES.INVALID || scanState === SCAN_STATES.ERROR) && (
-          <Card padding className="text-center py-8 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+          <Card padding className="text-center py-8 space-y-4 bg-[#111C2E] border border-[#EF4444]/40">
+            <div className="w-16 h-16 rounded-full bg-[#EF4444]/20 text-[#EF4444] flex items-center justify-center mx-auto">
               <XCircle size={32} />
             </div>
 
-            <h2 className="text-base font-bold text-red-700">Invalid Payment QR</h2>
-            <p className="text-xs text-[var(--color-gray-600)] max-w-xs mx-auto leading-relaxed">
+            <h2 className="text-base font-bold text-[#EF4444]">Invalid Payment QR</h2>
+            <p className="text-xs text-[#94A3B8] max-w-xs mx-auto leading-relaxed">
               {errorMsg || 'Could not verify or process this QR code.'}
             </p>
 

@@ -50,13 +50,16 @@ function Landing() {
 
           {/* Brand */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 13, letterSpacing: '-0.5px',
-              boxShadow: '0 4px 14px rgba(79,70,229,0.4)'
-            }}>OP</div>
+            <img
+              src="/logo.png"
+              alt="OfflinePay Nepal Logo"
+              style={{
+                width: 38, height: 38, borderRadius: 10,
+                objectFit: 'contain', background: '#fff', padding: 2,
+                boxShadow: '0 4px 14px rgba(79,70,229,0.4)',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}
+            />
             <span style={{ color: '#F1F5F9', fontWeight: 700, fontSize: 16, letterSpacing: '-0.4px' }}>OfflinePay <span style={{ color: '#7C3AED' }}>Nepal</span></span>
           </Link>
 
@@ -547,7 +550,15 @@ function Landing() {
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>OP</div>
+                <img
+                  src="/logo.png"
+                  alt="OfflinePay Nepal Logo"
+                  style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    objectFit: 'contain', background: '#fff', padding: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                  }}
+                />
                 <span style={{ color: '#F1F5F9', fontWeight: 700, fontSize: 15 }}>OfflinePay Nepal</span>
               </div>
               <p style={{ color: '#475569', fontSize: 13, lineHeight: 1.7, maxWidth: 300 }}>

@@ -5,71 +5,92 @@
 
 /* ─── Design Tokens (CSS Custom Properties) ────────────────────────── */
 :root {
-  /* Primary palette — Deep Indigo / Purple */
-  --color-indigo-900: #1E1B4B;
-  --color-indigo-800: #312E81;
-  --color-indigo-700: #4338CA;
-  --color-indigo-600: #4F46E5;
-  --color-indigo-500: #6366F1;
-  --color-indigo-100: #E0E7FF;
-  --color-indigo-50:  #EEF2FF;
+  /* Primary Fintech Colors (Midnight Navy + Electric Teal) */
+  --bg-primary: #0B1220;         /* Midnight Navy */
+  --bg-surface: #111C2E;         /* Surface */
+  --bg-elevated: #172337;        /* Elevated Surface */
+  --primary-action: #14B8A6;     /* Electric Teal */
+  --primary-hover: #0D9488;      /* Primary Hover */
+  --secondary-accent: #38BDF8;   /* Sky Blue */
+  --text-primary: #F8FAFC;       /* Primary Text */
+  --text-secondary: #94A3B8;     /* Secondary Text */
+  --text-muted: #64748B;         /* Muted Text */
+  --border-color: #263449;       /* Border */
+  --border-hover: #334460;       /* Border Hover */
 
-  /* Accent / Semantic — Emerald (success/verified/synced) */
-  --color-emerald-700: #047857;
-  --color-emerald-600: #059669;
-  --color-emerald-500: #10B981;
-  --color-emerald-100: #D1FAE5;
-  --color-emerald-50:  #ECFDF5;
+  /* Status Colors */
+  --status-success: #22C55E;     /* Success / Settled */
+  --status-warning: #F59E0B;     /* Warning / Pending */
+  --status-error: #EF4444;       /* Error / Failed */
+  --status-offline: #A78BFA;     /* Offline status (Purple) */
+  --status-info: #38BDF8;        /* Information (Sky Blue) */
 
-  /* Warning / Semantic — Amber (offline/pending) */
+  /* Semantic UI mappings */
+  --color-indigo-900: #111C2E;
+  --color-indigo-800: #172337;
+  --color-indigo-700: #0D9488;
+  --color-indigo-600: #14B8A6;   /* Electric Teal */
+  --color-indigo-500: #2DD4BF;
+  --color-indigo-400: #5EEAD4;
+  --color-indigo-100: rgba(20, 184, 166, 0.15);
+  --color-indigo-50:  rgba(20, 184, 166, 0.08);
+
+  /* Emerald (success/verified/synced) */
+  --color-emerald-700: #15803D;
+  --color-emerald-600: #16A34A;
+  --color-emerald-500: #22C55E;
+  --color-emerald-100: rgba(34, 197, 94, 0.15);
+  --color-emerald-50:  rgba(34, 197, 94, 0.08);
+
+  /* Warning / Semantic — Amber (pending/retry) */
   --color-amber-700: #B45309;
   --color-amber-600: #D97706;
   --color-amber-500: #F59E0B;
-  --color-amber-100: #FEF3C7;
-  --color-amber-50:  #FFFBEB;
+  --color-amber-100: rgba(245, 158, 11, 0.15);
+  --color-amber-50:  rgba(245, 158, 11, 0.08);
 
   /* Danger / Semantic — Red (error/rejected/failed) */
   --color-red-700: #B91C1C;
   --color-red-600: #DC2626;
   --color-red-500: #EF4444;
-  --color-red-100: #FEE2E2;
-  --color-red-50:  #FEF2F2;
+  --color-red-100: rgba(239, 68, 68, 0.15);
+  --color-red-50:  rgba(239, 68, 68, 0.08);
 
   /* Neutral scale */
-  --color-gray-50:  #F8FAFC;
-  --color-gray-100: #F1F5F9;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
+  --color-gray-50:  #0B1220;     /* App background */
+  --color-gray-100: #111C2E;     /* Surface cards */
+  --color-gray-200: #263449;     /* Borders */
+  --color-gray-300: #334460;     /* Border hover */
+  --color-gray-400: #64748B;     /* Muted text */
+  --color-gray-500: #94A3B8;     /* Secondary text */
+  --color-gray-600: #CBD5E1;     /* Main body text */
+  --color-gray-700: #E2E8F0;     /* Subheadings */
+  --color-gray-800: #F1F5F9;     /* Prominent labels */
+  --color-gray-900: #F8FAFC;     /* Primary headings */
 
-  /* Legacy Navy mappings for compatibility */
-  --color-navy-950: #0A0F1D;
-  --color-navy-900: #0F172A;
-  --color-navy-800: #1E293B;
-  --color-navy-700: #334155;
-  --color-navy-600: #475569;
+  /* Legacy Navy mappings */
+  --color-navy-950: #060B14;
+  --color-navy-900: #0B1220;
+  --color-navy-800: #111C2E;
+  --color-navy-700: #172337;
+  --color-navy-600: #263449;
 
   /* Typography */
   --font-primary: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Spacing / Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Spacing / Radius (16px to 20px for cards) */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-2xl: 24px;
 
-  /* Restrained Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(0,0,0,0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
-  --shadow-card: 0 1px 3px 0 rgba(0,0,0,0.05), 0 1px 2px -1px rgba(0,0,0,0.03);
-  --shadow-card-hover: 0 4px 12px 0 rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.03);
+  /* Subtle fintech shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 6px 20px -2px rgba(0, 0, 0, 0.45);
 
   /* Transitions */
   --transition-fast: 100ms ease-out;
@@ -82,34 +103,35 @@ html.dark,
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* Inverted Neutral Scale for Sleek Dark Mode */
-  --color-gray-50:  #0B0F19; /* App shell background */
-  --color-gray-100: #111827; /* Cards secondary / dividers */
-  --color-gray-200: #1F2937; /* Borders & hairline rules */
-  --color-gray-300: #374151; /* Borders hover / muted borders */
-  --color-gray-400: #94A3B8; /* Muted captions & secondary text */
-  --color-gray-500: #9CA3AF; /* Secondary body text */
-  --color-gray-600: #CBD5E1; /* Main body text */
-  --color-gray-700: #E2E8F0; /* Subheadings */
-  --color-gray-800: #F1F5F9; /* Prominent items */
-  --color-gray-900: #F8FAFC; /* Primary headings */
+  --bg-primary: #0B1220;
+  --bg-surface: #111C2E;
+  --bg-elevated: #172337;
+  --border-color: #263449;
+  --border-hover: #334460;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
 
-  /* Inverted Legacy Navy Scale */
-  --color-navy-950: #030712;
-  --color-navy-900: #0B0F19;
-  --color-navy-800: #111827;
-  --color-navy-700: #1F2937;
-  --color-navy-600: #374151;
+  --color-gray-50:  #0B1220;
+  --color-gray-100: #111C2E;
+  --color-gray-200: #263449;
+  --color-gray-300: #334460;
+  --color-gray-400: #64748B;
+  --color-gray-500: #94A3B8;
+  --color-gray-600: #CBD5E1;
+  --color-gray-700: #E2E8F0;
+  --color-gray-800: #F1F5F9;
+  --color-gray-900: #F8FAFC;
 
-  /* Primary Palette Dark Adjustments */
-  --color-indigo-100: #1E1B4B;
-  --color-indigo-50:  #0F172A;
+  --color-navy-950: #060B14;
+  --color-navy-900: #0B1220;
+  --color-navy-800: #111C2E;
+  --color-navy-700: #172337;
+  --color-navy-600: #263449;
 
-  /* Dark mode shadows */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
-  --shadow-card-hover: 0 6px 20px 0 rgba(0, 0, 0, 0.6), 0 2px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 6px 20px 0 rgba(0, 0, 0, 0.6);
 }
 
 /* ─── Base Styles ──────────────────────────────────────────────────── */
@@ -145,34 +167,44 @@ html {
 
 /* ─── Standard Cards ───────────────────────────────────────────────── */
 .card {
-  background: #ffffff;
+  background: var(--bg-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  border: 1px solid var(--color-gray-200);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
   transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
 .card:hover {
   box-shadow: var(--shadow-card-hover);
-  border-color: var(--color-gray-300);
+  border-color: var(--border-hover);
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 
 .card-glass {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(17, 28, 46, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--color-gray-200);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  color: var(--text-primary);
 }
 
 /* Restrained Dark / Wallet Card */
 .card-navy {
-  background: #0F172A;
-  border: 1px solid #1E293B;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
-  color: #FFFFFF;
+  color: var(--text-primary);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Standard Buttons ─────────────────────────────────────────────── */
@@ -182,7 +214,7 @@ html {
   justify-content: center;
   gap: 8px;
   font-family: var(--font-primary);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.875rem;
   line-height: 1.25rem;
   letter-spacing: -0.01em;
@@ -196,10 +228,10 @@ html {
 }
 .btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px var(--color-indigo-600);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--primary-action);
 }
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -212,70 +244,85 @@ html {
 
 /* Variants */
 .btn-primary {
-  background-color: var(--color-indigo-600);
-  color: #FFFFFF;
-  box-shadow: var(--shadow-xs);
+  background-color: var(--primary-action);
+  color: #0B1220;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(20, 184, 166, 0.25);
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--color-indigo-700);
+  background-color: var(--primary-hover);
+  color: #0B1220;
 }
 .btn-primary:active:not(:disabled) {
-  background-color: #3730A3;
+  background-color: #0F766E;
 }
 
-.btn-navy {
-  background-color: var(--color-gray-900);
+.btn-navy, .btn-secondary {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+.btn-navy:hover:not(:disabled), .btn-secondary:hover:not(:disabled) {
+  background-color: #263449;
+  border-color: var(--border-hover);
   color: #FFFFFF;
 }
-.btn-navy:hover:not(:disabled) {
-  background-color: var(--color-gray-800);
+
+.btn-accent {
+  background-color: var(--secondary-accent);
+  color: #0B1220;
+  font-weight: 700;
+}
+.btn-accent:hover:not(:disabled) {
+  background-color: #0284C7;
+  color: #FFFFFF;
 }
 
 .btn-emerald {
-  background-color: var(--color-emerald-600);
-  color: #FFFFFF;
+  background-color: var(--status-success);
+  color: #0B1220;
+  font-weight: 700;
 }
 .btn-emerald:hover:not(:disabled) {
-  background-color: var(--color-emerald-700);
+  background-color: #16A34A;
 }
 
 .btn-outline {
-  background-color: #FFFFFF;
-  border: 1px solid var(--color-gray-200);
-  color: var(--color-gray-700);
-  box-shadow: var(--shadow-xs);
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 .btn-outline:hover:not(:disabled) {
-  background-color: var(--color-gray-50);
-  border-color: var(--color-gray-300);
-  color: var(--color-gray-900);
+  background-color: var(--bg-elevated);
+  border-color: var(--border-hover);
+  color: #FFFFFF;
 }
 
 .btn-outline-white {
   background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #FFFFFF;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 .btn-outline-white:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.4);
+  background-color: var(--bg-elevated);
+  border-color: var(--secondary-accent);
 }
 
 .btn-ghost {
   background-color: transparent;
-  color: var(--color-gray-600);
+  color: var(--text-secondary);
 }
 .btn-ghost:hover:not(:disabled) {
-  background-color: var(--color-gray-100);
-  color: var(--color-gray-900);
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 .btn-danger {
-  background-color: var(--color-red-600);
+  background-color: var(--status-error);
   color: #FFFFFF;
 }
 .btn-danger:hover:not(:disabled) {
-  background-color: var(--color-red-700);
+  background-color: #DC2626;
 }
 
 .btn-block { width: 100%; }
@@ -286,38 +333,43 @@ html {
   align-items: center;
   gap: 5px;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.01em;
-  padding: 2px 9px;
+  padding: 2px 10px;
   border-radius: 9999px;
   border: 1px solid transparent;
   line-height: 1.25rem;
 }
 
 .badge-settled, .badge-verified, .badge-success {
-  background-color: #ECFDF5;
-  color: #065F46;
-  border-color: #A7F3D0;
+  background-color: rgba(34, 197, 94, 0.12);
+  color: var(--status-success);
+  border-color: rgba(34, 197, 94, 0.25);
 }
-.badge-pending, .badge-offline, .badge-warning {
-  background-color: #FFFBEB;
-  color: #92400E;
-  border-color: #FDE68A;
+.badge-pending, .badge-warning {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--status-warning);
+  border-color: rgba(245, 158, 11, 0.25);
 }
-.badge-rejected, .badge-failed, .badge-danger {
-  background-color: #FEF2F2;
-  color: #991B1B;
-  border-color: #FECACA;
+.badge-rejected, .badge-failed, .badge-danger, .badge-error {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: var(--status-error);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.badge-offline {
+  background-color: rgba(167, 139, 250, 0.12);
+  color: var(--status-offline);
+  border-color: rgba(167, 139, 250, 0.25);
 }
 .badge-syncing, .badge-active, .badge-info {
-  background-color: #EEF2FF;
-  color: #3730A3;
-  border-color: #C7D2FE;
+  background-color: rgba(56, 189, 248, 0.12);
+  color: var(--secondary-accent);
+  border-color: rgba(56, 189, 248, 0.25);
 }
 .badge-demo {
-  background-color: #F8FAFC;
-  color: #475569;
-  border-color: #E2E8F0;
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
 }
 
 /* ─── Form Inputs ──────────────────────────────────────────────────── */
@@ -327,21 +379,21 @@ html {
   font-family: var(--font-primary);
   font-size: 0.9375rem;
   font-weight: 500;
-  color: var(--color-gray-900);
-  background: white;
-  border: 1.5px solid var(--color-gray-200);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
   outline: none;
 }
-.input-field::placeholder { color: var(--color-gray-400); font-weight: 400; }
+.input-field::placeholder { color: var(--text-muted); font-weight: 400; }
 .input-field:focus {
-  border-color: var(--color-indigo-500);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  border-color: var(--primary-action);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
 }
-.input-field:hover:not(:focus) { border-color: var(--color-gray-300); }
-.input-field.error { border-color: var(--color-red-500); }
-.input-field.error:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.12); }
+.input-field:hover:not(:focus) { border-color: var(--border-hover); }
+.input-field.error { border-color: var(--status-error); }
+.input-field.error:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
 .input-field.has-left-icon { padding-left: 42px !important; }
 .input-field.has-right-icon { padding-right: 42px !important; }
 
@@ -727,177 +779,182 @@ input::-ms-clear {
 
 /* ─── Dark Mode Component Rules ────────────────────────────────────── */
 html.dark body {
-  background-color: var(--color-gray-50);
-  color: var(--color-gray-900);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 html.dark .card {
-  background-color: #111827;
-  border-color: #1F2937;
+  background-color: var(--bg-surface);
+  border-color: var(--border-color);
   box-shadow: var(--shadow-card);
 }
 html.dark .card:hover {
-  border-color: #374151;
+  border-color: var(--border-hover);
+}
+
+html.dark .card-elevated {
+  background-color: var(--bg-elevated);
+  border-color: var(--border-color);
 }
 
 html.dark .card-glass {
-  background: rgba(17, 24, 39, 0.85);
-  border-color: #1F2937;
+  background: rgba(17, 28, 46, 0.85);
+  border-color: var(--border-color);
 }
 
 html.dark .card-navy {
-  background: #0B0F19;
-  border-color: #1F2937;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
 }
 
 html.dark .input-field {
-  background-color: #111827;
-  color: #F8FAFC;
-  border-color: #374151;
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-color);
 }
 html.dark .input-field:focus {
-  border-color: var(--color-indigo-500);
+  border-color: var(--primary-action);
 }
 html.dark .input-field::placeholder {
-  color: #64748B;
+  color: var(--text-muted);
 }
 
 html.dark .btn-outline {
-  background-color: #111827;
-  border-color: #374151;
-  color: #E2E8F0;
+  background-color: transparent;
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 html.dark .btn-outline:hover:not(:disabled) {
-  background-color: #1F2937;
+  background-color: var(--bg-elevated);
+  border-color: var(--border-hover);
   color: #FFFFFF;
 }
 
 html.dark .btn-ghost {
-  color: #94A3B8;
+  color: var(--text-secondary);
 }
 html.dark .btn-ghost:hover:not(:disabled) {
-  background-color: #1F2937;
-  color: #FFFFFF;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
 }
 
 html.dark nav,
 html.dark aside {
-  background-color: #111827 !important;
-  border-color: #1F2937 !important;
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
 }
 
 html.dark .nav-item {
-  color: #94A3B8;
+  color: var(--text-secondary);
 }
 html.dark .nav-item:hover {
-  background-color: #1F2937;
-  color: #F8FAFC;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
 }
 html.dark .nav-item.active {
-  background-color: rgba(79, 70, 229, 0.15);
-  color: #818CF8;
+  background-color: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  color: var(--primary-action);
 }
 
 html.dark .badge-settled,
 html.dark .badge-verified,
 html.dark .badge-success {
-  background-color: rgba(6, 95, 70, 0.25);
-  color: #34D399;
-  border-color: rgba(52, 211, 153, 0.3);
+  background-color: rgba(34, 197, 94, 0.12);
+  color: var(--status-success);
+  border-color: rgba(34, 197, 94, 0.25);
 }
 
 html.dark .badge-pending,
-html.dark .badge-offline,
 html.dark .badge-warning {
-  background-color: rgba(146, 64, 14, 0.25);
-  color: #FBBF24;
-  border-color: rgba(251, 191, 36, 0.3);
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--status-warning);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+html.dark .badge-offline {
+  background-color: rgba(167, 139, 250, 0.12);
+  color: var(--status-offline);
+  border-color: rgba(167, 139, 250, 0.25);
 }
 
 html.dark .badge-rejected,
 html.dark .badge-failed,
-html.dark .badge-danger {
-  background-color: rgba(153, 27, 27, 0.25);
-  color: #F87171;
-  border-color: rgba(248, 113, 113, 0.3);
+html.dark .badge-danger,
+html.dark .badge-error {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: var(--status-error);
+  border-color: rgba(239, 68, 68, 0.25);
 }
 
 html.dark .badge-syncing,
 html.dark .badge-active,
 html.dark .badge-info {
-  background-color: rgba(55, 48, 163, 0.25);
-  color: #A5B4FC;
-  border-color: rgba(165, 180, 252, 0.3);
+  background-color: rgba(56, 189, 248, 0.12);
+  color: var(--secondary-accent);
+  border-color: rgba(56, 189, 248, 0.25);
 }
 
 html.dark .badge-demo {
-  background-color: #1F2937;
-  color: #94A3B8;
-  border-color: #374151;
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
 }
 
 html.dark .demo-banner {
-  background: #030712;
-  color: #94A3B8;
-  border-bottom: 1px solid #1F2937;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 /* Background & Border utility overrides in dark mode */
 html.dark .bg-white {
-  background-color: #111827 !important;
+  background-color: var(--bg-surface) !important;
 }
-html.dark .bg-slate-50 {
-  background-color: #0B0F19 !important;
+html.dark .bg-slate-50, html.dark .bg-gray-50 {
+  background-color: var(--bg-primary) !important;
 }
-html.dark .bg-slate-100 {
-  background-color: #1F2937 !important;
+html.dark .bg-slate-100, html.dark .bg-gray-100 {
+  background-color: var(--bg-elevated) !important;
 }
-html.dark .bg-slate-200 {
-  background-color: #374151 !important;
+html.dark .bg-slate-200, html.dark .bg-gray-200 {
+  background-color: var(--border-color) !important;
 }
 html.dark .border-slate-200,
-html.dark .border-slate-100 {
-  border-color: #1F2937 !important;
-}
-html.dark .border-slate-300 {
-  border-color: #374151 !important;
-}
+html.dark .border-slate-100,
 html.dark .border-gray-100,
 html.dark .border-gray-200 {
-  border-color: #1F2937 !important;
+  border-color: var(--border-color) !important;
+}
+html.dark .border-slate-300, html.dark .border-gray-300 {
+  border-color: var(--border-hover) !important;
 }
 html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
 html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
 html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #1F2937 !important;
+  border-color: var(--border-color) !important;
 }
 html.dark .text-slate-900,
 html.dark .text-slate-800,
-html.dark .text-slate-700 {
-  color: #F8FAFC !important;
-}
-html.dark .text-slate-600,
-html.dark .text-slate-500 {
-  color: #94A3B8 !important;
-}
-html.dark .text-slate-400 {
-  color: #64748B !important;
-}
+html.dark .text-slate-700,
 html.dark .text-gray-900,
 html.dark .text-gray-800 {
-  color: #F8FAFC !important;
+  color: var(--text-primary) !important;
 }
+html.dark .text-slate-600,
+html.dark .text-slate-500,
 html.dark .text-gray-600,
 html.dark .text-gray-500 {
-  color: #94A3B8 !important;
+  color: var(--text-secondary) !important;
 }
+html.dark .text-slate-400,
 html.dark .text-gray-400 {
-  color: #64748B !important;
+  color: var(--text-muted) !important;
 }
 
 html.dark .mobile-bottom-nav {
-  background-color: rgba(17, 24, 39, 0.95) !important;
-  border-color: #1F2937 !important;
+  background-color: rgba(17, 28, 46, 0.95) !important;
+  border-color: var(--border-color) !important;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4) !important;
 }

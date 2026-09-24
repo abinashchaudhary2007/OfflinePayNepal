@@ -10,15 +10,15 @@ import {
 export function MobileBottomNav() {
   return (
     <nav
-      className="mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-[var(--color-gray-200)] flex items-center justify-around px-2 py-1.5 z-40 safe-bottom"
-      style={{ boxShadow: '0 -4px 16px rgba(15, 23, 42, 0.06)' }}
+      className="mobile-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-[#111C2E]/95 backdrop-blur-md border-t border-[#263449] flex items-center justify-around px-2 py-1.5 z-40 safe-bottom"
+      style={{ boxShadow: '0 -4px 16px rgba(11, 18, 32, 0.4)' }}
     >
       {/* 1. Home */}
       <NavLink
         to="/dashboard"
         className={({ isActive }) => `
           flex-1 flex flex-col items-center justify-center py-1 gap-1 text-[10px] font-semibold transition-colors
-          ${isActive ? 'text-[var(--color-indigo-600)] font-bold' : 'text-[var(--color-gray-500)] hover:text-[var(--color-gray-800)]'}
+          ${isActive ? 'text-[#14B8A6] font-bold' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}
         `}
       >
         {({ isActive }) => (
@@ -34,7 +34,7 @@ export function MobileBottomNav() {
         to="/transactions"
         className={({ isActive }) => `
           flex-1 flex flex-col items-center justify-center py-1 gap-1 text-[10px] font-semibold transition-colors
-          ${isActive ? 'text-[var(--color-indigo-600)] font-bold' : 'text-[var(--color-gray-500)] hover:text-[var(--color-gray-800)]'}
+          ${isActive ? 'text-[#14B8A6] font-bold' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}
         `}
       >
         {({ isActive }) => (
@@ -53,12 +53,11 @@ export function MobileBottomNav() {
           aria-label="Pay Money"
         >
           <div
-            className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 group-active:scale-95 transition-transform"
-            style={{ background: 'linear-gradient(135deg, var(--color-indigo-600), var(--color-indigo-800))' }}
+            className="w-12 h-12 rounded-full flex items-center justify-center text-[#0B1220] bg-[#14B8A6] shadow-lg shadow-[#14B8A6]/30 group-active:scale-95 transition-all hover:bg-[#0D9488]"
           >
             <ArrowUpRight size={22} strokeWidth={2.5} />
           </div>
-          <span className="text-[10px] font-bold text-[var(--color-indigo-600)] mt-1">Pay</span>
+          <span className="text-[10px] font-bold text-[#14B8A6] mt-1">Pay</span>
         </NavLink>
       </div>
 
@@ -67,7 +66,7 @@ export function MobileBottomNav() {
         to="/receive"
         className={({ isActive }) => `
           flex-1 flex flex-col items-center justify-center py-1 gap-1 text-[10px] font-semibold transition-colors
-          ${isActive ? 'text-[var(--color-indigo-600)] font-bold' : 'text-[var(--color-gray-500)] hover:text-[var(--color-gray-800)]'}
+          ${isActive ? 'text-[#14B8A6] font-bold' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}
         `}
       >
         {({ isActive }) => (
@@ -83,7 +82,7 @@ export function MobileBottomNav() {
         to="/security"
         className={({ isActive }) => `
           flex-1 flex flex-col items-center justify-center py-1 gap-1 text-[10px] font-semibold transition-colors
-          ${isActive ? 'text-[var(--color-indigo-600)] font-bold' : 'text-[var(--color-gray-500)] hover:text-[var(--color-gray-800)]'}
+          ${isActive ? 'text-[#14B8A6] font-bold' : 'text-[#94A3B8] hover:text-[#F8FAFC]'}
         `}
       >
         {({ isActive }) => (

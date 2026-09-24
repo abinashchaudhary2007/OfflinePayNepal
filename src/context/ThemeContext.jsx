@@ -17,7 +17,7 @@ export function ThemeProvider({ children }) {
         return 'dark';
       }
     }
-    return 'light';
+    return 'dark';
   });
 
   const isDark = theme === 'dark';

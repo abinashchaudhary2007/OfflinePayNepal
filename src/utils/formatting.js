@@ -116,7 +116,7 @@ export function getStatusBadgeClass(status) {
   const map = {
     SETTLED:         'badge-settled',
     VERIFIED:        'badge-verified',
-    OFFLINE_PENDING: 'badge-pending',
+    OFFLINE_PENDING: 'badge-offline',
     PENDING:         'badge-pending',
     SYNCING:         'badge-syncing',
     REJECTED:        'badge-rejected',

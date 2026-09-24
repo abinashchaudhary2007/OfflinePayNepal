@@ -342,15 +342,15 @@ function SendMoney() {
                   <div
                     className={`h-1.5 rounded-full transition-all ${
                       isActive
-                        ? 'bg-[var(--color-indigo-600)]'
+                        ? 'bg-[#14B8A6]'
                         : isPast
-                        ? 'bg-emerald-500'
-                        : 'bg-[var(--color-gray-200)]'
+                        ? 'bg-[#22C55E]'
+                        : 'bg-[#263449]'
                     }`}
                   />
                   <span
-                    className={`text-[10px] font-semibold mt-1 block truncate ${
-                      isActive ? 'text-[var(--color-indigo-600)]' : 'text-[var(--color-gray-400)]'
+                    className={`text-[10px] font-bold mt-1 block truncate ${
+                      isActive ? 'text-[#14B8A6]' : isPast ? 'text-[#22C55E]' : 'text-[#94A3B8]'
                     }`}
                   >
                     {s.label}
@@ -363,9 +363,9 @@ function SendMoney() {
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5 animate-shake">
-            <AlertTriangle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 leading-relaxed">{error}</div>
+          <div className="p-3.5 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/30 text-xs text-[#EF4444] flex items-start gap-2.5 animate-shake">
+            <AlertTriangle size={16} className="text-[#EF4444] mt-0.5 flex-shrink-0" />
+            <div className="flex-1 leading-relaxed font-semibold">{error}</div>
           </div>
         )}
 
@@ -668,8 +668,8 @@ function SendMoney() {
               <label
                 className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   paymentMethod === 'online'
-                    ? 'border-[var(--color-indigo-600)] bg-indigo-50/30'
-                    : 'border-[var(--color-gray-200)] hover:border-[var(--color-gray-300)]'
+                    ? 'border-[#14B8A6] bg-[#14B8A6]/10'
+                    : 'border-[#263449] bg-[#111C2E] hover:border-[#14B8A6]/40'
                 } ${isOffline ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 <input
@@ -683,17 +683,17 @@ function SendMoney() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <Wifi size={16} className="text-[var(--color-indigo-600)]" />
-                    <span className="text-sm font-bold text-[var(--color-gray-900)]">
+                    <Wifi size={16} className="text-[#14B8A6]" />
+                    <span className="text-sm font-bold text-[#F8FAFC]">
                       Instant Online Transfer
                     </span>
                     <span className="badge badge-settled text-[10px]">Real-time</span>
                   </div>
-                  <p className="text-xs text-[var(--color-gray-500)] mt-1 leading-relaxed">
+                  <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
                     Settles immediately with database confirmation. Requires active internet connection.
                   </p>
                   {isOffline && (
-                    <span className="text-[11px] font-semibold text-amber-700 mt-1 block">
+                    <span className="text-[11px] font-semibold text-[#F59E0B] mt-1 block">
                       ⚠ Unavailable while offline.
                     </span>
                   )}
@@ -704,8 +704,8 @@ function SendMoney() {
               <label
                 className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   paymentMethod === 'offline'
-                    ? 'border-[var(--color-indigo-600)] bg-indigo-50/30'
-                    : 'border-[var(--color-gray-200)] hover:border-[var(--color-gray-300)]'
+                    ? 'border-[#A78BFA] bg-[#A78BFA]/10'
+                    : 'border-[#263449] bg-[#111C2E] hover:border-[#A78BFA]/40'
                 }`}
               >
                 <input
@@ -718,34 +718,34 @@ function SendMoney() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <WifiOff size={16} className="text-amber-600" />
-                    <span className="text-sm font-bold text-[var(--color-gray-900)]">
+                    <WifiOff size={16} className="text-[#A78BFA]" />
+                    <span className="text-sm font-bold text-[#F8FAFC]">
                       Cryptographic Offline Payment
                     </span>
-                    <span className="badge badge-pending text-[10px]">Local P-256</span>
+                    <span className="badge badge-offline text-[10px]">Local P-256</span>
                   </div>
-                  <p className="text-xs text-[var(--color-gray-500)] mt-1 leading-relaxed">
+                  <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
                     Cryptographically signs the payment using your device key and displays a QR code. Stored locally until synchronized.
                   </p>
 
                   {/* Offline eligibility callouts */}
-                  <div className="mt-2.5 pt-2 border-t border-[var(--color-gray-100)] text-xs space-y-1">
+                  <div className="mt-2.5 pt-2 border-t border-[#263449] text-xs space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[var(--color-gray-500)]">Authorized offline limit:</span>
-                      <span className="font-semibold text-[var(--color-gray-800)]">
+                      <span className="text-[#94A3B8]">Authorized offline limit:</span>
+                      <span className="font-semibold text-[#F8FAFC]">
                         {isAuthActive ? formatCurrency(remainingOfflineLimit) : 'No active limit'}
                       </span>
                     </div>
 
                     {!device && (
-                      <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] mt-2">
+                      <div className="p-2 rounded-lg bg-[#F59E0B]/15 border border-[#F59E0B]/30 text-[#F59E0B] text-[11px] mt-2">
                         Device not registered yet. Please register your device first.
                       </div>
                     )}
                     {device && !isAuthActive && (
-                      <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] mt-2 flex items-center justify-between">
+                      <div className="p-2 rounded-lg bg-[#F59E0B]/15 border border-[#F59E0B]/30 text-[#F59E0B] text-[11px] mt-2 flex items-center justify-between">
                         <span>Offline authorization required</span>
-                        <Link to="/offline-authorization" className="font-bold underline text-amber-900">
+                        <Link to="/offline-authorization" className="font-bold underline text-[#F8FAFC]">
                           Authorize Now
                         </Link>
                       </div>
@@ -781,57 +781,57 @@ function SendMoney() {
         {step === STEPS.REVIEW && receiver && (
           <Card padding className="space-y-5">
             <div className="text-center py-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#94A3B8]">
                 Total Amount To Transfer
               </span>
-              <p className="text-3xl sm:text-4xl font-black text-[var(--color-gray-900)] mt-1">
+              <p className="text-3xl sm:text-4xl font-black text-[#F8FAFC] mt-1">
                 {formatCurrency(parsedAmount)}
               </p>
-              <p className="text-xs text-[var(--color-gray-500)] mt-0.5">NPR (Nepalese Rupee)</p>
+              <p className="text-xs text-[#94A3B8] mt-0.5">NPR (Nepalese Rupee)</p>
             </div>
 
             {/* Review breakdown details */}
-            <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-2xl overflow-hidden bg-white text-xs">
-              <div className="flex items-center justify-between p-3.5">
-                <span className="text-[var(--color-gray-500)]">Recipient / Shopkeeper:</span>
-                <span className="font-bold text-[var(--color-gray-900)]">{receiver.name}</span>
+            <div className="divide-y divide-[#263449] border border-[#263449] rounded-2xl overflow-hidden bg-[#172337] text-xs">
+              <div className="flex items-center justify-between p-3.5 bg-[#111C2E]">
+                <span className="text-[#94A3B8]">Recipient / Shopkeeper:</span>
+                <span className="font-bold text-[#F8FAFC]">{receiver.name}</span>
               </div>
               <div className="flex items-center justify-between p-3.5">
-                <span className="text-[var(--color-gray-500)]">Recipient ID:</span>
-                <span className="font-mono text-[11px] text-[var(--color-gray-600)]">{formatTxIdShort(receiver.id)}</span>
+                <span className="text-[#94A3B8]">Recipient ID:</span>
+                <span className="font-mono text-[11px] text-[#94A3B8]">{formatTxIdShort(receiver.id)}</span>
               </div>
-              <div className="flex items-center justify-between p-3.5">
-                <span className="text-[var(--color-gray-500)]">Payment Method:</span>
-                <span className="font-bold text-[var(--color-indigo-600)] flex items-center gap-1">
+              <div className="flex items-center justify-between p-3.5 bg-[#111C2E]">
+                <span className="text-[#94A3B8]">Payment Method:</span>
+                <span className="font-bold flex items-center gap-1">
                   {paymentMethod === 'offline' ? (
                     <>
-                      <WifiOff size={14} className="text-amber-600" />
-                      <span>Offline QR (P-256 Signed)</span>
+                      <WifiOff size={14} className="text-[#A78BFA]" />
+                      <span className="text-[#A78BFA]">Offline QR (P-256 Signed)</span>
                     </>
                   ) : (
                     <>
-                      <Wifi size={14} className="text-emerald-600" />
-                      <span>Online Immediate</span>
+                      <Wifi size={14} className="text-[#14B8A6]" />
+                      <span className="text-[#14B8A6]">Online Immediate</span>
                     </>
                   )}
                 </span>
               </div>
               {note && (
                 <div className="flex items-center justify-between p-3.5">
-                  <span className="text-[var(--color-gray-500)]">Note:</span>
-                  <span className="text-[var(--color-gray-700)] italic">{note}</span>
+                  <span className="text-[#94A3B8]">Note:</span>
+                  <span className="text-[#F8FAFC] italic">{note}</span>
                 </div>
               )}
-              <div className="flex items-center justify-between p-3.5 bg-slate-50/50">
-                <span className="text-[var(--color-gray-500)]">Available Balance After:</span>
-                <span className="font-bold text-[var(--color-gray-800)]">
+              <div className="flex items-center justify-between p-3.5 bg-[#111C2E]">
+                <span className="text-[#94A3B8]">Available Balance After:</span>
+                <span className="font-bold text-[#F8FAFC]">
                   {formatCurrency(Math.max(0, currentAvailableBalance - parsedAmount))}
                 </span>
               </div>
               {paymentMethod === 'offline' && (
-                <div className="flex items-center justify-between p-3.5 bg-amber-50/50">
-                  <span className="text-amber-900 font-medium">Remaining Offline Allowance After:</span>
-                  <span className="font-black text-amber-900">
+                <div className="flex items-center justify-between p-3.5 bg-[#A78BFA]/10">
+                  <span className="text-[#A78BFA] font-medium">Remaining Offline Allowance After:</span>
+                  <span className="font-black text-[#A78BFA]">
                     {formatCurrency(Math.max(0, remainingOfflineLimit - parsedAmount))}
                   </span>
                 </div>
@@ -839,12 +839,12 @@ function SendMoney() {
             </div>
 
             {/* Offline Settlement Warning & Reassurance */}
-            <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 space-y-1">
-              <p className="font-bold flex items-center gap-1.5 text-amber-950">
-                <ShieldCheck size={15} className="text-amber-700" />
+            <div className="p-3.5 rounded-xl bg-[#172337] border border-[#263449] text-xs space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-[#F8FAFC]">
+                <ShieldCheck size={15} className="text-[#14B8A6]" />
                 <span>Device Authorization & Reconciliation Notice</span>
               </p>
-              <p className="text-[11px] leading-relaxed text-amber-800">
+              <p className="text-[11px] leading-relaxed text-[#94A3B8]">
                 {paymentMethod === 'offline'
                   ? `After this payment, your remaining offline allowance will be ${formatCurrency(Math.max(0, remainingOfflineLimit - parsedAmount))}. Payment will be accepted and verified locally on the receiver's device. Final server reconciliation occurs when either device reconnects.`
                   : 'Instant online transfer verified and settled authoritatively on the server.'}
@@ -890,19 +890,23 @@ function SendMoney() {
               {/* Header Title */}
               <div>
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  isTxExpired ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                  isTxExpired
+                    ? 'bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30'
+                    : createdTx.method === 'OFFLINE_QR'
+                    ? 'bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30'
+                    : 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
                 } mb-2`}>
                   {isTxExpired ? <Clock size={12} /> : createdTx.method === 'OFFLINE_QR' ? <WifiOff size={12} /> : <CheckCircle2 size={12} />}
-                  <span>{isTxExpired ? 'Payment Expired & Cancelled' : createdTx.method === 'OFFLINE_QR' ? 'Offline Payment QR' : 'Payment Settled'}</span>
+                  <span>{isTxExpired ? 'Payment Expired & Cancelled' : createdTx.method === 'OFFLINE_QR' ? 'Offline Payment QR (Pending Sync)' : 'Payment Settled'}</span>
                 </span>
-                <h2 className="text-2xl font-black text-[var(--color-gray-900)] tracking-tight">
+                <h2 className="text-2xl font-black text-[#F8FAFC] tracking-tight">
                   {isTxExpired
                     ? 'Payment Expired & Cancelled'
                     : createdTx.method === 'OFFLINE_QR'
-                    ? 'Ask the shopkeeper to scan this QR'
+                    ? 'Ask the receiver to scan this QR'
                     : 'Payment Settled Successfully'}
                 </h2>
-                <p className="text-xs text-[var(--color-gray-500)] max-w-sm mx-auto mt-1">
+                <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
                   {isTxExpired
                     ? `Not scanned within 5 minutes. ${formatCurrency(createdTx.amount)} has been automatically refunded to your wallet balance.`
                     : createdTx.method === 'OFFLINE_QR'
@@ -913,8 +917,8 @@ function SendMoney() {
 
               {/* Countdown badge if active offline payment */}
               {createdTx.method === 'OFFLINE_QR' && !isTxExpired && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 border border-amber-200 text-amber-800 mx-auto">
-                  <Clock size={13} className="text-amber-600 animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-[#A78BFA] mx-auto">
+                  <Clock size={13} className="text-[#A78BFA] animate-pulse" />
                   <span>
                     Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not scanned
                   </span>
@@ -922,37 +926,37 @@ function SendMoney() {
               )}
 
               {/* Amount Display */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 max-w-sm mx-auto">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+              <div className="p-3.5 rounded-2xl bg-[#172337] border border-[#263449] max-w-sm mx-auto">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
                   Payment Amount
                 </span>
-                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-slate-400 line-through' : 'text-[var(--color-indigo-600)]'}`}>
+                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-[#94A3B8] line-through' : 'text-[#14B8A6]'}`}>
                   {formatCurrency(createdTx.amount)}
                 </p>
-                <p className="text-xs text-[var(--color-gray-600)] mt-1">
-                  Paying: <strong>{createdTx.receiverName}</strong>
+                <p className="text-xs text-[#94A3B8] mt-1">
+                  Paying: <strong className="text-[#F8FAFC]">{createdTx.receiverName}</strong>
                 </p>
               </div>
 
               {/* Offline QR Presentation or Expired Box */}
               {createdTx.method === 'OFFLINE_QR' && (
                 isTxExpired ? (
-                  <div className="p-5 rounded-2xl border-2 border-red-200 bg-red-50/60 max-w-sm mx-auto space-y-2 text-center">
-                    <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+                  <div className="p-5 rounded-2xl border border-[#EF4444]/40 bg-[#EF4444]/10 max-w-sm mx-auto space-y-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-[#EF4444]/20 text-[#EF4444] flex items-center justify-center mx-auto">
                       <Clock size={24} />
                     </div>
-                    <p className="text-sm font-bold text-red-900">5-Minute Time Limit Exceeded</p>
-                    <p className="text-xs text-red-700 leading-relaxed">
+                    <p className="text-sm font-bold text-[#EF4444]">5-Minute Time Limit Exceeded</p>
+                    <p className="text-xs text-[#EF4444] leading-relaxed">
                       This payment was not received or scanned within 5 minutes. The QR token has been automatically cancelled and your funds ({formatCurrency(createdTx.amount)}) are refunded.
                     </p>
                   </div>
                 ) : (
                   qrDataUrl && (
-                    <div className="p-4 rounded-2xl border-2 border-indigo-200 bg-indigo-50/20 max-w-sm mx-auto space-y-3">
-                      <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-slate-200">
+                    <div className="p-4 rounded-2xl border border-[#263449] bg-[#172337] max-w-sm mx-auto space-y-3">
+                      <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#263449]">
                         <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-60 h-60 mx-auto" />
                       </div>
-                      <p className="text-[11px] text-[var(--color-gray-500)] font-medium">
+                      <p className="text-[11px] text-[#94A3B8] font-medium">
                         Signed with local ECDSA P-256 device key · Anti-replay protected
                       </p>
                     </div>

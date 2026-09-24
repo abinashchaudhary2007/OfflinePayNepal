@@ -114,12 +114,11 @@ function Login() {
 
         {/* Top Logo */}
         <Link to="/" className="flex items-center gap-3 no-underline z-10 group">
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-500/25 transition-transform group-hover:scale-105"
-            style={{ background: 'linear-gradient(135deg, var(--color-indigo-500), var(--color-indigo-700))' }}
-          >
-            OP
-          </div>
+          <img
+            src="/logo.png"
+            alt="OfflinePay Nepal Logo"
+            className="w-12 h-12 rounded-2xl object-contain bg-white p-1 shadow-lg shadow-indigo-500/25 transition-transform group-hover:scale-105 border border-white/20"
+          />
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-white font-black text-xl tracking-tight">OfflinePay</span>
