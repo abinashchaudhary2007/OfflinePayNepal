@@ -120,10 +120,10 @@ function ReceiveMoney() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)] tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
               {isShowingSignedTx ? 'Payment QR Code' : 'Receive Hub'}
             </h1>
-            <p className="text-xs text-[var(--color-gray-500)] mt-0.5">
+            <p className="text-xs text-[#94A3B8] mt-0.5">
               {isShowingSignedTx
                 ? 'Scan this to accept offline payment'
                 : 'Share your QR to receive payments from anyone'}

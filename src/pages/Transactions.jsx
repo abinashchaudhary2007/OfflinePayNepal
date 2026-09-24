@@ -73,10 +73,10 @@ function Transactions() {
         {/* Header */}
         <div className="flex items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[var(--color-gray-900)] tracking-tight">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[#F8FAFC] tracking-tight">
               Transaction History
             </h1>
-            <p className="text-[var(--color-gray-500)] text-xs sm:text-sm mt-1">
+            <p className="text-[#94A3B8] text-xs sm:text-sm mt-1">
               {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} total · {filtered.length} showing
             </p>
           </div>
