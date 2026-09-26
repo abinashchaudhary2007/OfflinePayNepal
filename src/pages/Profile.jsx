@@ -1,25 +1,33 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Shield, Key, Bell, LogOut, Trash2, AlertTriangle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { Card, CardHeader } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
-import { useAuth } from '../context/DemoAuthContext';
-import { useWallet } from '../context/WalletContext';
-import { formatDate } from '../utils/formatting';
-import { User, Mail, Phone, Cpu, LogOut, Trash2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Card } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/DemoAuthContext';
+import { useWallet } from '../context/WalletContext';
+import { useTheme } from '../context/ThemeContext';
+import { formatCurrency } from '../utils/formatting';
 
 function Profile() {
   const { currentUser, logout, deleteAccount } = useAuth();
-  const { device } = useWallet();
+  const { wallet, device } = useWallet();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date());
 
   const handleLogout = () => {
     logout();
@@ -48,96 +56,275 @@ function Profile() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl space-y-6 animate-fade-in pb-12">
-        <h1 className="text-2xl font-black text-[var(--color-gray-900)]">My Profile</h1>
+      <div className="max-w-4xl mx-auto space-y-7 animate-fade-in pb-12">
+        {/* Top Header */}
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              Profile
+            </h1>
+            <p className="text-xs sm:text-sm font-medium mt-1" style={{ color: 'var(--text-secondary)' }}>
+              {formattedDate}
+            </p>
+          </div>
 
-        {/* User card */}
-        <Card>
-          <div className="flex items-center gap-5 mb-6">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl"
-              style={{ background: currentUser?.avatarColor || 'var(--color-indigo-600)' }}
+          <div className="flex items-center gap-2">
+            <button
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-xs"
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                color: isDark ? '#4F6FD8' : '#3155B8',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              }}
+              aria-label="Notifications"
+              title="Notifications"
             >
-              {currentUser?.avatar}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[var(--color-gray-900)]">{currentUser?.name}</h2>
-              <p className="text-sm text-[var(--color-gray-500)]">Wallet Account · {currentUser?.role === 'admin' ? 'Administrator' : 'User'}</p>
-              <p className="text-xs text-[var(--color-gray-400)] mt-0.5">Member since {formatDate(currentUser?.createdAt)}</p>
-            </div>
+              <Bell size={18} />
+            </button>
           </div>
+        </div>
 
-          <div className="space-y-3">
-            {[
-              { icon: Mail,  label: 'Email',  value: currentUser?.email  },
-              { icon: Phone, label: 'Phone',  value: currentUser?.phone  },
-              { icon: User,  label: 'Role',   value: currentUser?.role === 'admin' ? 'Administrator' : 'User' },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
-                <item.icon size={16} color="var(--color-gray-400)" />
-                <span className="text-xs font-medium text-[var(--color-gray-400)] w-14">{item.label}</span>
-                <span className="text-sm font-semibold text-[var(--color-gray-700)]">{item.value}</span>
-              </div>
-            ))}
-          </div>
+        {/* Header Title Section */}
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            Profile
+          </h2>
+          <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Manage your personal information and wallet identity.
+          </p>
+        </div>
 
-          <div className="mt-6 pt-5 border-t border-[var(--color-gray-100)] flex items-center justify-between">
-            <span className="text-xs text-[var(--color-gray-400)]">Sign out of your active session</span>
-            <Button variant="outline" size="sm" onClick={handleLogout} leftIcon={<LogOut size={16} />}>
-              Sign Out
-            </Button>
-          </div>
-        </Card>
+        {/* Hero Cover & Avatar Card */}
+        <div
+          className="rounded-2xl sm:rounded-3xl overflow-hidden border transition-all shadow-xs"
+          style={{
+            background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+            borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+          }}
+        >
+          {/* Top Banner Cover */}
+          <div className="h-24 sm:h-28 bg-gradient-to-r from-[#172B75] via-[#1C358A] to-[#3155B8]" />
 
-        {/* Device info */}
-        {device && (
-          <Card>
-            <CardHeader title="Registered Device" subtitle="Your current device details" />
-            <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'var(--color-gray-50)' }}>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-indigo-100)' }}>
-                <Cpu size={24} color="var(--color-indigo-600)" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-[var(--color-gray-800)] font-mono">{device.id}</p>
-                <p className="text-xs text-[var(--color-gray-500)] mt-0.5">Transaction counter: {device.transactionCounter || 0}</p>
-              </div>
-              <Badge status={device.status} />
-            </div>
-          </Card>
-        )}
-
-        {/* Danger Zone: Account Deletion */}
-        <Card className="border border-red-200 bg-red-50/20">
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                <ShieldAlert size={20} />
+          {/* Profile Details */}
+          <div className="p-6 sm:p-7 pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white font-bold text-xl sm:text-2xl border-4 shadow-sm flex-shrink-0 -mt-10 sm:-mt-12"
+                style={{
+                  background: currentUser?.avatarColor || '#3155B8',
+                  borderColor: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                }}
+              >
+                {currentUser?.avatar || <User size={30} />}
               </div>
               <div>
-                <h3 className="text-base font-bold text-red-700">Danger Zone</h3>
-                <p className="text-xs text-[var(--color-gray-600)] mt-0.5 leading-relaxed">
-                  Permanently delete your account, offline wallet, cryptographic signing keys, and offline transaction records. This action cannot be reversed.
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                  {currentUser?.name || 'Profile Information'}
+                </h3>
+                <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                  {currentUser
+                    ? `OfflinePay Wallet · ${currentUser.role === 'admin' ? 'Administrator' : 'User'}`
+                    : 'No authenticated user source is connected to this interface.'}
                 </p>
               </div>
             </div>
 
-            <div className="pt-2 flex justify-end">
-              <Button
-                variant="danger"
-                size="sm"
-                leftIcon={<Trash2 size={16} />}
-                onClick={() => {
-                  setDeleteError(null);
-                  setDeleteConfirmText('');
-                  setIsDeleteModalOpen(true);
+            {currentUser && (
+              <div className="flex-shrink-0">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#E8F8F1] text-[#16A66A] border border-[#16A66A]/20">
+                  <span className="w-2 h-2 rounded-full bg-[#16A66A]" />
+                  <span>Active Member</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 2-Column Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Card 1: Personal Information */}
+          <div
+            className="p-6 sm:p-7 rounded-2xl border space-y-4 shadow-xs"
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+            }}
+          >
+            <div>
+              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                Personal Information
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {currentUser
+                  ? 'Your personal details connected to this profile.'
+                  : 'Your personal details will appear here when an authenticated profile is available.'}
+              </p>
+            </div>
+
+            {currentUser ? (
+              <div
+                className="space-y-3 p-4 rounded-xl border text-xs"
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
                 }}
-                id="btn-open-delete-account"
               >
-                Delete Account
-              </Button>
+                <div className="flex items-center justify-between py-1 border-b" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Full Name</span>
+                  <span style={{ color: 'var(--text-primary)' }} className="font-bold">{currentUser.name}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Email Address</span>
+                  <span style={{ color: 'var(--text-primary)' }} className="font-bold">{currentUser.email}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Phone Number</span>
+                  <span style={{ color: 'var(--text-primary)' }} className="font-bold">{currentUser.phone || '+977-9841234567'}</span>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Account Role</span>
+                  <span className="font-bold text-[#3155B8] capitalize">{currentUser.role || 'User'}</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="p-4 rounded-xl border text-xs"
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                Unable to load your profile. Please try again after signing in.
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: Wallet Identity */}
+          <div
+            className="p-6 sm:p-7 rounded-2xl border space-y-4 shadow-xs"
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+            }}
+          >
+            <div>
+              <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                Wallet Identity
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {wallet ? 'Only a user-facing wallet identifier will be shown here.' : 'No user-facing wallet identifier is available.'}
+              </p>
+            </div>
+
+            {wallet ? (
+              <div
+                className="space-y-3 p-4 rounded-xl border text-xs"
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+                }}
+              >
+                <div className="flex items-center justify-between py-1 border-b" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Wallet ID</span>
+                  <span style={{ color: 'var(--text-primary)' }} className="font-mono font-bold">{wallet.id}</span>
+                </div>
+                <div className="flex items-center justify-between py-1 border-b" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Offline Spending Limit</span>
+                  <span className="font-bold text-[#16A66A]">NPR {wallet.offlineLimit ? formatCurrency(wallet.offlineLimit) : '1,000.00'}</span>
+                </div>
+                <div className="flex items-center justify-between py-1">
+                  <span style={{ color: 'var(--text-secondary)' }} className="font-medium">Device Key ID</span>
+                  <span className="font-mono text-[#3155B8]">{device?.id || 'DEVICE-OFFLINE'}</span>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="p-4 rounded-xl border text-xs"
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                No user-facing wallet identifier is available.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Card 3: Account Security Banner */}
+        <div
+          className="p-6 rounded-2xl border shadow-xs"
+          style={{
+            background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+            borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
+          }}
+        >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[#EAF0FF] text-[#3155B8] flex items-center justify-center flex-shrink-0">
+                <Shield size={20} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                  Account Security
+                </h3>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  Security information is currently available. Technical details remain protected in the Security Center.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/security"
+              className="px-4 py-2.5 rounded-xl bg-[#EAF0FF] hover:bg-[#D6E3FF] text-[#3155B8] font-bold text-xs no-underline transition-colors flex-shrink-0 flex items-center gap-1.5"
+            >
+              <span>View Security Center</span>
+              <span>→</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Danger Zone: Account Deletion */}
+        <div className="p-6 rounded-2xl border border-red-200 bg-red-50/20 space-y-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-red-700">Danger Zone</h3>
+              <p className="text-xs text-[var(--color-gray-600)] mt-0.5 leading-relaxed">
+                Permanently delete your account, offline wallet, cryptographic signing keys, and transaction records. This action cannot be reversed.
+              </p>
             </div>
           </div>
-        </Card>
+
+          <div className="pt-1 flex items-center justify-between border-t border-red-200/60">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              leftIcon={<LogOut size={15} />}
+            >
+              Sign Out
+            </Button>
+
+            <Button
+              variant="danger"
+              size="sm"
+              leftIcon={<Trash2 size={15} />}
+              onClick={() => {
+                setDeleteError(null);
+                setDeleteConfirmText('');
+                setIsDeleteModalOpen(true);
+              }}
+              id="btn-open-delete-account"
+            >
+              Delete Account
+            </Button>
+          </div>
+        </div>
 
         {/* Delete Confirmation Modal */}
         <Modal
@@ -198,7 +385,7 @@ function Profile() {
             {deleteError && (
               <p className="text-xs font-medium text-red-600 flex items-center gap-1">
                 <AlertTriangle size={13} />
-                {deleteError}
+                <span>{deleteError}</span>
               </p>
             )}
           </div>

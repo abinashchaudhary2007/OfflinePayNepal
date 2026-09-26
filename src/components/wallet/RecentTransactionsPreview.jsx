@@ -28,26 +28,26 @@ function RecentTransactionsPreview() {
 
   return (
     <div style={{
-      borderRadius: '1rem',
+      borderRadius: '1.25rem',
       border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
       background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
-      padding: '20px 24px',
+      padding: '24px 28px',
       boxShadow: isDark ? 'var(--shadow-card)' : '0 1px 4px rgba(23,43,117,0.06)',
     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingBottom: 16,
+        paddingBottom: 18,
         borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-        marginBottom: 4,
+        marginBottom: 8,
       }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
           Recent Transactions
         </h3>
         <Link
           to="/transactions"
           style={{
-            fontSize: '0.75rem', fontWeight: 600,
+            fontSize: '0.8125rem', fontWeight: 600,
             color: isDark ? '#4F6FD8' : '#3155B8',
             textDecoration: 'none', transition: 'color 0.2s',
           }}
@@ -79,9 +79,9 @@ function RecentTransactionsPreview() {
                 to={`/transactions/${tx.id}`}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '14px 8px', marginLeft: -8, marginRight: -8,
+                  padding: '16px 12px', marginLeft: -12, marginRight: -12,
                   borderRadius: 12, textDecoration: 'none',
-                  borderBottom: idx < userTxs.length - 1 ? `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}` : 'none',
+                  borderBottom: idx < userTxs.length - 1 ? `1px solid ${isDark ? 'var(--border-color)' : '#EAF0FF'}` : 'none',
                   transition: 'background 0.15s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF'; }}
@@ -90,7 +90,7 @@ function RecentTransactionsPreview() {
                 {/* Left: Avatar + Details */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
                   <div style={{
-                    width: 40, height: 40, borderRadius: '0.75rem', flexShrink: 0,
+                    width: 42, height: 42, borderRadius: '0.875rem', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontWeight: 700, fontSize: '0.875rem',
                     background: isSent
@@ -107,13 +107,13 @@ function RecentTransactionsPreview() {
                     <p style={{
                       fontSize: '0.875rem', fontWeight: 700,
                       color: 'var(--text-primary)',
-                      marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {otherParty}
                     </p>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span>{dateStr}</span>
-                      <span>•</span>
+                      <span style={{ opacity: 0.5 }}>•</span>
                       <span style={{ color: isSent ? 'var(--text-secondary)' : '#16A66A', fontWeight: isSent ? 400 : 600 }}>
                         {isSent ? 'Sent' : 'Received'}
                       </span>
@@ -122,9 +122,9 @@ function RecentTransactionsPreview() {
                 </div>
 
                 {/* Right: Amount */}
-                <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 12 }}>
+                <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 16 }}>
                   <span style={{
-                    fontSize: '0.9375rem', fontWeight: 800,
+                    fontSize: '1rem', fontWeight: 800,
                     color: isSent ? (isDark ? '#E57373' : '#D64545') : '#16A66A',
                   }}>
                     {isSent ? '-' : '+'}{formatCurrency(tx.amount)}

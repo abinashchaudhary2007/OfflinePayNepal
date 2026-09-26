@@ -26,7 +26,7 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
   return (
     <div
       className={`
-        relative overflow-hidden rounded-2xl sm:rounded-3xl p-7 sm:p-9 text-white
+        relative overflow-hidden rounded-2xl sm:rounded-3xl p-8 sm:p-9 text-white
         bg-gradient-to-r from-[#172B75] via-[#1C358A] to-[#2B4DAE]
         border border-white/10 shadow-lg ${className}
       `}
@@ -43,33 +43,33 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
       </div>
 
       {/* Top row: Label and Eye Toggle */}
-      <div className="relative z-10 flex items-center justify-between gap-3 mb-2">
+      <div className="relative z-10 flex items-center justify-between gap-3 mb-3">
         <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-white/70">
           Available Balance
         </span>
 
         <button
           onClick={() => setIsHidden(h => !h)}
-          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
+          className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all cursor-pointer"
           aria-label={isHidden ? 'Show balance' : 'Hide balance'}
           title={isHidden ? 'Show balance' : 'Hide balance'}
         >
-          {isHidden ? <Eye size={15} /> : <EyeOff size={15} />}
+          {isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
         </button>
       </div>
 
       {/* Balance Amount Display */}
-      <div className="relative z-10 my-3 sm:my-4">
+      <div className="relative z-10 my-4 sm:my-5">
         <div className="text-4xl sm:text-5xl font-black text-white tracking-tight select-none">
           {hide(formatCurrency(wallet.availableBalance))}
         </div>
-        <p className="text-xs font-semibold text-white/70 mt-1.5 uppercase tracking-wider">
+        <p className="text-xs font-bold text-white/70 mt-2 uppercase tracking-widest">
           NPR
         </p>
       </div>
 
       {/* Offline spending limit status line */}
-      <div className="relative z-10 mt-6 pt-4 border-t border-white/10 flex items-center gap-2 text-xs sm:text-sm font-medium text-white/90">
+      <div className="relative z-10 mt-6 sm:mt-7 pt-4 sm:pt-5 border-t border-white/15 flex items-center gap-2.5 text-xs sm:text-sm font-medium text-white/90">
         <span className="w-2.5 h-2.5 rounded-full bg-[#16A66A] shadow-xs" />
         <span>
           Offline spending limit:{' '}

@@ -44,7 +44,7 @@ function PaymentActions({ isOffline }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
       {actions.map(({ to, id, icon: Icon, label, iconBg, iconColor }) => (
         <Link
           key={label}
@@ -56,7 +56,7 @@ function PaymentActions({ isOffline }) {
             color: 'var(--text-primary)',
           }}
           className="
-            group flex flex-col items-center justify-center p-5 sm:p-6 rounded-2xl no-underline
+            group flex flex-col items-center justify-center p-6 sm:p-7 rounded-2xl sm:rounded-3xl no-underline
             shadow-xs hover:shadow-md
             transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer
           "
@@ -69,7 +69,7 @@ function PaymentActions({ isOffline }) {
         >
           <div
             style={{ backgroundColor: iconBg, color: iconColor, width: 52, height: 52 }}
-            className="rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105"
+            className="rounded-2xl flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105"
           >
             <Icon size={24} strokeWidth={2.2} />
           </div>

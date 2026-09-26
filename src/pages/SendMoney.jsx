@@ -587,9 +587,9 @@ function SendMoney() {
                   <button
                     type="button"
                     onClick={() => navigate('/scan')}
-                    className="relative p-5 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                    className="relative p-5 pt-6 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
                   >
-                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--color-gray-100)] text-[10px] font-medium text-[var(--color-gray-400)]">
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-500 border border-slate-200/60">
                       Soon
                     </span>
                     <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -604,9 +604,9 @@ function SendMoney() {
                   <button
                     type="button"
                     onClick={() => navigate('/send?mode=shop')}
-                    className="relative p-5 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                    className="relative p-5 pt-6 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
                   >
-                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--color-gray-100)] text-[10px] font-medium text-[var(--color-gray-400)]">
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-500 border border-slate-200/60">
                       Soon
                     </span>
                     <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">

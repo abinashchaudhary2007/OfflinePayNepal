@@ -67,18 +67,18 @@ function Sidebar({ isOpen, onClose }) {
         </div>
 
         {/* ── Navigation links ── */}
-        <nav className="flex-1 overflow-y-auto px-5 py-8 space-y-3">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
           {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               onClick={onClose}
               className={({ isActive }) =>
-                `group relative flex items-center gap-4 px-6 py-4 rounded-2xl text-[21px] font-semibold
+                `group relative flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm sm:text-base font-semibold
                  transition-all duration-200 ease-out no-underline cursor-pointer
                  ${isActive
-                   ? 'bg-[#3155B8] text-white shadow-lg shadow-[#3155B8]/40'
-                   : 'text-white/60 hover:text-white hover:bg-white/10 hover:translate-x-1.5'
+                   ? 'bg-[#3155B8] text-white shadow-md shadow-[#3155B8]/30'
+                   : 'text-white/65 hover:text-white hover:bg-white/10 hover:translate-x-1'
                  }`
               }
             >
@@ -86,12 +86,12 @@ function Sidebar({ isOpen, onClose }) {
                 <>
                   {/* Active left accent bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 rounded-r-full bg-white/80" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-white/90" />
                   )}
 
                   {/* Icon with hover scale */}
-                  <span className={`transition-transform duration-200 ${!isActive ? 'group-hover:scale-110' : ''}`}>
-                    <Icon size={26} strokeWidth={isActive ? 2.2 : 1.8} />
+                  <span className={`transition-transform duration-200 ${!isActive ? 'group-hover:scale-105' : ''}`}>
+                    <Icon size={20} strokeWidth={isActive ? 2.2 : 1.8} />
                   </span>
 
                   {/* Label */}

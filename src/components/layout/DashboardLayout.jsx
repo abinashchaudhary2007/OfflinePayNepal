@@ -57,7 +57,7 @@ function DashboardLayout({ children }) {
         <main
           className="flex-1 overflow-y-auto pb-24 md:pb-10"
         >
-          <div className="max-w-3xl mx-auto px-10 py-10">
+          <div className="max-w-4xl mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-10">
             {children}
           </div>
         </main>

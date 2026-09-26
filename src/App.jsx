@@ -16,6 +16,7 @@ import OfflinePayment    from './pages/OfflinePayment';
 import Transactions      from './pages/Transactions';
 import TransactionDetail from './pages/TransactionDetail';
 import Security          from './pages/Security';
+import Settings          from './pages/Settings';
 import Profile           from './pages/Profile';
 import AdminDashboard    from './pages/AdminDashboard';
 import CybersecurityDemo from './pages/CybersecurityDemo';
@@ -98,7 +99,7 @@ function AppCore() {
       <Route path="/transactions"      element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/transactions/:id"  element={<ProtectedRoute><TransactionDetail /></ProtectedRoute>} />
       <Route path="/security"          element={<ProtectedRoute><Security /></ProtectedRoute>} />
-      <Route path="/settings"          element={<ProtectedRoute><Security /></ProtectedRoute>} />
+      <Route path="/settings"          element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/devices"           element={<ProtectedRoute><DeviceManagement /></ProtectedRoute>} />
       <Route path="/profile"           element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/admin"             element={<AdminRoute><AdminDashboard /></AdminRoute>} />

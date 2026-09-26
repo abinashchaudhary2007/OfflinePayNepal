@@ -68,22 +68,22 @@ function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="animate-fade-in pb-10">
+      <div className="animate-fade-in pb-12 space-y-8 sm:space-y-9">
 
         {/* ─── Dashboard Header ─── */}
-        <div className="flex items-center justify-between gap-3 mb-8">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               Dashboard
             </h1>
-            <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs sm:text-sm font-medium mt-1" style={{ color: 'var(--text-secondary)' }}>
               {formattedDate}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors cursor-pointer"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-xs"
               style={{
                 background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
                 color: isDark ? '#4F6FD8' : '#3155B8',
@@ -100,7 +100,7 @@ function Dashboard() {
         </div>
 
         {/* ─── 1. Balance Card ─── */}
-        <div className="mb-8">
+        <div>
           {isInitialized ? (
             <BalanceCard wallet={harmonizedWallet} isOffline={isOffline} />
           ) : (
@@ -109,12 +109,12 @@ function Dashboard() {
         </div>
 
         {/* ─── 2. Quick Actions ─── */}
-        <div className="mb-8">
+        <div>
           <PaymentActions isOffline={isOffline} />
         </div>
 
         {/* ─── 3. Offline Readiness ─── */}
-        <div className="mb-8">
+        <div>
           <OfflineReadinessCard
             device={device}
             authorization={authorization}

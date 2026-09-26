@@ -26,12 +26,12 @@ export function OfflineReadinessCard({
   const cardStyle = {
     background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
     border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-    borderRadius: '1rem',
-    padding: '20px 24px',
+    borderRadius: '1.25rem',
+    padding: '22px 28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: 20,
     transition: 'all 0.2s',
     boxShadow: isDark ? 'var(--shadow-card)' : '0 1px 4px rgba(23,43,117,0.06)',
   };
@@ -40,9 +40,9 @@ export function OfflineReadinessCard({
   if (!isDeviceRegistered) {
     return (
       <div style={cardStyle}>
-        <div className="flex items-center gap-3.5 min-w-0">
+        <div className="flex items-center gap-4 min-w-0">
           <div style={{
-            width: 44, height: 44, borderRadius: '0.75rem', flexShrink: 0,
+            width: 46, height: 46, borderRadius: '0.875rem', flexShrink: 0,
             background: isDark ? 'rgba(242,169,0,0.12)' : '#FFF6DD',
             color: isDark ? '#F2A900' : '#B57F00',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -50,7 +50,7 @@ export function OfflineReadinessCard({
             <KeyRound size={22} />
           </div>
           <div className="min-w-0">
-            <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+            <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>
               Setup Offline Device Key
             </h3>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -75,9 +75,9 @@ export function OfflineReadinessCard({
   // State 2: Active & Ready
   return (
     <div style={cardStyle}>
-      <div className="flex items-center gap-3.5 min-w-0">
+      <div className="flex items-center gap-4 min-w-0">
         <div style={{
-          width: 44, height: 44, borderRadius: '0.75rem', flexShrink: 0,
+          width: 46, height: 46, borderRadius: '0.875rem', flexShrink: 0,
           background: isDark ? 'rgba(22,166,106,0.12)' : '#E8F8F1',
           color: '#16A66A',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -85,7 +85,7 @@ export function OfflineReadinessCard({
           <CheckCircle2 size={24} strokeWidth={2.4} />
         </div>
         <div className="min-w-0">
-          <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+          <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>
             Offline payments ready
           </h3>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -94,7 +94,7 @@ export function OfflineReadinessCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div className="flex items-center gap-3 shrink-0">
         {totalUnsynced > 0 && !isOffline && (
           <button
             onClick={onSync}
@@ -103,8 +103,8 @@ export function OfflineReadinessCard({
               background: isDark ? 'rgba(242,169,0,0.12)' : '#FFF6DD',
               color: isDark ? '#F2A900' : '#B57F00',
               border: `1px solid ${isDark ? 'rgba(242,169,0,0.25)' : 'rgba(242,169,0,0.30)'}`,
-              padding: '3px 12px', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600,
-              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '4px 14px', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 600,
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
               transition: 'all 0.2s',
             }}
             className="hidden sm:inline-flex"
@@ -117,7 +117,7 @@ export function OfflineReadinessCard({
 
         <span style={{
           display: 'inline-flex', alignItems: 'center',
-          padding: '3px 12px', borderRadius: 9999,
+          padding: '4px 14px', borderRadius: 9999,
           fontSize: '0.75rem', fontWeight: 700,
           background: isDark ? 'rgba(22,166,106,0.12)' : '#E8F8F1',
           color: '#16A66A',
