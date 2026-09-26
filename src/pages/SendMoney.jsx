@@ -846,7 +846,10 @@ function SendMoney() {
               </div>
 
               <div className="relative flex items-center">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--color-gray-400)] pointer-events-none select-none z-10">
+                <span
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--color-gray-400)] pointer-events-none select-none z-10"
+                  style={{ userSelect: 'none' }}
+                >
                   Rs.
                 </span>
                 <input
@@ -854,13 +857,14 @@ function SendMoney() {
                   type="number"
                   step="0.01"
                   min="1"
-                  placeholder="0.00"
+                  placeholder=""
                   value={amount}
                   onChange={e => {
                     setAmount(e.target.value);
                     setError('');
                   }}
-                  className="w-full pl-[4.5rem] pr-4 py-3.5 text-2xl font-black text-[var(--color-gray-900)] bg-white border-2 border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-xl outline-none transition-colors"
+                  style={{ paddingLeft: '4.75rem', paddingRight: '1rem' }}
+                  className="w-full py-3.5 text-2xl font-black text-[var(--color-gray-900)] bg-white border-2 border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-xl outline-none transition-colors"
                   autoFocus
                 />
               </div>

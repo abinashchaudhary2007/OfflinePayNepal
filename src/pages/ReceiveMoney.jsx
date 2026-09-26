@@ -175,16 +175,20 @@ function ReceiveMoney() {
                 Requested Amount (NPR)
               </label>
               <div className="relative flex items-center">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8993A8] pointer-events-none select-none z-10">
+                <span
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8993A8] pointer-events-none select-none z-10"
+                  style={{ userSelect: 'none' }}
+                >
                   Rs.
                 </span>
                 <input
                   id="req-amount"
                   type="number"
-                  placeholder="e.g. 250"
+                  placeholder=""
                   value={requestAmount}
                   onChange={e => setRequestAmount(e.target.value)}
-                  className="w-full pl-12 pr-3 py-2 text-base font-bold text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
+                  style={{ paddingLeft: '3.75rem', paddingRight: '0.75rem' }}
+                  className="w-full py-2 text-base font-bold text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
                 />
               </div>
             </div>
