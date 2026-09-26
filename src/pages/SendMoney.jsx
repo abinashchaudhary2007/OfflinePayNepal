@@ -146,10 +146,10 @@ function SendMoney() {
       });
 
       QRCode.toDataURL(payload, {
-        width: 260,
-        margin: 2,
+        width: 420,
+        margin: 4,
         color: { dark: '#0F172A', light: '#FFFFFF' },
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'H',
       }).then(setQrDataUrl).catch(console.error);
     }
   }, [createdTx]);

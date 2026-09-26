@@ -321,10 +321,10 @@ function QRScanner() {
 
       // 3. Render Acknowledgment QR
       const dataUrl = await QRCode.toDataURL(JSON.stringify(ack), {
-        width: 260,
-        margin: 2,
+        width: 420,
+        margin: 4,
         color: { dark: '#0F172A', light: '#FFFFFF' },
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'H',
       });
       setAckQrDataUrl(dataUrl);
       setScanState(SCAN_STATES.SHOW_ACK_QR);

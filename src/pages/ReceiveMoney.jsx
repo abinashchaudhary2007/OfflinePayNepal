@@ -89,10 +89,10 @@ function ReceiveMoney() {
         }
 
         const dataUrl = await QRCode.toDataURL(payload, {
-          width: 280,
-          margin: 2,
+          width: 420,
+          margin: 4,
           color: { dark: '#0F172A', light: '#FFFFFF' },
-          errorCorrectionLevel: 'M',
+          errorCorrectionLevel: 'H',
         });
         setQrDataUrl(dataUrl);
       } catch (err) {
