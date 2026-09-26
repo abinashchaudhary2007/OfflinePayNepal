@@ -44,21 +44,17 @@ function Navbar({
         {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Logo — shown on mobile/tablet when sidebar is hidden */}
-      <Link to="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group md:hidden">
+      {/* Brand — always visible beside the toggle */}
+      <Link to="/dashboard" className="flex items-center gap-2 no-underline flex-shrink-0 group">
         <img
           src="/logo.png"
           alt="OfflinePay Nepal Logo"
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain bg-white shadow-xs p-0.5 border border-white/20 transition-transform group-hover:scale-105"
+          className="w-8 h-8 rounded-xl object-contain bg-white shadow-xs p-0.5 border border-white/20 transition-transform group-hover:scale-105"
         />
-        <span
-          className="font-extrabold text-sm sm:text-base tracking-tight text-white"
-        >
+        <span className="font-extrabold text-sm tracking-tight text-white">
           OfflinePay
         </span>
-        <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider bg-[#3155B8] text-white border border-[#4F6FD8]/40"
-        >
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider bg-[#3155B8] text-white border border-[#4F6FD8]/40">
           Nepal
         </span>
       </Link>
@@ -112,9 +108,13 @@ function Navbar({
         >
           {/* Avatar */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold bg-[#3155B8] border border-white/20"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold border border-white/20 overflow-hidden flex-shrink-0"
+            style={{ background: currentUser?.avatarPhotoUrl ? 'transparent' : '#3155B8' }}
           >
-            {currentUser?.avatar || 'U'}
+            {currentUser?.avatarPhotoUrl
+              ? <img src={currentUser.avatarPhotoUrl} alt="avatar" className="w-full h-full object-cover" />
+              : (currentUser?.avatar || 'U')
+            }
           </div>
           <span className="hidden md:block text-sm font-semibold text-white max-w-[100px] truncate">
             {currentUser?.name?.split(' ')[0]}

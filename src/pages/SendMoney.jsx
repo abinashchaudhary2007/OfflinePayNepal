@@ -253,14 +253,30 @@ function SendMoney() {
     u => u.id !== currentUser?.id && u.role !== 'admin'
   );
 
-  // Search filter
+  // IDs of users the current user has already transacted with (sent or received)
+  const transactedUserIds = new Set(
+    (transactions || []).map(tx =>
+      tx.senderId === currentUser?.id ? tx.receiverId : tx.senderId
+    ).filter(Boolean)
+  );
+
+  // Search filter with privacy protection:
+  // - Known contacts (prior transaction): show on any partial name/email/phone match
+  // - New/unknown users: only reveal on EXACT full email match to protect privacy
   const query = search.trim().toLowerCase();
-  const searchResults = query ? availableReceivers.filter(u =>
-    (u.name && u.name.toLowerCase().includes(query)) ||
-    (u.email && u.email.toLowerCase().includes(query)) ||
-    (u.phone && u.phone.includes(query)) ||
-    (u.id && u.id.toLowerCase().includes(query))
-  ) : [];
+  const searchResults = query ? availableReceivers.filter(u => {
+    const hasTransacted = transactedUserIds.has(u.id);
+    if (hasTransacted) {
+      return (
+        (u.name && u.name.toLowerCase().includes(query)) ||
+        (u.email && u.email.toLowerCase().includes(query)) ||
+        (u.phone && u.phone.includes(query)) ||
+        (u.id && u.id.toLowerCase().includes(query))
+      );
+    }
+    // Privacy guard — unknown user only surfaces on exact email match
+    return u.email && u.email.toLowerCase() === query;
+  }) : [];
 
   // Recent recipients from transaction history
   const recentRecipients = [];
@@ -612,12 +628,13 @@ function SendMoney() {
                   {/* Card 2: Scan QR */}
                   <button
                     type="button"
-                    onClick={() => navigate('/scan')}
-                    className="relative p-5 pt-6 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                    onClick={() => navigate('/scan', { state: { autoStart: true } })}
+                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group ${
+                      payOption === 'scan'
+                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
+                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
+                    }`}
                   >
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-500 border border-slate-200/60">
-                      Soon
-                    </span>
                     <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
                       <QrCode size={22} />
                     </div>
@@ -630,11 +647,12 @@ function SendMoney() {
                   <button
                     type="button"
                     onClick={() => navigate('/send?mode=shop')}
-                    className="relative p-5 pt-6 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group ${
+                      payOption === 'shop'
+                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
+                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
+                    }`}
                   >
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-500 border border-slate-200/60">
-                      Soon
-                    </span>
                     <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
                       <Store size={22} />
                     </div>
@@ -681,7 +699,7 @@ function SendMoney() {
                   </label>
                   <Input
                     id="recipient-search"
-                    placeholder="Search registered recipient by name, email, or phone..."
+                    placeholder="Name or phone (contacts), or full email for new recipients..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     leftIcon={<Search size={16} />}
@@ -723,10 +741,10 @@ function SendMoney() {
                       <div className="text-center py-8 p-4 border border-dashed border-[var(--color-gray-200)] rounded-xl">
                         <p className="text-sm font-bold text-[var(--color-gray-700)]">No recipient found</p>
                         <p className="text-xs text-[var(--color-gray-400)] mt-1 max-w-sm mx-auto">
-                          No registered user matches "{search}". You can scan their QR code or try searching by full email address.
+                          Previous contacts appear with any partial search. To find a <strong>new recipient</strong>, enter their <strong>exact full email</strong> address — or scan their QR code.
                         </p>
                         <div className="mt-4 flex items-center justify-center gap-2">
-                          <Link to="/scan" className="btn btn-outline btn-sm no-underline">
+                          <Link to="/scan" state={{ autoStart: true }} className="btn btn-outline btn-sm no-underline">
                             <QrCode size={14} /> Scan QR Instead
                           </Link>
                           <button

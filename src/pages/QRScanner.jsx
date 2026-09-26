@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   CheckCircle2, XCircle, AlertTriangle, QrCode, ArrowDownLeft,
   ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck, Image as ImageIcon,
@@ -37,6 +37,7 @@ function QRScanner() {
   const { currentUser } = useAuth();
   const { acceptIncomingPayment, createReceiverAcknowledgment, recordSenderAcknowledgment } = useWallet();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [scanState, setScanState] = useState(SCAN_STATES.IDLE);
   const [scannedTx, setScannedTx] = useState(null);
@@ -99,53 +100,62 @@ function QRScanner() {
     setVerifyResult(null);
     setErrorMsg('');
 
-    setTimeout(async () => {
-      const qrReaderEl = document.getElementById('qr-reader');
-      if (!qrReaderEl) return;
-
-      try {
-        if (scannerRef.current) {
-          try {
-            if (scannerRef.current.isScanning) await scannerRef.current.stop();
-            await scannerRef.current.clear();
-          } catch (_) {}
+    // Use rAF + small delay to ensure the #qr-reader DOM node is fully painted before init
+    requestAnimationFrame(() => {
+      setTimeout(async () => {
+        const qrReaderEl = document.getElementById('qr-reader');
+        if (!qrReaderEl) {
+          setErrorMsg('Camera viewfinder element not found. Please try again.');
+          setScanState(SCAN_STATES.ERROR);
+          return;
         }
 
-        const html5QrCode = new Html5Qrcode('qr-reader');
-        scannerRef.current = html5QrCode;
-
-        await html5QrCode.start(
-          {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          {
-            fps: 25,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const boxSize = Math.floor(minEdge * 0.85);
-              return { width: Math.max(220, boxSize), height: Math.max(220, boxSize) };
-            },
-            aspectRatio: 1.0,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true,
-            },
-          },
-          async (decodedText) => {
+        try {
+          if (scannerRef.current) {
             try {
-              if (html5QrCode.isScanning) await html5QrCode.stop();
-              html5QrCode.clear();
+              if (scannerRef.current.isScanning) await scannerRef.current.stop();
+              await scannerRef.current.clear();
             } catch (_) {}
-            await handleScannedData(decodedText);
-          },
-          () => {} // frame scan errors expected while scanning
-        );
-      } catch (err) {
-        console.warn('[camera scanner init error]', err);
-        setErrorMsg('Camera access unavailable. Please click "Upload Image" below to select your QR code photo or screenshot.');
-      }
-    }, 200);
+            scannerRef.current = null;
+          }
+
+          const html5QrCode = new Html5Qrcode('qr-reader');
+          scannerRef.current = html5QrCode;
+
+          await html5QrCode.start(
+            { facingMode: 'environment' },
+            {
+              fps: 15,
+              qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const boxSize = Math.floor(minEdge * 0.75);
+                return { width: Math.max(200, boxSize), height: Math.max(200, boxSize) };
+              },
+              aspectRatio: 1.0,
+              experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+            },
+            async (decodedText) => {
+              try {
+                if (html5QrCode.isScanning) await html5QrCode.stop();
+                html5QrCode.clear();
+              } catch (_) {}
+              scannerRef.current = null;
+              await handleScannedData(decodedText);
+            },
+            () => {} // per-frame decode errors are expected
+          );
+        } catch (err) {
+          console.warn('[camera scanner init error]', err);
+          scannerRef.current = null;
+          setErrorMsg(
+            err?.message?.includes('Permission')
+              ? 'Camera permission denied. Please allow camera access in your browser settings, then try again.'
+              : 'Camera unavailable on this device/browser. Use "Upload Image" to scan a QR photo instead.'
+          );
+          setScanState(SCAN_STATES.ERROR);
+        }
+      }, 150);
+    });
   }, []);
 
   useEffect(() => {
@@ -158,6 +168,13 @@ function QRScanner() {
       }
     };
   }, []);
+
+  // Auto-start camera when navigated with { state: { autoStart: true } }
+  useEffect(() => {
+    if (location.state?.autoStart) {
+      startScanner();
+    }
+  }, [location.state?.autoStart, startScanner]);
 
   // Process decoded QR payload
   async function handleScannedData(rawData) {
@@ -494,7 +511,7 @@ function QRScanner() {
             />
             <div
               id="qr-reader"
-              className="w-full rounded-2xl overflow-hidden border-2 border-[#3155B8]/40 shadow-inner bg-black"
+              className="w-full rounded-2xl overflow-hidden border-2 border-[#3155B8]/40 shadow-inner bg-black min-h-[200px]"
             />
             <div className="flex gap-2">
               <Button

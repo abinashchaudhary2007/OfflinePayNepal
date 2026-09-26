@@ -553,6 +553,7 @@ export function DemoAuthProvider({ children, onLogin, onLogout }) {
   return (
     <DemoAuthContext.Provider value={{
       currentUser,
+      setCurrentUser,
       isAuthenticated,
       isAdmin,
       isLoading,

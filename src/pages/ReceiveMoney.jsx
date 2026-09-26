@@ -133,7 +133,7 @@ function ReceiveMoney() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate('/scan')}
+            onClick={() => navigate('/scan', { state: { autoStart: true } })}
             leftIcon={<ScanLine size={15} />}
             id="btn-receive-scan"
           >
@@ -287,7 +287,7 @@ function ReceiveMoney() {
             block
             size="lg"
             variant="accent"
-            onClick={() => navigate('/scan')}
+            onClick={() => navigate('/scan', { state: { autoStart: true } })}
             leftIcon={<ScanLine size={18} />}
             id="btn-scan-payment-qr-bottom"
           >
