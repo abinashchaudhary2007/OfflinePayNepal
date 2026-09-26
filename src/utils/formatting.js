@@ -111,8 +111,8 @@ export function calcPercentage(used, total) {
 
 /**
  * Helper to determine if an offline transaction needs a status tag.
- * - Offline payment & not acknowledged -> 'Pending' (amber)
- * - Offline payment & time limit crossed / expired / rejected -> 'Rejected' (red)
+ * - Offline payment & not acknowledged & under 5 minutes -> 'Pending' (amber)
+ * - Offline payment & not acknowledged & age >= 5 minutes OR expired/rejected -> 'Rejected' (red)
  * - Otherwise (online payment, acknowledged, settled) -> null (no tag)
  */
 export function getOfflineTxTag(tx) {
@@ -120,19 +120,29 @@ export function getOfflineTxTag(tx) {
   const isOffline = tx.method === 'OFFLINE_QR' || tx.isOffline;
   if (!isOffline) return null;
 
-  const isAck = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === 'RECEIVER_ACKNOWLEDGED';
+  // Acknowledged, settled, or verified offline payments need NO tag
+  const isAck = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === 'RECEIVER_ACKNOWLEDGED' || tx.status === 'SETTLED' || tx.status === 'VERIFIED';
+  if (isAck) return null;
 
-  // If time limit crossed / expired / rejected / failed
+  // Explicitly marked expired / rejected / failed / cancelled
   if (tx.status === 'EXPIRED' || tx.status === 'REJECTED' || tx.status === 'FAILED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED') {
     return { label: 'Rejected', className: 'badge-failed' };
   }
 
-  // If not acknowledged yet
-  if (!isAck && (tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING' || tx.status === 'CREATED')) {
+  // Dynamic age check against the 5-minute timeout (5 * 60 * 1000 = 300,000 ms)
+  const txTime = new Date(tx.createdAt || tx.timestamp).getTime();
+  if (!isNaN(txTime)) {
+    const elapsedMs = Date.now() - txTime;
+    if (elapsedMs >= 5 * 60 * 1000) {
+      return { label: 'Rejected', className: 'badge-failed' };
+    }
+  }
+
+  // Unacknowledged offline payment within the 5-minute window
+  if (tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING' || tx.status === 'CREATED') {
     return { label: 'Pending', className: 'badge-pending' };
   }
 
-  // Otherwise (acknowledged, settled, verified) -> no tag
   return null;
 }
 
