@@ -13,9 +13,9 @@ import Input from '../components/ui/Input';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
-import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/formatting';
+import { formatCurrency, formatDateTime, formatRelativeTime, getOfflineTxTag } from '../utils/formatting';
 
-const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Success', 'Canceled'];
+const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Rejected'];
 
 function Transactions() {
   const { currentUser } = useAuth();
@@ -42,9 +42,8 @@ function Transactions() {
     else if (activeFilter === 'Received') list = list.filter(tx => tx.receiverId === userId);
     else if (activeFilter === 'Offline')  list = list.filter(tx => tx.method === 'OFFLINE_QR');
     else if (activeFilter === 'Online')   list = list.filter(tx => tx.method === 'ONLINE');
-    else if (activeFilter === 'Pending')  list = list.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING');
-    else if (activeFilter === 'Success' || activeFilter === 'Settled') list = list.filter(tx => tx.status === 'SETTLED' || tx.status === 'VERIFIED' || tx.status === 'RECEIVER_ACKNOWLEDGED');
-    else if (activeFilter === 'Canceled' || activeFilter === 'Expired' || activeFilter === 'Rejected') list = list.filter(tx => tx.status === 'EXPIRED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED' || tx.status === 'REJECTED' || tx.status === 'FAILED');
+    else if (activeFilter === 'Pending')  list = list.filter(tx => (tx.method === 'OFFLINE_QR' || tx.isOffline) && !tx.receiverAcknowledged && (tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING'));
+    else if (activeFilter === 'Rejected' || activeFilter === 'Expired' || activeFilter === 'Canceled') list = list.filter(tx => (tx.status === 'EXPIRED' || tx.status === 'REJECTED' || tx.status === 'FAILED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED'));
 
     // Apply search
     if (search.trim()) {
@@ -128,6 +127,7 @@ function Transactions() {
               {filtered.map(tx => {
                 const isSent = tx.senderId === userId;
                 const other = isSent ? tx.receiverName : tx.senderName;
+                const offlineTag = getOfflineTxTag(tx);
                 return (
                   <Link
                     key={tx.id}
@@ -149,7 +149,11 @@ function Transactions() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs sm:text-sm font-bold text-[#172033] truncate group-hover:text-[#3155B8] transition-colors">{other}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge status={tx.status} className="!py-0 !px-1.5 text-[9px]" />
+                        {offlineTag && (
+                          <span className={`badge ${offlineTag.className} !py-0 !px-1.5 text-[9px]`}>
+                            {offlineTag.label}
+                          </span>
+                        )}
                         <span className="text-[10px] text-[#8993A8] hidden sm:inline">
                           {formatDateTime(tx.timestamp)}
                         </span>

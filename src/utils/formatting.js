@@ -110,6 +110,33 @@ export function calcPercentage(used, total) {
 }
 
 /**
+ * Helper to determine if an offline transaction needs a status tag.
+ * - Offline payment & not acknowledged -> 'Pending' (amber)
+ * - Offline payment & time limit crossed / expired / rejected -> 'Rejected' (red)
+ * - Otherwise (online payment, acknowledged, settled) -> null (no tag)
+ */
+export function getOfflineTxTag(tx) {
+  if (!tx) return null;
+  const isOffline = tx.method === 'OFFLINE_QR' || tx.isOffline;
+  if (!isOffline) return null;
+
+  const isAck = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === 'RECEIVER_ACKNOWLEDGED';
+
+  // If time limit crossed / expired / rejected / failed
+  if (tx.status === 'EXPIRED' || tx.status === 'REJECTED' || tx.status === 'FAILED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED') {
+    return { label: 'Rejected', className: 'badge-failed' };
+  }
+
+  // If not acknowledged yet
+  if (!isAck && (tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING' || tx.status === 'CREATED')) {
+    return { label: 'Pending', className: 'badge-pending' };
+  }
+
+  // Otherwise (acknowledged, settled, verified) -> no tag
+  return null;
+}
+
+/**
  * Get status badge class name
  */
 export function getStatusBadgeClass(status) {
@@ -137,18 +164,18 @@ export function getStatusBadgeClass(status) {
  */
 export function getStatusLabel(status) {
   const map = {
-    SETTLED:               'Success',
-    VERIFIED:              'Success',
+    SETTLED:               'Settled',
+    VERIFIED:              'Verified',
     OFFLINE_PENDING:       'Pending',
-    RECEIVER_ACKNOWLEDGED: 'Success',
+    RECEIVER_ACKNOWLEDGED: 'Settled',
     PENDING:               'Pending',
     SYNCING:               'Pending',
     RETRY_WAITING:         'Pending',
-    REJECTED:              'Canceled',
-    FAILED:                'Canceled',
-    CANCELLED:             'Canceled',
-    CANCELED:              'Canceled',
-    EXPIRED:               'Canceled',
+    REJECTED:              'Rejected',
+    FAILED:                'Rejected',
+    CANCELLED:             'Rejected',
+    CANCELED:              'Rejected',
+    EXPIRED:               'Rejected',
     ACTIVE:                'Active',
     CREATED:               'Pending',
   };

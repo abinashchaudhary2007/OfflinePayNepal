@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Store, History, ArrowRight } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatting';
+import { formatCurrency, getOfflineTxTag } from '../../utils/formatting';
 import { useAuth } from '../../context/DemoAuthContext';
 import { useWallet } from '../../context/WalletContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Badge } from '../ui/Badge';
 
 /**
  * RecentTransactionsPreview — Dark-mode-aware recent transactions list.
@@ -73,6 +72,7 @@ function RecentTransactionsPreview() {
               otherParty.toLowerCase().includes('shop') ||
               tx.note?.toLowerCase().includes('shop')
             );
+            const offlineTag = getOfflineTxTag(tx);
 
             return (
               <Link
@@ -118,8 +118,14 @@ function RecentTransactionsPreview() {
                       <span style={{ color: isSent ? 'var(--text-secondary)' : '#16A66A', fontWeight: isSent ? 400 : 600 }}>
                         {isSent ? 'Sent' : 'Received'}
                       </span>
-                      <span style={{ opacity: 0.5 }}>•</span>
-                      <Badge status={tx.status} className="!py-0 !px-1.5 text-[9px]" />
+                      {offlineTag && (
+                        <>
+                          <span style={{ opacity: 0.5 }}>•</span>
+                          <span className={`badge ${offlineTag.className} !py-0 !px-1.5 text-[9px]`}>
+                            {offlineTag.label}
+                          </span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
