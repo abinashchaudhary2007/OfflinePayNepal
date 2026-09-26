@@ -6,7 +6,7 @@ import {
   Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera, Image as ImageIcon
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -382,32 +382,43 @@ function SendMoney() {
     setShowAckScanner(true);
     setAckScanError('');
     setManualAckInput('');
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!document.getElementById('ack-qr-reader')) return;
       try {
-        const scanner = new Html5QrcodeScanner('ack-qr-reader', {
-          fps: 10,
-          qrbox: { width: 220, height: 220 },
-          rememberLastUsedCamera: true,
-        }, false);
+        if (ackScannerRef.current) {
+          try {
+            if (ackScannerRef.current.isScanning) await ackScannerRef.current.stop();
+            await ackScannerRef.current.clear();
+          } catch (_) {}
+        }
+        const html5QrCode = new Html5Qrcode('ack-qr-reader');
+        ackScannerRef.current = html5QrCode;
 
-        scanner.render(
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
           async (decodedText) => {
-            scanner.clear().catch(() => {});
+            try {
+              if (html5QrCode.isScanning) await html5QrCode.stop();
+              html5QrCode.clear();
+            } catch (_) {}
             await handleProcessAckPayload(decodedText);
           },
           () => {}
         );
-        ackScannerRef.current = scanner;
       } catch (err) {
-        console.warn('[ack-scanner init error]', err);
+        console.warn('[ack-scanner camera error]', err);
+        setAckScanError('Camera access unavailable. Use "Upload Image" below to select an acknowledgment QR photo.');
       }
     }, 200);
   };
 
-  const handleStopAckScanner = () => {
+  const handleStopAckScanner = async () => {
     if (ackScannerRef.current) {
-      ackScannerRef.current.clear().catch(() => {});
+      try {
+        if (ackScannerRef.current.isScanning) await ackScannerRef.current.stop();
+        await ackScannerRef.current.clear();
+      } catch (_) {}
       ackScannerRef.current = null;
     }
     setShowAckScanner(false);

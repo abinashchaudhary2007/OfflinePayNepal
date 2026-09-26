@@ -5,7 +5,7 @@ import {
   ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck, Image as ImageIcon,
   UploadCloud
 } from 'lucide-react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import QRCode from 'qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { Card, CardHeader } from '../components/ui/Card';
@@ -77,6 +77,20 @@ function QRScanner() {
     }
   };
 
+  // Stop scanner safely
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+        await scannerRef.current.clear();
+      } catch (_) {}
+      scannerRef.current = null;
+    }
+    setScanState(SCAN_STATES.IDLE);
+  }, []);
+
   // Start HTML5 camera scanner
   const startScanner = useCallback(() => {
     setScanState(SCAN_STATES.SCANNING);
@@ -85,55 +99,47 @@ function QRScanner() {
     setVerifyResult(null);
     setErrorMsg('');
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const qrReaderEl = document.getElementById('qr-reader');
       if (!qrReaderEl) return;
 
-      // Intercept file input in Html5QrcodeScanner if user uploads an image inside the scanner
-      qrReaderEl.addEventListener('change', async (event) => {
-        if (event.target && event.target.type === 'file' && event.target.files?.[0]) {
-          event.stopPropagation();
-          event.preventDefault();
-          const selectedFile = event.target.files[0];
-          await handleImageFileChange(selectedFile);
-        }
-      }, true);
-
       try {
-        const scanner = new Html5QrcodeScanner('qr-reader', {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          rememberLastUsedCamera: true,
-        }, false);
+        if (scannerRef.current) {
+          try {
+            if (scannerRef.current.isScanning) await scannerRef.current.stop();
+            await scannerRef.current.clear();
+          } catch (_) {}
+        }
 
-        scanner.render(
+        const html5QrCode = new Html5Qrcode('qr-reader');
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           async (decodedText) => {
-            scanner.clear().catch(() => {});
+            try {
+              if (html5QrCode.isScanning) await html5QrCode.stop();
+              html5QrCode.clear();
+            } catch (_) {}
             await handleScannedData(decodedText);
           },
-          () => {} // scan errors are expected while scanning
+          () => {} // frame scan errors expected while scanning
         );
-
-        scannerRef.current = scanner;
       } catch (err) {
-        console.warn('[scanner init error]', err);
+        console.warn('[camera scanner init error]', err);
+        setErrorMsg('Camera access unavailable. Please click "Upload Image" below to select your QR code photo or screenshot.');
       }
     }, 200);
-  }, []);
-
-  // Stop scanner safely
-  const stopScanner = useCallback(() => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(() => {});
-      scannerRef.current = null;
-    }
-    setScanState(SCAN_STATES.IDLE);
   }, []);
 
   useEffect(() => {
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => {});
+        try {
+          if (scannerRef.current.isScanning) scannerRef.current.stop();
+          scannerRef.current.clear();
+        } catch (_) {}
       }
     };
   }, []);
