@@ -37,6 +37,7 @@ function SendMoney() {
     createOfflineTransaction, createOnlineTransaction,
     recordSenderAcknowledgment,
     expirePendingTransactions,
+    refreshTransactions,
     registerDevice, TX_STATUS
   } = useWallet();
   const { isOffline } = useOfflineSimulation();
@@ -68,6 +69,8 @@ function SendMoney() {
   const [ackScanError, setAckScanError] = useState('');
   const [manualAckInput, setManualAckInput] = useState('');
   const [isVerifyingAck, setIsVerifyingAck] = useState(false);
+  const [payOption, setPayOption] = useState(isShopMode ? 'merchant' : 'user');
+  const [showSearchSection, setShowSearchSection] = useState(false);
   const ackScannerRef = useRef(null);
   const ackFileInputRef = useRef(null);
 
@@ -536,155 +539,238 @@ function SendMoney() {
             STEP 1: CHOOSE RECIPIENT
         ════════════════════════════════════════════════════════════ */}
         {step === STEPS.RECIPIENT && (
-          <Card padding className="space-y-5">
-            {/* Payment Hub Entry Options */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link
-                to="/scan"
-                className="flex items-center gap-3 p-4 rounded-xl border border-[var(--color-gray-200)] hover:border-[var(--color-indigo-400)] hover:bg-indigo-50/50 transition-all no-underline group"
-                id="btn-send-scan-qr"
-              >
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-[var(--color-indigo-600)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <QrCode size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--color-gray-900)]">Scan Payment QR</h3>
-                  <p className="text-[11px] text-[var(--color-gray-500)]">Scan another user's QR to autofill</p>
-                </div>
-              </Link>
-
-              <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-[var(--color-gray-200)] bg-[var(--color-gray-50)]">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
-                  <User size={20} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[var(--color-gray-900)]">Directory Search</h3>
-                  <p className="text-[11px] text-[var(--color-gray-500)]">Pick a registered account below</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Recipient Search Box */}
-            <div className="space-y-1.5">
-              <label htmlFor="recipient-search" className="text-xs font-bold text-[var(--color-gray-700)] uppercase tracking-wider">
-                Who do you want to pay?
-              </label>
-              <Input
-                id="recipient-search"
-                placeholder="Search registered recipient by name, email, or phone..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                leftIcon={<Search size={16} />}
-                autoFocus
-              />
-            </div>
-
-            {/* Search Results Display */}
-            {query.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
-                  Search Results ({searchResults.length})
+          <div className="space-y-5">
+            <Card padding className="space-y-6">
+              {/* Header Title & Subtitle */}
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-gray-900)] tracking-tight">
+                  Send Money
+                </h2>
+                <p className="text-xs sm:text-sm text-[var(--color-gray-500)] mt-1">
+                  Send money securely, even when your internet connection is unavailable.
                 </p>
-                {searchResults.length > 0 ? (
-                  <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-xl overflow-hidden">
-                    {searchResults.map(user => (
-                      <button
-                        key={user.id}
-                        onClick={() => handleSelectReceiver(user)}
-                        className="w-full flex items-center gap-3 p-3.5 bg-white hover:bg-indigo-50/60 transition-colors text-left group"
-                      >
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                          style={{ background: user.avatarColor || '#4F46E5' }}
-                        >
-                          {user.avatar || (user.name ? user.name[0] : 'U')}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-[var(--color-gray-900)] truncate">{user.name}</p>
-                          <p className="text-xs text-[var(--color-gray-400)] truncate">{user.email || user.phone || user.id}</p>
-                        </div>
-                        <span className="text-xs font-semibold text-[var(--color-indigo-600)] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                          Select <ChevronRight size={14} />
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 p-4 border border-dashed border-[var(--color-gray-200)] rounded-xl">
-                    <p className="text-sm font-bold text-[var(--color-gray-700)]">No recipient found</p>
-                    <p className="text-xs text-[var(--color-gray-400)] mt-1 max-w-sm mx-auto">
-                      No registered user matches "{search}". You can scan their QR code or try searching by full email address.
-                    </p>
-                    <div className="mt-4 flex items-center justify-center gap-2">
-                      <Link to="/scan" className="btn btn-outline btn-sm no-underline">
-                        <QrCode size={14} /> Scan QR Instead
-                      </Link>
-                      <button
-                        onClick={() => setSearch('')}
-                        className="btn btn-secondary btn-sm"
-                      >
-                        Clear Search
-                      </button>
+              </div>
+
+              {/* How would you like to pay section */}
+              <div className="space-y-3">
+                <label className="text-xs sm:text-sm font-semibold text-[var(--color-gray-800)] block">
+                  How would you like to pay?
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {/* Card 1: Send to User */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPayOption('user');
+                      setShowSearchSection(true);
+                    }}
+                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] ${
+                      payOption === 'user'
+                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
+                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
+                    }`}
+                  >
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                      payOption === 'user' ? 'bg-[#3155B8] text-white shadow-sm' : 'bg-slate-100 text-[#3155B8]'
+                    }`}>
+                      <User size={22} />
                     </div>
-                  </div>
-                )}
+                    <span className={`text-xs sm:text-sm font-bold ${
+                      payOption === 'user' ? 'text-[#172B75]' : 'text-[var(--color-gray-700)]'
+                    }`}>
+                      Send to User
+                    </span>
+                  </button>
+
+                  {/* Card 2: Scan QR */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/scan')}
+                    className="relative p-5 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                  >
+                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--color-gray-100)] text-[10px] font-medium text-[var(--color-gray-400)]">
+                      Soon
+                    </span>
+                    <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <QrCode size={22} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-[var(--color-gray-700)]">
+                      Scan QR
+                    </span>
+                  </button>
+
+                  {/* Card 3: Pay Merchant */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/send?mode=shop')}
+                    className="relative p-5 rounded-2xl border border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group"
+                  >
+                    <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-[var(--color-gray-100)] text-[10px] font-medium text-[var(--color-gray-400)]">
+                      Soon
+                    </span>
+                    <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
+                      <Store size={22} />
+                    </div>
+                    <span className="text-xs sm:text-sm font-semibold text-[var(--color-gray-700)]">
+                      Pay Merchant
+                    </span>
+                  </button>
+                </div>
               </div>
-            ) : (
-              /* Recent Contacts List */
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
-                  Recent Recipients ({recentRecipients.length})
-                </p>
-                {recentRecipients.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {recentRecipients.map(contact => (
-                      <button
-                        key={contact.id}
-                        onClick={() => handleSelectReceiver(contact)}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-gray-200)] hover:border-[var(--color-indigo-400)] hover:bg-indigo-50/40 transition-all text-left group"
-                      >
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                          style={{ background: contact.avatarColor || '#4F46E5' }}
-                        >
-                          {contact.name ? contact.name[0] : 'U'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs sm:text-sm font-bold text-[var(--color-gray-800)] truncate">
-                            {contact.name}
-                          </p>
-                          <p className="text-[11px] text-[var(--color-gray-400)] truncate">
-                            {contact.email || contact.id}
-                          </p>
-                        </div>
-                        <ChevronRight size={14} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-600)]" />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 border border-dashed border-[var(--color-gray-200)] rounded-xl">
-                    <p className="text-xs text-[var(--color-gray-500)]">No previous recipients yet.</p>
-                    <p className="text-[11px] text-[var(--color-gray-400)] mt-0.5">
-                      Search by recipient name above or pick from registered demo accounts.
+
+              {/* Offline payment available Banner */}
+              <div className="p-4 rounded-2xl bg-[#EEF4FF] border border-[#C5D5F8] flex items-start gap-3.5">
+                <div className="w-8 h-8 rounded-xl bg-[#3155B8]/15 text-[#3155B8] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <WifiOff size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[#172B75]">
+                    Offline payment available
+                  </h4>
+                  <p className="text-xs text-[#5F6B85] mt-0.5 leading-relaxed">
+                    You can create a signed payment voucher and complete local acknowledgment.
+                  </p>
+                </div>
+              </div>
+
+              {/* Main Action Button */}
+              <Button
+                variant="primary"
+                block
+                className="w-full bg-[#3155B8] hover:bg-[#172B75] text-white font-bold py-3.5 rounded-xl text-sm sm:text-base shadow-sm"
+                onClick={() => setShowSearchSection(true)}
+              >
+                Continue
+              </Button>
+            </Card>
+
+            {/* Recipient Search & Directory Section */}
+            {(showSearchSection || query.length > 0) && (
+              <Card padding className="space-y-5 animate-fade-in">
+                {/* Recipient Search Box */}
+                <div className="space-y-1.5">
+                  <label htmlFor="recipient-search" className="text-xs font-bold text-[var(--color-gray-700)] uppercase tracking-wider">
+                    Who do you want to pay?
+                  </label>
+                  <Input
+                    id="recipient-search"
+                    placeholder="Search registered recipient by name, email, or phone..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    leftIcon={<Search size={16} />}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Search Results Display */}
+                {query.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+                      Search Results ({searchResults.length})
                     </p>
-                    {availableReceivers.length > 0 && (
-                      <div className="mt-3 flex flex-wrap justify-center gap-2 px-3">
-                        {availableReceivers.slice(0, 3).map(u => (
+                    {searchResults.length > 0 ? (
+                      <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-xl overflow-hidden">
+                        {searchResults.map(user => (
                           <button
-                            key={u.id}
-                            onClick={() => handleSelectReceiver(u)}
-                            className="btn btn-outline btn-sm text-xs py-1 px-2.5"
+                            key={user.id}
+                            onClick={() => handleSelectReceiver(user)}
+                            className="w-full flex items-center gap-3 p-3.5 bg-white hover:bg-indigo-50/60 transition-colors text-left group"
                           >
-                            + {u.name}
+                            <div
+                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                              style={{ background: user.avatarColor || '#4F46E5' }}
+                            >
+                              {user.avatar || (user.name ? user.name[0] : 'U')}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-[var(--color-gray-900)] truncate">{user.name}</p>
+                              <p className="text-xs text-[var(--color-gray-400)] truncate">{user.email || user.phone || user.id}</p>
+                            </div>
+                            <span className="text-xs font-semibold text-[var(--color-indigo-600)] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                              Select <ChevronRight size={14} />
+                            </span>
                           </button>
                         ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 p-4 border border-dashed border-[var(--color-gray-200)] rounded-xl">
+                        <p className="text-sm font-bold text-[var(--color-gray-700)]">No recipient found</p>
+                        <p className="text-xs text-[var(--color-gray-400)] mt-1 max-w-sm mx-auto">
+                          No registered user matches "{search}". You can scan their QR code or try searching by full email address.
+                        </p>
+                        <div className="mt-4 flex items-center justify-center gap-2">
+                          <Link to="/scan" className="btn btn-outline btn-sm no-underline">
+                            <QrCode size={14} /> Scan QR Instead
+                          </Link>
+                          <button
+                            onClick={() => setSearch('')}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Clear Search
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Recent Contacts List */
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+                      Recent Recipients ({recentRecipients.length})
+                    </p>
+                    {recentRecipients.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {recentRecipients.map(contact => (
+                          <button
+                            key={contact.id}
+                            onClick={() => handleSelectReceiver(contact)}
+                            className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-gray-200)] hover:border-[var(--color-indigo-400)] hover:bg-indigo-50/40 transition-all text-left group"
+                          >
+                            <div
+                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                              style={{ background: contact.avatarColor || '#4F46E5' }}
+                            >
+                              {contact.name ? contact.name[0] : 'U'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-bold text-[var(--color-gray-800)] truncate">
+                                {contact.name}
+                              </p>
+                              <p className="text-[11px] text-[var(--color-gray-400)] truncate">
+                                {contact.email || contact.id}
+                              </p>
+                            </div>
+                            <ChevronRight size={14} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-600)]" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 border border-dashed border-[var(--color-gray-200)] rounded-xl">
+                        <p className="text-xs text-[var(--color-gray-500)]">No previous recipients yet.</p>
+                        <p className="text-[11px] text-[var(--color-gray-400)] mt-0.5">
+                          Search by recipient name above or pick from registered demo accounts.
+                        </p>
+                        {availableReceivers.length > 0 && (
+                          <div className="mt-3 flex flex-wrap justify-center gap-2 px-3">
+                            {availableReceivers.slice(0, 3).map(u => (
+                              <button
+                                key={u.id}
+                                onClick={() => handleSelectReceiver(u)}
+                                className="btn btn-outline btn-sm text-xs py-1 px-2.5"
+                              >
+                                + {u.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             )}
-          </Card>
+          </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════

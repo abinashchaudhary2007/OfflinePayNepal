@@ -8,6 +8,7 @@ import RecentTransactionsPreview from '../components/wallet/RecentTransactionsPr
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
+import { useTheme } from '../context/ThemeContext';
 
 function Dashboard() {
   const { currentUser } = useAuth();
@@ -17,6 +18,7 @@ function Dashboard() {
     registerDevice,
   } = useWallet();
   const { isOffline } = useOfflineSimulation();
+  const { isDark } = useTheme();
 
   const totalUnsynced = (pendingSyncCount || 0) + (retryWaitingCount || 0);
 
@@ -71,17 +73,24 @@ function Dashboard() {
         {/* ─── Dashboard Header ─── */}
         <div className="flex items-center justify-between gap-3 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172033] tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               Dashboard
             </h1>
-            <p className="text-xs sm:text-sm text-[#5F6B85] mt-1">
+            <p className="text-xs sm:text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               {formattedDate}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              className="w-10 h-10 rounded-2xl bg-[#EAF0FF] hover:bg-[#D6E3FF] text-[#3155B8] flex items-center justify-center transition-colors cursor-pointer border border-[#DCE3F2]"
+              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors cursor-pointer"
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                color: isDark ? '#4F6FD8' : '#3155B8',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--border-color)' : '#D6E3FF'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; }}
               aria-label="Notifications"
               title="Notifications"
             >

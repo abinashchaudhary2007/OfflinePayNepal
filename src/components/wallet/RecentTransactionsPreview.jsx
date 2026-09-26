@@ -3,17 +3,15 @@ import { Store, History, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatting';
 import { useAuth } from '../../context/DemoAuthContext';
 import { useWallet } from '../../context/WalletContext';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
- * RecentTransactionsPreview — Renders the exact clean transaction list from reference image:
- * - "Recent Transactions" header with "View all"
- * - Rounded square avatars (green initial for Received, soft-red store icon for Sent)
- * - Name + "Date • Received / Sent"
- * - High-contrast amount (+Rs. in green, -Rs. in red)
+ * RecentTransactionsPreview — Dark-mode-aware recent transactions list.
  */
 function RecentTransactionsPreview() {
   const { currentUser } = useAuth();
   const { transactions } = useWallet();
+  const { isDark } = useTheme();
   const userId = currentUser?.id;
 
   const userTxs = (transactions || []).slice(0, 5);
@@ -29,61 +27,94 @@ function RecentTransactionsPreview() {
   };
 
   return (
-    <div className="rounded-2xl border border-[#DCE3F2] bg-white shadow-xs p-5 sm:p-6 transition-all">
+    <div style={{
+      borderRadius: '1rem',
+      border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+      background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+      padding: '20px 24px',
+      boxShadow: isDark ? 'var(--shadow-card)' : '0 1px 4px rgba(23,43,117,0.06)',
+    }}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-[#DCE3F2]">
-        <h3 className="text-base font-bold text-[#172033] tracking-tight">
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        paddingBottom: 16,
+        borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+        marginBottom: 4,
+      }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           Recent Transactions
         </h3>
-
         <Link
           to="/transactions"
-          className="text-xs font-semibold text-[#3155B8] hover:text-[#172B75] hover:underline no-underline transition-colors"
+          style={{
+            fontSize: '0.75rem', fontWeight: 600,
+            color: isDark ? '#4F6FD8' : '#3155B8',
+            textDecoration: 'none', transition: 'color 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = isDark ? '#738EE4' : '#172B75'}
+          onMouseLeave={e => e.currentTarget.style.color = isDark ? '#4F6FD8' : '#3155B8'}
         >
           View all
         </Link>
       </div>
 
       {userTxs.length === 0 ? (
-        <EmptyTransactions />
+        <EmptyTransactions isDark={isDark} />
       ) : (
-        <div className="divide-y divide-[#DCE3F2]">
-          {userTxs.map(tx => {
+        <div>
+          {userTxs.map((tx, idx) => {
             const isSent = tx.senderId === userId;
             const otherParty = isSent ? (tx.receiverName || 'Recipient') : (tx.senderName || 'Sender');
             const dateStr = formatDateShort(tx.timestamp);
-            const isMerchant = isSent && (otherParty.toLowerCase().includes('store') || otherParty.toLowerCase().includes('superstore') || otherParty.toLowerCase().includes('shop') || tx.note?.toLowerCase().includes('shop'));
+            const isMerchant = isSent && (
+              otherParty.toLowerCase().includes('store') ||
+              otherParty.toLowerCase().includes('superstore') ||
+              otherParty.toLowerCase().includes('shop') ||
+              tx.note?.toLowerCase().includes('shop')
+            );
 
             return (
               <Link
                 key={tx.id}
                 to={`/transactions/${tx.id}`}
-                className="flex items-center justify-between py-3.5 sm:py-4 hover:bg-[#F5F7FF] -mx-2 px-2 sm:-mx-3 sm:px-3 rounded-xl transition-colors no-underline group"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 8px', marginLeft: -8, marginRight: -8,
+                  borderRadius: 12, textDecoration: 'none',
+                  borderBottom: idx < userTxs.length - 1 ? `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}` : 'none',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Left: Avatar + Details */}
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 font-bold text-sm ${
-                      isSent
-                        ? 'bg-[#FDECEC] text-[#D64545]'
-                        : 'bg-[#E8F8F1] text-[#16A66A]'
-                    }`}
-                  >
-                    {isMerchant ? (
-                      <Store size={18} />
-                    ) : (
-                      <span>{otherParty.charAt(0).toUpperCase()}</span>
-                    )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '0.75rem', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 700, fontSize: '0.875rem',
+                    background: isSent
+                      ? (isDark ? 'rgba(214,69,69,0.12)' : '#FDECEC')
+                      : (isDark ? 'rgba(22,166,106,0.12)' : '#E8F8F1'),
+                    color: isSent
+                      ? (isDark ? '#E57373' : '#D64545')
+                      : '#16A66A',
+                  }}>
+                    {isMerchant ? <Store size={18} /> : <span>{otherParty.charAt(0).toUpperCase()}</span>}
                   </div>
 
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#172033] truncate group-hover:text-[#3155B8] transition-colors">
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{
+                      fontSize: '0.875rem', fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
                       {otherParty}
                     </p>
-                    <p className="text-xs text-[#5F6B85] mt-0.5 flex items-center gap-1.5">
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span>{dateStr}</span>
                       <span>•</span>
-                      <span className={isSent ? 'text-[#5F6B85]' : 'text-[#16A66A] font-medium'}>
+                      <span style={{ color: isSent ? 'var(--text-secondary)' : '#16A66A', fontWeight: isSent ? 400 : 600 }}>
                         {isSent ? 'Sent' : 'Received'}
                       </span>
                     </p>
@@ -91,12 +122,11 @@ function RecentTransactionsPreview() {
                 </div>
 
                 {/* Right: Amount */}
-                <div className="text-right shrink-0 pl-3">
-                  <span
-                    className={`text-sm sm:text-base font-extrabold ${
-                      isSent ? 'text-[#D64545]' : 'text-[#16A66A]'
-                    }`}
-                  >
+                <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: 12 }}>
+                  <span style={{
+                    fontSize: '0.9375rem', fontWeight: 800,
+                    color: isSent ? (isDark ? '#E57373' : '#D64545') : '#16A66A',
+                  }}>
                     {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
                   </span>
                 </div>
@@ -109,19 +139,36 @@ function RecentTransactionsPreview() {
   );
 }
 
-function EmptyTransactions() {
+function EmptyTransactions({ isDark }) {
   return (
-    <div className="py-8 text-center px-4">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-[#F5F7FF] border border-[#DCE3F2] text-[#8993A8]">
+    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: '0.75rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        margin: '0 auto 12px',
+        background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+        border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+        color: 'var(--text-muted)',
+      }}>
         <History size={22} />
       </div>
-      <p className="text-sm font-bold text-[#172033]">No recent transactions</p>
-      <p className="text-xs text-[#5F6B85] mt-1 max-w-xs mx-auto mb-4">
+      <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+        No recent transactions
+      </p>
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 280, margin: '4px auto 16px' }}>
         Your offline and online payment activity will appear here automatically.
       </p>
       <Link
         to="/send"
-        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#172B75] hover:bg-[#12215B] transition-colors no-underline"
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '8px 16px', borderRadius: '0.75rem',
+          fontSize: '0.75rem', fontWeight: 700, color: '#FFFFFF',
+          background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
+          textDecoration: 'none', transition: 'opacity 0.2s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
       >
         <span>Send Money</span>
         <ArrowRight size={13} />

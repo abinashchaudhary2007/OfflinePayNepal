@@ -733,3 +733,134 @@ html.dark .mobile-bottom-nav {
   border-color: var(--border-color) !important;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5) !important;
 }
+
+/* ─── Dark Mode: Dashboard Cards & Components ───────────────────────── */
+
+/* QuickActions card */
+html.dark .group.flex.flex-col.items-center[class*="bg-white"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+html.dark .group.flex.flex-col.items-center[class*="bg-white"]:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* Text colors in dark mode - covers hardcoded Tailwind classes */
+html.dark [class*="text-\\[\\#172033\\]"],
+html.dark [class*="text-\\[\\#172B75\\]"] {
+  color: var(--text-primary) !important;
+}
+html.dark [class*="text-\\[\\#5F6B85\\]"] {
+  color: var(--text-secondary) !important;
+}
+html.dark [class*="text-\\[\\#8993A8\\]"] {
+  color: var(--text-muted) !important;
+}
+
+/* RecentTransactionsPreview card */
+html.dark .rounded-2xl.border[class*="border-\\[\\#DCE3F2\\]"][class*="bg-white"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+}
+html.dark .divide-y[class*="divide-\\[\\#DCE3F2\\]"] > * {
+  border-color: var(--border-color) !important;
+}
+
+/* Transaction item hover */
+html.dark a[class*="hover\\:bg-\\[\\#F5F7FF\\]"]:hover {
+  background-color: var(--bg-elevated) !important;
+}
+
+/* OfflineReadinessCard */
+html.dark .rounded-2xl.border[class*="border-\\[\\#DCE3F2\\]"][class*="bg-white"].p-5,
+html.dark .rounded-2xl.border[class*="border-\\[\\#DCE3F2\\]"][class*="bg-white"].p-6,
+html.dark [class*="rounded-2xl"][class*="border-\\[\\#DCE3F2\\]"][class*="bg-white"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Icon backgrounds in OfflineReadinessCard */
+html.dark [class*="bg-\\[\\#FFF6DD\\]"] { background-color: rgba(242,169,0,0.12) !important; }
+html.dark [class*="bg-\\[\\#E8F8F1\\]"] { background-color: rgba(22,166,106,0.12) !important; }
+html.dark [class*="bg-\\[\\#EAF0FF\\]"] { background-color: rgba(49,85,184,0.15) !important; }
+html.dark [class*="bg-\\[\\#F0F4FF\\]"] { background-color: rgba(49,85,184,0.12) !important; }
+html.dark [class*="bg-\\[\\#F5F7FF\\]"] { background-color: var(--bg-elevated) !important; }
+html.dark [class*="bg-\\[\\#FDECEC\\]"] { background-color: rgba(214,69,69,0.12) !important; }
+
+/* Icon text colors — keep them */
+html.dark [class*="text-\\[\\#B57F00\\]"] { color: #F2A900 !important; }
+html.dark [class*="text-\\[\\#16A66A\\]"] { color: #16A66A !important; }
+html.dark [class*="text-\\[\\#3155B8\\]"] { color: #4F6FD8 !important; }
+html.dark [class*="text-\\[\\#D64545\\]"] { color: #E57373 !important; }
+
+/* Sync button */
+html.dark [class*="bg-\\[\\#FFF6DD\\]"][class*="text-\\[\\#B57F00\\]"] {
+  background-color: rgba(242,169,0,0.12) !important;
+  color: #F2A900 !important;
+  border-color: rgba(242,169,0,0.25) !important;
+}
+
+/* Navbar profile dropdown */
+html.dark [class*="bg-white"][class*="rounded-2xl"][class*="shadow-xl"] {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color) !important;
+}
+html.dark [class*="border-b"][class*="border-\\[\\#DCE3F2\\]"],
+html.dark [class*="border-t"][class*="border-\\[\\#DCE3F2\\]"] {
+  border-color: var(--border-color) !important;
+}
+html.dark a[class*="hover\\:bg-\\[\\#EAF0FF\\]"]:hover {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+}
+html.dark button[class*="hover\\:bg-\\[\\#FDECEC\\]"]:hover {
+  background-color: rgba(214,69,69,0.12) !important;
+  color: #E57373 !important;
+}
+
+/* Empty state icon box */
+html.dark [class*="bg-\\[\\#F5F7FF\\]"][class*="border-\\[\\#DCE3F2\\]"] {
+  background-color: var(--bg-elevated) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Dashboard header text */
+html.dark h1[class*="text-\\[\\#172033\\]"] {
+  color: var(--text-primary) !important;
+}
+html.dark p[class*="text-\\[\\#5F6B85\\]"] {
+  color: var(--text-secondary) !important;
+}
+
+/* Dashboard notification bell button */
+html.dark [class*="bg-\\[\\#EAF0FF\\]"][class*="hover\\:bg-\\[\\#D6E3FF\\]"] {
+  background-color: var(--bg-elevated) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Skeleton dark mode */
+html.dark .skeleton {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-surface) 50%, var(--bg-elevated) 75%);
+}
+
+/* Toast dark */
+html.dark .toast-success,
+html.dark .toast-error,
+html.dark .toast-warning,
+html.dark .toast-info {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* Offline banner dark */
+html.dark .offline-banner {
+  background: rgba(242,169,0,0.12);
+  color: #F2A900;
+  border-color: rgba(242,169,0,0.25);
+}
+
+/* Quick action link text */
+html.dark a[class*="group"][class*="bg-white"] span[class*="text-\\[\\#172033\\]"] {
+  color: var(--text-primary) !important;
+}

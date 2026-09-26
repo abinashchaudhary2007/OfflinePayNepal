@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense } from 'react';
 import { useCallback, useEffect } from 'react';
 import { DemoAuthProvider, useAuth } from './context/DemoAuthContext';
 import { WalletProvider, useWallet } from './context/WalletContext';
@@ -22,21 +23,42 @@ import OfflineAuthorization from './pages/OfflineAuthorization';
 import DeviceManagement  from './pages/DeviceManagement';
 import QRScanner         from './pages/QRScanner';
 
-/** Protected route — redirects to /login if not authenticated */
+/** Minimal loading spinner shown while auth session is being restored */
+function AuthLoadingSpinner() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', background: 'var(--color-bg, #0f172a)',
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: '50%',
+        border: '3px solid rgba(99,102,241,0.2)',
+        borderTop: '3px solid #6366f1',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+/** Protected route — waits for session restore, then redirects to /login if not authenticated */
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <AuthLoadingSpinner />;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
 /** Public-only route — redirects authenticated users to /dashboard */
 function PublicOnlyRoute({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <AuthLoadingSpinner />;
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : children;
 }
 
 /** Admin-only route — redirects non-admins to /dashboard */
 function AdminRoute({ children }) {
-  const { currentUser, isAuthenticated } = useAuth();
+  const { currentUser, isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <AuthLoadingSpinner />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (currentUser?.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return children;

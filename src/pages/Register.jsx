@@ -135,7 +135,7 @@ function Register() {
               name="name"
               type="text"
               label="Full Name"
-              placeholder="Abinash Shrestha"
+              placeholder="Abinash Kumar Chaudhray"
               value={form.name}
               onChange={handleChange}
               error={formError.name}

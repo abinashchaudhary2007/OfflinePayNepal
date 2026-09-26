@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/DemoAuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { OnlineStatusPill } from '../ui/OfflineBanner';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
@@ -20,6 +21,7 @@ function Navbar({
   onToggleOffline,
 }) {
   const { currentUser, logout } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -97,10 +99,7 @@ function Navbar({
         aria-label="Notifications"
       >
         <Bell size={20} />
-        <span
-          className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-          style={{ background: '#D64545' }}
-        />
+        <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ background: '#D64545' }} />
       </button>
 
       {/* Profile dropdown */}
@@ -126,48 +125,61 @@ function Navbar({
         {/* Dropdown */}
         {isProfileOpen && (
           <>
+            <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
             <div
-              className="fixed inset-0 z-30"
-              onClick={() => setIsProfileOpen(false)}
-            />
-            <div
-              className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#DCE3F2] z-40 py-2 animate-scale-in"
+              className="absolute right-0 top-full mt-2 w-56 rounded-2xl shadow-xl z-40 py-2 animate-scale-in"
+              style={{
+                background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              }}
             >
               {/* User info */}
-              <div className="px-4 py-3 border-b border-[#DCE3F2]">
-                <p className="text-sm font-bold text-[#172033]">{currentUser?.name}</p>
-                <p className="text-xs text-[#5F6B85] truncate">{currentUser?.email}</p>
+              <div style={{
+                padding: '12px 16px',
+                borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{currentUser?.name}</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.email}</p>
               </div>
 
-              <Link
-                to="/profile"
-                onClick={() => setIsProfileOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#EAF0FF] text-sm text-[#5F6B85] hover:text-[#172B75] no-underline transition-colors"
-              >
-                <User size={16} className="text-[#3155B8]" /> My Profile
-              </Link>
-              <Link
-                to="/security"
-                onClick={() => setIsProfileOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#EAF0FF] text-sm text-[#5F6B85] hover:text-[#172B75] no-underline transition-colors"
-              >
-                <Shield size={16} className="text-[#16A66A]" /> Security
-              </Link>
+              {[{
+                to: '/profile', icon: <User size={16} style={{ color: '#4F6FD8' }} />, label: 'My Profile',
+              }, {
+                to: '/security', icon: <Shield size={16} style={{ color: '#16A66A' }} />, label: 'Security',
+              }].map(({ to, icon, label }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 no-underline transition-colors"
+                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  {icon} {label}
+                </Link>
+              ))}
 
               {currentUser?.role === 'admin' && (
                 <Link
                   to="/admin"
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#EAF0FF] text-sm text-[#5F6B85] hover:text-[#172B75] no-underline transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 no-underline transition-colors"
+                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                 >
-                  <Settings size={16} className="text-[#F2A900]" /> Admin Dashboard
+                  <Settings size={16} style={{ color: '#F2A900' }} /> Admin Dashboard
                 </Link>
               )}
 
-              <div className="border-t border-[#DCE3F2] mt-1 pt-1">
+              <div style={{ borderTop: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`, marginTop: 4, paddingTop: 4 }}>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-[#FDECEC] text-sm text-[#5F6B85] hover:text-[#D64545] transition-colors cursor-pointer"
+                  className="flex items-center gap-3 w-full px-4 py-2.5 transition-colors cursor-pointer"
+                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(214,69,69,0.12)' : '#FDECEC'; e.currentTarget.style.color = isDark ? '#E57373' : '#D64545'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                 >
                   <LogOut size={16} /> Sign Out
                 </button>
