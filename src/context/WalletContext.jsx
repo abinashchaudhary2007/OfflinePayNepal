@@ -201,10 +201,30 @@ export function WalletProvider({ children }) {
     const events = await getSecurityEvents(user.id);
     setSecurityEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
 
-    // Count pending and retry waiting sync items
+    // Count pending and retry waiting sync items (filtering out expired/rejected items)
     const allQueue = await getAllSyncQueueItems();
-    setPendingSyncCount(allQueue.filter(i => i.status === 'PENDING').length);
-    setRetryWaitingCount(allQueue.filter(i => i.status === 'RETRY_WAITING').length);
+    const validPending = [];
+    const validRetry = [];
+
+    for (const item of allQueue) {
+      const tx = txs.find(t => t.id === item.transactionId || t.id === item.id);
+      if (tx) {
+        const isAck = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === 'RECEIVER_ACKNOWLEDGED' || tx.status === 'SETTLED';
+        const txTime = new Date(tx.createdAt || tx.timestamp).getTime();
+        const isExpired = tx.status === 'EXPIRED' || tx.status === 'REJECTED' || tx.status === 'FAILED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED' || (!isAck && !isNaN(txTime) && (Date.now() - txTime) >= 5 * 60 * 1000);
+
+        if (isExpired) {
+          await removeSyncItem(item.id).catch(() => {});
+          continue;
+        }
+      }
+
+      if (item.status === 'PENDING') validPending.push(item);
+      if (item.status === 'RETRY_WAITING') validRetry.push(item);
+    }
+
+    setPendingSyncCount(validPending.length);
+    setRetryWaitingCount(validRetry.length);
 
     // Reconcile with authoritative Supabase remote state when online (Phase 2)
     if (typeof navigator !== 'undefined' && navigator.onLine) {
@@ -860,8 +880,9 @@ export function WalletProvider({ children }) {
         // An acknowledged or received transaction must NEVER be marked as expired
         const isAcknowledged = tx.receiverAcknowledged || tx.acknowledgedAt || tx.status === TX_STATUS.RECEIVER_ACKNOWLEDGED;
         const txAge = Date.now() - new Date(tx.createdAt || tx.timestamp).getTime();
-        if (!isAcknowledged && txAge >= 5 * 60 * 1000 && tx.status === TX_STATUS.OFFLINE_PENDING) {
+        if (tx.status === TX_STATUS.EXPIRED || tx.status === TX_STATUS.REJECTED || tx.status === 'CANCELLED' || tx.status === 'CANCELED' || (!isAcknowledged && txAge >= 5 * 60 * 1000)) {
           await expirePendingTransactions();
+          await removeSyncItem(item.id).catch(() => {});
           rejected++;
           continue;
         }
