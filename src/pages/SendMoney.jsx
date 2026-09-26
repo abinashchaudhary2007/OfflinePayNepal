@@ -1139,19 +1139,19 @@ function SendMoney() {
               onDone={() => navigate('/dashboard')}
             />
           ) : (
-            <Card padding className="space-y-5 text-center">
+            <Card padding className="space-y-6 text-center">
               {/* Header Title */}
               <div>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
                   isTxExpired
-                    ? 'bg-[#EF4444]/15 text-[#EF4444] border border-[#EF4444]/30'
+                    ? 'bg-red-50 text-red-600 border border-red-200'
                     : isSettled
-                    ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/30'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                     : isAck
-                    ? 'bg-[#38BDF8]/15 text-[#38BDF8] border border-[#38BDF8]/30'
-                    : 'bg-[#A78BFA]/15 text-[#A78BFA] border border-[#A78BFA]/30'
-                } mb-2`}>
-                  {isTxExpired ? <Clock size={12} /> : isSettled ? <CheckCircle2 size={12} /> : isAck ? <CheckCircle2 size={12} /> : <WifiOff size={12} />}
+                    ? 'bg-sky-50 text-sky-600 border border-sky-200'
+                    : 'bg-[#EEF4FF] text-[#3155B8] border border-[#C5D5F8]'
+                } mb-3`}>
+                  {isTxExpired ? <Clock size={13} /> : isSettled ? <CheckCircle2 size={13} /> : isAck ? <CheckCircle2 size={13} /> : <WifiOff size={13} />}
                   <span>
                     {isTxExpired
                       ? 'Payment Expired & Cancelled'
@@ -1162,7 +1162,8 @@ function SendMoney() {
                       : 'Waiting for Receiver'}
                   </span>
                 </span>
-                <h2 className="text-2xl font-black text-[#F8FAFC] tracking-tight">
+
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-gray-900)] tracking-tight">
                   {isTxExpired
                     ? 'Payment Expired & Cancelled'
                     : isSettled
@@ -1171,7 +1172,7 @@ function SendMoney() {
                     ? 'Receiver Acknowledged Offline'
                     : 'Waiting for Receiver'}
                 </h2>
-                <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
+                <p className="text-xs sm:text-sm text-[var(--color-gray-500)] max-w-md mx-auto mt-1.5 leading-relaxed">
                   {isTxExpired
                     ? `Not scanned within 5 minutes. ${formatCurrency(createdTx.amount)} has been automatically refunded to your wallet balance.`
                     : isSettled
@@ -1184,39 +1185,39 @@ function SendMoney() {
 
               {/* Countdown badge only if strictly unclaimed offline payment */}
               {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#A78BFA]/15 border border-[#A78BFA]/30 text-[#A78BFA] mx-auto">
-                  <Clock size={13} className="text-[#A78BFA] animate-pulse" />
+                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#EEF4FF] border border-[#C5D5F8] text-[#3155B8] mx-auto">
+                  <Clock size={14} className="text-[#3155B8] animate-pulse" />
                   <span>
                     Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not claimed
                   </span>
                 </div>
               )}
 
-              {/* Amount Display */}
-              <div className="p-3.5 rounded-2xl bg-[#172337] border border-[#263449] max-w-sm mx-auto">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#94A3B8]">
+              {/* Amount Display Card */}
+              <div className="p-4 rounded-2xl bg-[#F5F7FF] border border-[#DCE3F2] max-w-sm mx-auto shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-500)]">
                   Payment Amount
                 </span>
-                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-[#94A3B8] line-through' : 'text-[#14B8A6]'}`}>
+                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-[var(--color-gray-400)] line-through' : 'text-[#3155B8]'}`}>
                   {formatCurrency(createdTx.amount)}
                 </p>
-                <p className="text-xs text-[#94A3B8] mt-1">
-                  Paying: <strong className="text-[#F8FAFC]">{createdTx.receiverName}</strong>
+                <p className="text-xs text-[var(--color-gray-600)] mt-1">
+                  Paying: <strong className="text-[var(--color-gray-900)] font-bold">{createdTx.receiverName}</strong>
                 </p>
               </div>
 
               {/* Acknowledged Status Box if already verified by receiver */}
               {isAck && !isSettled && (
-                <div className="p-4 rounded-2xl bg-[#172337] border border-[#38BDF8]/40 max-w-sm mx-auto space-y-2.5 text-left text-xs">
-                  <div className="flex items-center gap-2 text-[#38BDF8] font-bold">
+                <div className="p-4 rounded-2xl bg-[#E8F8F1] border border-[#16A66A]/30 max-w-sm mx-auto space-y-2 text-left text-xs">
+                  <div className="flex items-center gap-2 text-[#16A66A] font-bold">
                     <CheckCircle2 size={16} />
                     <span>Receiver Acknowledged Offline</span>
                   </div>
-                  <p className="text-[11px] text-[#94A3B8] leading-relaxed">
-                    This offline payment was claimed and verified by <strong className="text-[#F8FAFC]">{currentTx.receiverName}</strong>. It is permanently protected from expiration and will settle authoritatively once connectivity is available.
+                  <p className="text-[11px] text-[#5F6B85] leading-relaxed">
+                    This offline payment was claimed and verified by <strong className="text-[#172033]">{currentTx.receiverName}</strong>. It is permanently protected from expiration and will settle authoritatively once connectivity is available.
                   </p>
-                  <div className="pt-1 flex items-center justify-between text-[10px] text-[#94A3B8] border-t border-[#263449]">
-                    <span>Status: <strong className="text-[#38BDF8]">RECEIVER_ACKNOWLEDGED</strong></span>
+                  <div className="pt-1 flex items-center justify-between text-[10px] text-[#5F6B85] border-t border-[#16A66A]/20">
+                    <span>Status: <strong className="text-[#16A66A]">RECEIVER_ACKNOWLEDGED</strong></span>
                     <span>Sync: <strong>PENDING_SYNC</strong></span>
                   </div>
                 </div>
@@ -1225,22 +1226,22 @@ function SendMoney() {
               {/* Offline QR Presentation or Expired Box */}
               {createdTx.method === 'OFFLINE_QR' && (
                 isTxExpired ? (
-                  <div className="p-5 rounded-2xl border border-[#EF4444]/40 bg-[#EF4444]/10 max-w-sm mx-auto space-y-2 text-center">
-                    <div className="w-12 h-12 rounded-full bg-[#EF4444]/20 text-[#EF4444] flex items-center justify-center mx-auto">
+                  <div className="p-5 rounded-2xl border border-red-200 bg-red-50/50 max-w-sm mx-auto space-y-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
                       <Clock size={24} />
                     </div>
-                    <p className="text-sm font-bold text-[#EF4444]">5-Minute Time Limit Exceeded</p>
-                    <p className="text-xs text-[#EF4444] leading-relaxed">
+                    <p className="text-sm font-bold text-red-700">5-Minute Time Limit Exceeded</p>
+                    <p className="text-xs text-red-600 leading-relaxed">
                       This payment was not received or scanned within 5 minutes. The QR token has been automatically cancelled and your funds ({formatCurrency(createdTx.amount)}) are refunded.
                     </p>
                   </div>
                 ) : (
                   qrDataUrl && (
-                    <div className="p-4 rounded-2xl border border-[#263449] bg-[#172337] max-w-sm mx-auto space-y-3">
-                      <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#263449]">
-                        <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-60 h-60 mx-auto" />
+                    <div className="p-5 rounded-2xl border border-[#DCE3F2] bg-[#F5F7FF] max-w-sm mx-auto space-y-3.5 shadow-xs">
+                      <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#DCE3F2]">
+                        <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-56 h-56 sm:w-60 sm:h-60 mx-auto" />
                       </div>
-                      <p className="text-[11px] text-[#94A3B8] font-medium">
+                      <p className="text-[11px] text-[var(--color-gray-500)] font-medium">
                         Signed with local ECDSA P-256 device key · Anti-replay protected
                       </p>
                     </div>
@@ -1250,14 +1251,14 @@ function SendMoney() {
 
               {/* Two-Way Offline Acknowledgment Scanning Block */}
               {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
-                <div className="p-4 rounded-2xl bg-[#172337] border border-[#38BDF8]/30 max-w-sm mx-auto space-y-3">
-                  <div className="flex items-center gap-2.5 text-left">
-                    <div className="w-9 h-9 rounded-xl bg-[#38BDF8]/20 text-[#38BDF8] flex items-center justify-center flex-shrink-0">
-                      <Camera size={18} />
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#EEF4FF] border border-[#C5D5F8] max-w-sm mx-auto space-y-3 text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#3155B8]/15 text-[#3155B8] flex items-center justify-center flex-shrink-0">
+                      <Camera size={20} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-[#F8FAFC]">Scan Receiver Acknowledgment</p>
-                      <p className="text-[10px] text-[#94A3B8]">
+                      <p className="text-xs font-bold text-[#172B75]">Scan Receiver Acknowledgment</p>
+                      <p className="text-[11px] text-[#5F6B85] mt-0.5">
                         After the receiver scans your payment, scan their signed acknowledgment QR
                       </p>
                     </div>
@@ -1270,11 +1271,10 @@ function SendMoney() {
                         className="w-full rounded-xl overflow-hidden border border-[#DCE3F2] bg-slate-900 min-h-[220px]"
                       />
                       {ackScanError && (
-                        <div className="p-2.5 rounded-lg bg-[#FDECEC] border border-[#D64545]/30 text-[#D64545] text-xs font-medium">
+                        <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
                           {ackScanError}
                         </div>
                       )}
-                      {/* Manual JSON fallback in case camera is blocked */}
                       <div className="space-y-1.5 text-left">
                         <span className="text-[10px] text-[#5F6B85] font-semibold">Or paste receiver acknowledgment JSON:</span>
                         <textarea
@@ -1282,7 +1282,7 @@ function SendMoney() {
                           value={manualAckInput}
                           onChange={e => setManualAckInput(e.target.value)}
                           placeholder='Paste acknowledgment payload...'
-                          className="w-full p-2 text-[10px] font-mono bg-[#F5F7FF] text-[#172033] border border-[#DCE3F2] rounded-lg outline-none focus:border-[#3155B8]"
+                          className="w-full p-2 text-[10px] font-mono bg-white text-[#172033] border border-[#DCE3F2] rounded-lg outline-none focus:border-[#3155B8]"
                         />
                         {manualAckInput.trim() && (
                           <Button
@@ -1317,13 +1317,13 @@ function SendMoney() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <Button
                         variant="primary"
                         onClick={handleStartAckScanner}
                         leftIcon={<Camera size={16} />}
                         id="btn-scan-receiver-ack"
-                        className="flex-1 bg-[#0284C7] hover:bg-[#0369A1] font-bold text-xs"
+                        className="flex-1 bg-[#3155B8] hover:bg-[#172B75] font-bold text-xs text-white"
                       >
                         Camera Scanner
                       </Button>
@@ -1332,7 +1332,7 @@ function SendMoney() {
                         onClick={() => ackFileInputRef.current?.click()}
                         leftIcon={<ImageIcon size={16} />}
                         id="btn-upload-receiver-ack-img"
-                        className="flex-1 border-[#38BDF8]/40 text-[#38BDF8] hover:bg-[#38BDF8]/10 text-xs font-semibold"
+                        className="flex-1 border-[#3155B8]/40 text-[#3155B8] hover:bg-indigo-50/50 text-xs font-semibold"
                       >
                         Upload Image
                       </Button>
@@ -1357,7 +1357,7 @@ function SendMoney() {
                   className="w-full flex items-center justify-between text-xs font-semibold text-[var(--color-gray-500)] hover:text-[var(--color-gray-700)] p-2 rounded-lg hover:bg-slate-50 border border-transparent transition-colors cursor-pointer"
                 >
                   <span className="flex items-center gap-1.5">
-                    <ShieldCheck size={14} className="text-indigo-600" />
+                    <ShieldCheck size={14} className="text-[#3155B8]" />
                     <span>Technical Cryptographic Details</span>
                   </span>
                   <ChevronDown
@@ -1389,7 +1389,7 @@ function SendMoney() {
                 <Button
                   variant="primary"
                   onClick={() => navigate('/dashboard')}
-                  className="w-full sm:w-1/2 font-bold"
+                  className="w-full sm:w-1/2 font-bold bg-[#3155B8] hover:bg-[#172B75]"
                 >
                   Done
                 </Button>
