@@ -115,19 +115,21 @@ export function calcPercentage(used, total) {
 export function getStatusBadgeClass(status) {
   const map = {
     SETTLED:               'badge-settled',
-    VERIFIED:              'badge-verified',
-    OFFLINE_PENDING:       'badge-offline',
-    RECEIVER_ACKNOWLEDGED: 'badge-offline',
+    VERIFIED:              'badge-settled',
+    OFFLINE_PENDING:       'badge-pending',
+    RECEIVER_ACKNOWLEDGED: 'badge-settled',
     PENDING:               'badge-pending',
-    SYNCING:               'badge-syncing',
-    REJECTED:              'badge-rejected',
+    SYNCING:               'badge-pending',
+    REJECTED:              'badge-failed',
     FAILED:                'badge-failed',
-    ACTIVE:                'badge-active',
-    CREATED:               'badge-syncing',
-    RETRY_WAITING:         'badge-pending',
+    CANCELLED:             'badge-failed',
+    CANCELED:              'badge-failed',
     EXPIRED:               'badge-failed',
+    ACTIVE:                'badge-active',
+    CREATED:               'badge-pending',
+    RETRY_WAITING:         'badge-pending',
   };
-  return map[status] || 'badge-syncing';
+  return map[status] || 'badge-pending';
 }
 
 /**
@@ -135,18 +137,20 @@ export function getStatusBadgeClass(status) {
  */
 export function getStatusLabel(status) {
   const map = {
-    SETTLED:               'Settled',
-    VERIFIED:              'Verified',
-    OFFLINE_PENDING:       'Offline Pending',
-    RECEIVER_ACKNOWLEDGED: 'Receiver Acknowledged',
+    SETTLED:               'Success',
+    VERIFIED:              'Success',
+    OFFLINE_PENDING:       'Pending',
+    RECEIVER_ACKNOWLEDGED: 'Success',
     PENDING:               'Pending',
-    SYNCING:               'Syncing',
-    RETRY_WAITING:         'Retrying',
-    REJECTED:              'Rejected',
-    FAILED:                'Failed',
+    SYNCING:               'Pending',
+    RETRY_WAITING:         'Pending',
+    REJECTED:              'Canceled',
+    FAILED:                'Canceled',
+    CANCELLED:             'Canceled',
+    CANCELED:              'Canceled',
+    EXPIRED:               'Canceled',
     ACTIVE:                'Active',
-    CREATED:         'Created',
-    EXPIRED:         'Expired',
+    CREATED:               'Pending',
   };
   return map[status] || status;
 }

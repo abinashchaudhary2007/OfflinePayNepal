@@ -15,7 +15,7 @@ import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { formatCurrency, formatDateTime, formatRelativeTime } from '../utils/formatting';
 
-const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Settled', 'Expired', 'Rejected'];
+const FILTERS = ['All', 'Sent', 'Received', 'Offline', 'Online', 'Pending', 'Success', 'Canceled'];
 
 function Transactions() {
   const { currentUser } = useAuth();
@@ -42,10 +42,9 @@ function Transactions() {
     else if (activeFilter === 'Received') list = list.filter(tx => tx.receiverId === userId);
     else if (activeFilter === 'Offline')  list = list.filter(tx => tx.method === 'OFFLINE_QR');
     else if (activeFilter === 'Online')   list = list.filter(tx => tx.method === 'ONLINE');
-    else if (activeFilter === 'Pending')  list = list.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING');
-    else if (activeFilter === 'Settled')  list = list.filter(tx => tx.status === 'SETTLED');
-    else if (activeFilter === 'Expired')  list = list.filter(tx => tx.status === 'EXPIRED');
-    else if (activeFilter === 'Rejected') list = list.filter(tx => tx.status === 'REJECTED');
+    else if (activeFilter === 'Pending')  list = list.filter(tx => tx.status === 'OFFLINE_PENDING' || tx.status === 'PENDING' || tx.status === 'SYNCING' || tx.status === 'RETRY_WAITING');
+    else if (activeFilter === 'Success' || activeFilter === 'Settled') list = list.filter(tx => tx.status === 'SETTLED' || tx.status === 'VERIFIED' || tx.status === 'RECEIVER_ACKNOWLEDGED');
+    else if (activeFilter === 'Canceled' || activeFilter === 'Expired' || activeFilter === 'Rejected') list = list.filter(tx => tx.status === 'EXPIRED' || tx.status === 'CANCELLED' || tx.status === 'CANCELED' || tx.status === 'REJECTED' || tx.status === 'FAILED');
 
     // Apply search
     if (search.trim()) {
