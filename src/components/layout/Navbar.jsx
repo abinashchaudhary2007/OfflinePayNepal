@@ -44,20 +44,20 @@ function Navbar({
         {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Logo */}
-      <Link to="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group">
+      {/* Logo — shown on mobile/tablet when sidebar is hidden */}
+      <Link to="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group md:hidden">
         <img
           src="/logo.png"
           alt="OfflinePay Nepal Logo"
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain bg-white shadow-xs p-0.5 border border-white/20 transition-transform group-hover:scale-105"
         />
         <span
-          className="hidden sm:block font-extrabold text-sm sm:text-base tracking-tight text-white"
+          className="font-extrabold text-sm sm:text-base tracking-tight text-white"
         >
           OfflinePay
         </span>
         <span
-          className="hidden md:block text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-[#3155B8] text-white border border-[#4F6FD8]/40"
+          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider bg-[#3155B8] text-white border border-[#4F6FD8]/40"
         >
           Nepal
         </span>

@@ -46,7 +46,7 @@ function DashboardLayout({ children }) {
       />
 
       {/* Body: Sidebar + Main */}
-      <div className="flex flex-1 overflow-hidden gap-6">
+      <div className="flex flex-1 overflow-hidden gap-0 md:gap-6">
         {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}

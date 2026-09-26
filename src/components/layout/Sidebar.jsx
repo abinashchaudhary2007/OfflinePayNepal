@@ -42,27 +42,32 @@ function Sidebar({ isOpen, onClose }) {
         `}
       >
         {/* ── Brand header ── */}
-        <div className="flex items-center justify-between px-7 py-8 border-b border-white/10">
-          <Link to="/dashboard" onClick={onClose} className="flex items-center gap-4 no-underline group">
-            <div className="w-12 h-12 rounded-2xl bg-[#3155B8] flex items-center justify-center text-white shadow-lg border border-white/20 transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(49,85,184,0.6)]">
-              <CreditCard size={24} />
-            </div>
+        <div className="flex items-center justify-between px-6 py-6 border-b border-white/10">
+          <Link to="/dashboard" onClick={onClose} className="flex items-center gap-3 no-underline group">
+            <img
+              src="/logo.png"
+              alt="OfflinePay Nepal Logo"
+              className="w-10 h-10 rounded-xl object-contain bg-white shadow-md p-0.5 border border-white/20 transition-transform group-hover:scale-105"
+            />
             <div>
-              <div className="font-extrabold text-[20px] tracking-tight text-white leading-tight">
-                OfflinePay
+              <div className="font-black text-base tracking-tight text-white leading-tight flex items-center gap-1.5">
+                <span>OfflinePay</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider bg-[#3155B8] text-white border border-[#4F6FD8]/40">
+                  Nepal
+                </span>
               </div>
-              <div className="text-[13px] font-medium text-white/55 mt-1">
-                Nepal
+              <div className="text-[11px] font-medium text-white/55 mt-0.5">
+                Offline Payment Wallet
               </div>
             </div>
           </Link>
 
           <button
-            className="md:hidden p-2.5 rounded-xl hover:bg-white/10 text-white/70 hover:text-white cursor-pointer transition-colors duration-200"
+            className="md:hidden p-2 rounded-xl hover:bg-white/10 text-white/70 hover:text-white cursor-pointer transition-colors duration-200"
             onClick={onClose}
             aria-label="Close sidebar"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
         </div>
 
