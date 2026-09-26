@@ -32,12 +32,12 @@ function Navbar({
 
   return (
     <nav
-      className="h-14 sm:h-16 bg-[#172B75] border-b border-[#12215B] flex items-center px-3 sm:px-4 md:px-6 gap-2 sm:gap-4 sticky top-0 z-30"
+      className="h-14 sm:h-16 bg-[#172B75] border-b border-[#12215B] flex items-center px-4 sm:px-6 md:px-8 gap-3 sm:gap-4.5 sticky top-0 z-30"
       style={{ boxShadow: '0 2px 12px rgba(23, 43, 117, 0.25)' }}
     >
-      {/* Mobile menu toggle */}
+      {/* Mobile menu toggle with comfortable left & right gap */}
       <button
-        className="md:hidden p-2 rounded-lg hover:bg-[#12215B] text-white/80 hover:text-white transition-colors touch-target"
+        className="md:hidden p-2 mr-1 rounded-lg hover:bg-[#12215B] text-white/80 hover:text-white transition-colors touch-target cursor-pointer"
         onClick={onMenuToggle}
         aria-label={isSidebarOpen ? 'Close menu' : 'Open menu'}
       >
@@ -45,7 +45,7 @@ function Navbar({
       </button>
 
       {/* Brand — always visible beside the toggle */}
-      <Link to="/dashboard" className="flex items-center gap-2 no-underline flex-shrink-0 group">
+      <Link to="/dashboard" className="flex items-center gap-2.5 no-underline flex-shrink-0 group">
         <img
           src="/logo.png"
           alt="OfflinePay Nepal Logo"
@@ -62,8 +62,8 @@ function Navbar({
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Connectivity status + toggle */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* Connectivity status + Offline Simulation Toggle */}
+      <div className="flex items-center gap-2 sm:gap-2.5 mr-1 sm:mr-2">
         <OnlineStatusPill isOffline={isOffline} isSimulating={isSimulating} />
 
         <button
@@ -86,8 +86,10 @@ function Navbar({
         </button>
       </div>
 
-      {/* Dark / Light Mode Toggle */}
-      <ThemeToggle />
+      {/* Dark / Light Mode Toggle with margin */}
+      <div className="flex items-center px-1">
+        <ThemeToggle />
+      </div>
 
       {/* Notification bell */}
       <button
@@ -99,7 +101,7 @@ function Navbar({
       </button>
 
       {/* Profile dropdown */}
-      <div className="relative">
+      <div className="relative ml-1">
         <button
           onClick={() => setIsProfileOpen(p => !p)}
           className="flex items-center gap-2 p-1 pr-2 rounded-xl hover:bg-[#12215B] transition-colors cursor-pointer"
