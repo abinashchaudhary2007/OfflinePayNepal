@@ -72,14 +72,14 @@ function Sidebar({ isOpen, onClose }) {
         </div>
 
         {/* ── Navigation links ── */}
-        <nav className="flex-1 overflow-y-auto px-3.5 py-5 space-y-1.5">
+        <nav className="flex-1 overflow-y-auto px-3.5 py-5 space-y-3">
           {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               onClick={onClose}
               className={({ isActive }) =>
-                `group relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold
+                `group relative flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-semibold
                  transition-all duration-200 ease-out no-underline cursor-pointer
                  ${isActive
                    ? 'bg-[#3155B8] text-white shadow-md shadow-[#3155B8]/30 font-bold'
@@ -91,16 +91,16 @@ function Sidebar({ isOpen, onClose }) {
                 <>
                   {/* Active left accent bar */}
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-5 rounded-r-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 rounded-r-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                   )}
 
                   {/* Icon with hover scale */}
                   <span className={`transition-transform duration-200 ${!isActive ? 'group-hover:scale-105' : ''}`}>
-                    <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+                    <Icon size={21} strokeWidth={isActive ? 2.2 : 1.8} />
                   </span>
 
                   {/* Label */}
-                  <span className="tracking-tight">{label}</span>
+                  <span className="tracking-wide text-[15px]">{label}</span>
                 </>
               )}
             </NavLink>
@@ -113,7 +113,7 @@ function Sidebar({ isOpen, onClose }) {
                 to="/admin"
                 onClick={onClose}
                 className={({ isActive }) =>
-                  `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold
+                  `group flex items-center gap-4 px-4 py-3.5 rounded-xl text-base font-semibold
                    transition-all duration-200 no-underline cursor-pointer
                    ${isActive
                      ? 'bg-[#3155B8] text-white shadow-md shadow-[#3155B8]/30 font-bold'
@@ -121,7 +121,7 @@ function Sidebar({ isOpen, onClose }) {
                    }`
                 }
               >
-                <span>Admin Console</span>
+                <span className="text-[15px] tracking-wide">Admin Console</span>
               </NavLink>
             </div>
           )}
