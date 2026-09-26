@@ -174,8 +174,8 @@ function ReceiveMoney() {
               <label htmlFor="req-amount" className="text-xs font-bold text-[#172033] uppercase tracking-wider block mb-1">
                 Requested Amount (NPR)
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8993A8]">
+              <div className="relative flex items-center">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#8993A8] pointer-events-none select-none z-10">
                   Rs.
                 </span>
                 <input
@@ -184,7 +184,7 @@ function ReceiveMoney() {
                   placeholder="e.g. 250"
                   value={requestAmount}
                   onChange={e => setRequestAmount(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-base font-bold text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
+                  className="w-full pl-12 pr-3 py-2 text-base font-bold text-[#172033] bg-[#F5F7FF] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
                 />
               </div>
             </div>

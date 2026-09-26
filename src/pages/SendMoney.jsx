@@ -845,8 +845,8 @@ function SendMoney() {
                 </span>
               </div>
 
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--color-gray-400)]">
+              <div className="relative flex items-center">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--color-gray-400)] pointer-events-none select-none z-10">
                   Rs.
                 </span>
                 <input
@@ -860,7 +860,7 @@ function SendMoney() {
                     setAmount(e.target.value);
                     setError('');
                   }}
-                  className="w-full pl-14 pr-4 py-3.5 text-2xl font-black text-[var(--color-gray-900)] border-2 border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-xl outline-none transition-colors"
+                  className="w-full pl-[4.5rem] pr-4 py-3.5 text-2xl font-black text-[var(--color-gray-900)] bg-white border-2 border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-xl outline-none transition-colors"
                   autoFocus
                 />
               </div>
