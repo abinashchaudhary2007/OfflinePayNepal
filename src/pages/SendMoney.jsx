@@ -395,8 +395,23 @@ function SendMoney() {
         ackScannerRef.current = html5QrCode;
 
         await html5QrCode.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
+          {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          {
+            fps: 25,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const boxSize = Math.floor(minEdge * 0.85);
+              return { width: Math.max(200, boxSize), height: Math.max(200, boxSize) };
+            },
+            aspectRatio: 1.0,
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true,
+            },
+          },
           async (decodedText) => {
             try {
               if (html5QrCode.isScanning) await html5QrCode.stop();
