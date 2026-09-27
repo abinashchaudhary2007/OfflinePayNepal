@@ -52,10 +52,10 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
   return (
     <div
       style={{
-        padding: '30px 32px',
-        borderRadius: '1.5rem',
+        padding: '22px 26px',
+        borderRadius: '20px',
         background: 'linear-gradient(135deg, #172B75 0%, #1C358A 50%, #2B4DAE 100%)',
-        boxShadow: '0 14px 35px -8px rgba(23, 43, 117, 0.45)',
+        boxShadow: '0 10px 28px -6px rgba(23, 43, 117, 0.35)',
         border: '1px solid rgba(255, 255, 255, 0.15)',
         position: 'relative',
         overflow: 'hidden',
@@ -67,19 +67,19 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
       <div
         style={{
           position: 'absolute',
-          right: '-40px',
+          right: '-20px',
           top: '50%',
           transform: 'translateY(-50%)',
           pointerEvents: 'none',
-          opacity: 0.22,
+          opacity: 0.18,
           userSelect: 'none',
         }}
       >
-        <svg width="340" height="340" viewBox="0 0 340 340" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="170" cy="170" r="160" stroke="white" strokeWidth="2" strokeDasharray="6 6" />
-          <circle cx="170" cy="170" r="120" stroke="white" strokeWidth="2" />
-          <circle cx="170" cy="170" r="80" fill="white" fillOpacity="0.08" />
-          <circle cx="170" cy="170" r="40" fill="white" fillOpacity="0.12" />
+        <svg width="260" height="260" viewBox="0 0 260 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="130" cy="130" r="120" stroke="white" strokeWidth="1.5" strokeDasharray="5 5" />
+          <circle cx="130" cy="130" r="90" stroke="white" strokeWidth="1.5" />
+          <circle cx="130" cy="130" r="60" fill="white" fillOpacity="0.08" />
+          <circle cx="130" cy="130" r="30" fill="white" fillOpacity="0.12" />
         </svg>
       </div>
 
@@ -92,13 +92,13 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
-          marginBottom: '14px',
+          marginBottom: '8px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span
             style={{
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               fontWeight: 800,
               textTransform: 'uppercase',
               letterSpacing: '0.12em',
@@ -131,9 +131,9 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
         <button
           onClick={() => setIsHidden(h => !h)}
           style={{
-            width: '34px',
-            height: '34px',
-            borderRadius: '10px',
+            width: '30px',
+            height: '30px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -148,7 +148,7 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           aria-label={isHidden ? 'Show balance' : 'Hide balance'}
           title={isHidden ? 'Show balance' : 'Hide balance'}
         >
-          {isHidden ? <Eye size={16} /> : <EyeOff size={16} />}
+          {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
         </button>
       </div>
 
@@ -159,18 +159,18 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           zIndex: 10,
           display: 'flex',
           alignItems: 'center',
-          gap: '14px',
-          margin: '10px 0 12px 0',
+          gap: '12px',
+          margin: '4px 0 8px 0',
           flexWrap: 'wrap',
         }}
       >
         <div
           style={{
-            fontSize: 'clamp(2.25rem, 5vw, 3.25rem)',
+            fontSize: 'clamp(1.75rem, 3.5vw, 2.35rem)',
             fontWeight: 900,
             color: '#FFFFFF',
             letterSpacing: '-0.02em',
-            lineHeight: 1.1,
+            lineHeight: 1.15,
           }}
         >
           {hide(formatCurrency(wallet.availableBalance))}
@@ -182,9 +182,9 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           onClick={handleRefreshClick}
           disabled={isSpinning}
           style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
+            width: '34px',
+            height: '34px',
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -192,7 +192,7 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
             border: '1px solid rgba(255, 255, 255, 0.25)',
             color: '#FFFFFF',
             cursor: isSpinning ? 'default' : 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
             transition: 'all 0.2s ease',
             flexShrink: 0,
           }}
@@ -206,7 +206,7 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           title="Refresh balance"
         >
           <RefreshCw
-            size={18}
+            size={15}
             style={{
               transition: 'transform 0.4s ease',
               animation: isSpinning ? 'spin 1s linear infinite' : 'none',
@@ -216,17 +216,17 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
       </div>
 
       {/* Currency Label Pill */}
-      <div style={{ position: 'relative', zIndex: 10, marginBottom: '18px' }}>
+      <div style={{ position: 'relative', zIndex: 10, marginBottom: '12px' }}>
         <span
           style={{
-            fontSize: '0.6875rem',
+            fontSize: '0.625rem',
             fontWeight: 800,
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
             color: 'rgba(255, 255, 255, 0.8)',
             background: 'rgba(255, 255, 255, 0.12)',
-            padding: '3px 8px',
-            borderRadius: '6px',
+            padding: '2px 7px',
+            borderRadius: '5px',
             border: '1px solid rgba(255, 255, 255, 0.12)',
           }}
         >
@@ -239,26 +239,26 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
         style={{
           position: 'relative',
           zIndex: 10,
-          paddingTop: '16px',
-          marginTop: '16px',
-          borderTop: '1px solid rgba(255, 255, 255, 0.18)',
+          paddingTop: '12px',
+          marginTop: '12px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.15)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
           flexWrap: 'wrap',
-          fontSize: '0.8125rem',
+          fontSize: '0.78rem',
           color: 'rgba(255, 255, 255, 0.9)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span
             style={{
-              width: '10px',
-              height: '10px',
+              width: '8px',
+              height: '8px',
               borderRadius: '9999px',
               background: '#16A66A',
-              boxShadow: '0 0 8px #16A66A',
+              boxShadow: '0 0 6px #16A66A',
               flexShrink: 0,
             }}
           />
@@ -270,7 +270,7 @@ function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncS
           </span>
         </div>
 
-        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)' }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)' }}>
           {isOffline ? '⚡ Offline Ready' : '🟢 Real-time Sync'}
         </div>
       </div>

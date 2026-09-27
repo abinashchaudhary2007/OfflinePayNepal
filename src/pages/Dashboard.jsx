@@ -90,7 +90,7 @@ function Dashboard() {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '24px',
+          gap: '18px',
         }}
       >
 
@@ -107,7 +107,7 @@ function Dashboard() {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
                 Dashboard
               </h1>
               <span
@@ -128,7 +128,7 @@ function Dashboard() {
                 <span>ECDSA P-256 Secured</span>
               </span>
             </div>
-            <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px', marginBottom: 0 }}>
+            <p style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px', marginBottom: 0 }}>
               Welcome back, <strong style={{ color: 'var(--text-primary)' }}>{userName}</strong> · {formattedDate}
             </p>
           </div>

@@ -47,8 +47,8 @@ function PaymentActions({ isOffline }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-        gap: '16px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+        gap: '14px',
         width: '100%',
       }}
       className="grid grid-cols-2 sm:grid-cols-4"
@@ -62,47 +62,47 @@ function PaymentActions({ isOffline }) {
             background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
             border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
             color: 'var(--text-primary)',
-            padding: '24px 18px',
-            borderRadius: '1.25rem',
+            padding: '16px 14px',
+            borderRadius: '16px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             textDecoration: 'none',
-            boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 6px rgba(23,43,117,0.05)',
             transition: 'all 0.2s ease',
           }}
-          className="group cursor-pointer hover:-translate-y-1 active:scale-95"
+          className="group cursor-pointer hover:-translate-y-0.5 active:scale-95"
           onMouseEnter={e => {
             e.currentTarget.style.borderColor = isDark ? 'var(--border-hover)' : '#3155B8';
-            e.currentTarget.style.boxShadow = isDark ? '0 6px 18px rgba(0,0,0,0.35)' : '0 8px 20px rgba(23,43,117,0.12)';
+            e.currentTarget.style.boxShadow = isDark ? '0 4px 14px rgba(0,0,0,0.3)' : '0 6px 16px rgba(23,43,117,0.1)';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.borderColor = isDark ? 'var(--border-color)' : '#DCE3F2';
-            e.currentTarget.style.boxShadow = isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)';
+            e.currentTarget.style.boxShadow = isDark ? 'var(--shadow-card)' : '0 2px 6px rgba(23,43,117,0.05)';
           }}
         >
           <div
             style={{
               backgroundColor: iconBg,
               color: iconColor,
-              width: '52px',
-              height: '52px',
-              borderRadius: '1rem',
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
+              marginBottom: '8px',
               transition: 'transform 0.2s ease',
             }}
-            className="group-hover:scale-110"
+            className="group-hover:scale-105"
           >
-            <Icon size={24} strokeWidth={2.4} />
+            <Icon size={20} strokeWidth={2.4} />
           </div>
           <span
             style={{
               color: 'var(--text-primary)',
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               fontWeight: 700,
               letterSpacing: '-0.01em',
               textAlign: 'center',
