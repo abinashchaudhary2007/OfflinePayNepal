@@ -14,18 +14,22 @@ const Input = forwardRef(function Input({
   className = '',
   containerClassName = '',
   id,
+  style,
   ...props
 }, ref) {
   const [showPassword, setShowPassword] = useState(false);
   const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
   const resolvedType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
 
+  const padLeft = leftIcon ? '48px' : '18px';
+  const padRight = (rightIcon || type === 'password') ? '48px' : '18px';
+
   return (
-    <div className={`flex flex-col gap-1.5 ${containerClassName}`}>
+    <div className={`flex flex-col gap-2 ${containerClassName}`}>
       {label && (
         <label
           htmlFor={inputId}
-          className="text-sm font-semibold text-[var(--color-gray-700)]"
+          className="text-xs sm:text-sm font-bold text-[var(--text-primary)]"
         >
           {label}
         </label>
@@ -33,7 +37,7 @@ const Input = forwardRef(function Input({
 
       <div className="relative flex items-center">
         {leftIcon && (
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-gray-400)] pointer-events-none flex items-center justify-center">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-gray-400)] pointer-events-none flex items-center justify-center z-10">
             {leftIcon}
           </span>
         )}
@@ -42,10 +46,22 @@ const Input = forwardRef(function Input({
           ref={ref}
           id={inputId}
           type={resolvedType}
+          style={{
+            paddingLeft: padLeft,
+            paddingRight: padRight,
+            paddingTop: '14px',
+            paddingBottom: '14px',
+            minHeight: '50px',
+            fontSize: '0.95rem',
+            lineHeight: '1.5',
+            boxSizing: 'border-box',
+            width: '100%',
+            ...style,
+          }}
           className={`
             input-field
-            ${leftIcon ? 'has-left-icon pl-11' : ''}
-            ${rightIcon || type === 'password' ? 'has-right-icon pr-11' : ''}
+            ${leftIcon ? 'has-left-icon' : ''}
+            ${rightIcon || type === 'password' ? 'has-right-icon' : ''}
             ${error ? 'error' : ''}
             ${className}
           `}

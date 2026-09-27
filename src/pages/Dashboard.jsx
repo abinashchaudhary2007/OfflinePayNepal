@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, RefreshCw, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import BalanceCard from '../components/wallet/BalanceCard';
 import PaymentActions from '../components/wallet/QuickActions';
+import QuickPayees from '../components/wallet/QuickPayees';
 import OfflineReadinessCard from '../components/wallet/OfflineReadinessCard';
 import RecentTransactionsPreview from '../components/wallet/RecentTransactionsPreview';
+import FinancialAnalyticsChart from '../components/wallet/FinancialAnalyticsChart';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
@@ -15,7 +17,7 @@ function Dashboard() {
   const {
     wallet, device, authorization, transactions,
     pendingSyncCount, retryWaitingCount, syncStatus, syncTransactions, isInitialized,
-    registerDevice,
+    initWallet, registerDevice,
   } = useWallet();
   const { isOffline } = useOfflineSimulation();
   const { isDark } = useTheme();
@@ -25,14 +27,14 @@ function Dashboard() {
   // Compute harmonized wallet balances from real transactions
   const totalSent = useMemo(() => (
     (transactions || [])
-      .filter(tx => tx.senderId === currentUser?.id && tx.status === 'SETTLED')
-      .reduce((s, tx) => s + tx.amount, 0)
+      .filter(tx => tx.senderId === currentUser?.id && (tx.status === 'SETTLED' || tx.status === 'VERIFIED' || !tx.status))
+      .reduce((s, tx) => s + (Number(tx.amount) || 0), 0)
   ), [transactions, currentUser?.id]);
 
   const totalReceived = useMemo(() => (
     (transactions || [])
-      .filter(tx => tx.receiverId === currentUser?.id && tx.status === 'SETTLED')
-      .reduce((s, tx) => s + tx.amount, 0)
+      .filter(tx => tx.receiverId === currentUser?.id && (tx.status === 'SETTLED' || tx.status === 'VERIFIED' || !tx.status))
+      .reduce((s, tx) => s + (Number(tx.amount) || 0), 0)
   ), [transactions, currentUser?.id]);
 
   const harmonizedWallet = wallet ? {
@@ -50,6 +52,19 @@ function Dashboard() {
     }
   };
 
+  const handleRefreshBalance = async () => {
+    try {
+      if (!isOffline && currentUser) {
+        await syncTransactions(currentUser);
+      }
+      if (currentUser) {
+        await initWallet(currentUser);
+      }
+    } catch (e) {
+      console.error('[dashboard refresh balance error]', e);
+    }
+  };
+
   const handleRegisterDevice = async () => {
     try {
       await registerDevice(currentUser.id);
@@ -58,7 +73,7 @@ function Dashboard() {
     }
   };
 
-  // Format dynamic date exactly like reference: "Thursday, 24 Sep 2026"
+  // Format dynamic date: "Sunday, Sep 27, 2026"
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     day: 'numeric',
@@ -66,28 +81,96 @@ function Dashboard() {
     year: 'numeric',
   }).format(new Date());
 
+  const userName = currentUser?.name || 'User';
+
   return (
     <DashboardLayout>
-      <div className="animate-fade-in pb-12 space-y-8 sm:space-y-9">
+      <div
+        className="animate-fade-in pb-16"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px',
+        }}
+      >
 
-        {/* ─── Dashboard Header ─── */}
-        <div className="flex items-center justify-between gap-4">
+        {/* ─── Dashboard Header & Greeting ─── */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              Dashboard
-            </h1>
-            <p className="text-xs sm:text-sm font-medium mt-1" style={{ color: 'var(--text-secondary)' }}>
-              {formattedDate}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+                Dashboard
+              </h1>
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: 9999,
+                  background: isDark ? 'rgba(79,111,216,0.18)' : '#EAF0FF',
+                  color: isDark ? '#93A7F0' : '#172B75',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                className="hidden sm:inline-flex"
+              >
+                <ShieldCheck size={11} />
+                <span>ECDSA P-256 Secured</span>
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '4px', marginBottom: 0 }}>
+              Welcome back, <strong style={{ color: 'var(--text-primary)' }}>{userName}</strong> · {formattedDate}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {totalUnsynced > 0 && !isOffline && (
+              <button
+                onClick={handleSync}
+                disabled={syncStatus === 'syncing'}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: isDark ? 'rgba(242,169,0,0.15)' : '#FFF6DD',
+                  color: isDark ? '#F2A900' : '#B57F00',
+                  border: `1px solid ${isDark ? 'rgba(242,169,0,0.3)' : 'rgba(242,169,0,0.3)'}`,
+                }}
+                title="Sync offline transactions to server"
+              >
+                <RefreshCw size={13} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+                <span>Sync ({totalUnsynced})</span>
+              </button>
+            )}
+
             <button
-              className="w-10 h-10 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-xs"
               style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
                 background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
                 color: isDark ? '#4F6FD8' : '#3155B8',
                 border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                transition: 'all 0.15s ease',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--border-color)' : '#D6E3FF'; }}
               onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; }}
@@ -99,12 +182,25 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* ─── 1. Balance Card ─── */}
+        {/* ─── 1. Balance Card with Refresh Button beside Amount ─── */}
         <div>
           {isInitialized ? (
-            <BalanceCard wallet={harmonizedWallet} isOffline={isOffline} />
+            <BalanceCard
+              wallet={harmonizedWallet}
+              isOffline={isOffline}
+              onRefresh={handleRefreshBalance}
+              syncStatus={syncStatus}
+            />
           ) : (
-            <div className="rounded-2xl sm:rounded-3xl p-8 bg-white border border-[#DCE3F2] animate-pulse h-52 shadow-xs" />
+            <div
+              style={{
+                borderRadius: '1.5rem',
+                padding: '30px',
+                background: '#172B75',
+                height: '210px',
+              }}
+              className="animate-pulse border border-white/10 shadow-xs"
+            />
           )}
         </div>
 
@@ -113,7 +209,12 @@ function Dashboard() {
           <PaymentActions isOffline={isOffline} />
         </div>
 
-        {/* ─── 3. Offline Readiness ─── */}
+        {/* ─── 3. Quick Payees / Frequent Contacts ─── */}
+        <div>
+          <QuickPayees />
+        </div>
+
+        {/* ─── 4. Offline Readiness Card ─── */}
         <div>
           <OfflineReadinessCard
             device={device}
@@ -126,9 +227,14 @@ function Dashboard() {
           />
         </div>
 
-        {/* ─── 4. Recent Transactions ─── */}
+        {/* ─── 5. Recent Transactions Statements ─── */}
         <div>
           <RecentTransactionsPreview />
+        </div>
+
+        {/* ─── 6. Debit & Credit Bar Graph Analytics (at the bottom) ─── */}
+        <div>
+          <FinancialAnalyticsChart />
         </div>
 
       </div>

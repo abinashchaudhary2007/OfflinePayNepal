@@ -49,6 +49,23 @@ export function formatRelativeTime(dateStr) {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now - date;
+
+  // Handle Future Timestamps (e.g., token expiration dates)
+  if (diffMs < 0) {
+    const futureMs = Math.abs(diffMs);
+    const futureSecs = Math.floor(futureMs / 1000);
+    const futureMins = Math.floor(futureSecs / 60);
+    const futureHours = Math.floor(futureMins / 60);
+    const futureDays = Math.floor(futureHours / 24);
+
+    if (futureSecs < 60)  return 'in < 1m';
+    if (futureMins < 60)  return `in ${futureMins}m`;
+    if (futureHours < 24) return `in ${futureHours}h`;
+    if (futureDays < 30)  return `in ${futureDays}d`;
+    return formatDate(dateStr);
+  }
+
+  // Handle Past Timestamps
   const diffSecs = Math.floor(diffMs / 1000);
   const diffMins = Math.floor(diffSecs / 60);
   const diffHours = Math.floor(diffMins / 60);

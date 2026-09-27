@@ -3,16 +3,15 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   CheckCircle2, XCircle, AlertTriangle, QrCode, ArrowDownLeft,
   ArrowUpRight, ArrowLeft, Camera, Edit3, ShieldCheck, Image as ImageIcon,
-  UploadCloud
+  UploadCloud, Sparkles, RefreshCw, X, ChevronRight, FileText
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import QRCode from 'qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { Card, CardHeader } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatCurrency, formatDateTime } from '../utils/formatting';
 import { verifyTransactionSignature } from '../services/crypto';
 import { buildSignablePayload } from '../services/ledger';
@@ -36,6 +35,7 @@ const SCAN_STATES = {
 function QRScanner() {
   const { currentUser } = useAuth();
   const { acceptIncomingPayment, createReceiverAcknowledgment, recordSenderAcknowledgment } = useWallet();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -100,7 +100,6 @@ function QRScanner() {
     setVerifyResult(null);
     setErrorMsg('');
 
-    // Use rAF + small delay to ensure the #qr-reader DOM node is fully painted before init
     requestAnimationFrame(() => {
       setTimeout(async () => {
         const qrReaderEl = document.getElementById('qr-reader');
@@ -125,11 +124,11 @@ function QRScanner() {
           await html5QrCode.start(
             { facingMode: 'environment' },
             {
-              fps: 15,
+              fps: 20,
               qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                const boxSize = Math.floor(minEdge * 0.75);
-                return { width: Math.max(200, boxSize), height: Math.max(200, boxSize) };
+                const boxSize = Math.floor(minEdge * 0.8);
+                return { width: Math.max(220, boxSize), height: Math.max(220, boxSize) };
               },
               aspectRatio: 1.0,
               experimentalFeatures: { useBarCodeDetectorIfSupported: true },
@@ -142,15 +141,15 @@ function QRScanner() {
               scannerRef.current = null;
               await handleScannedData(decodedText);
             },
-            () => {} // per-frame decode errors are expected
+            () => {}
           );
         } catch (err) {
           console.warn('[camera scanner init error]', err);
           scannerRef.current = null;
           setErrorMsg(
-            err?.message?.includes('Permission')
-              ? 'Camera permission denied. Please allow camera access in your browser settings, then try again.'
-              : 'Camera unavailable on this device/browser. Use "Upload Image" to scan a QR photo instead.'
+            err?.name === 'NotAllowedError'
+              ? 'Camera permission denied. Please allow camera access or use "Upload Image" instead.'
+              : 'Could not access camera. Please use "Upload Image" to scan a QR code screenshot.'
           );
           setScanState(SCAN_STATES.ERROR);
         }
@@ -158,35 +157,48 @@ function QRScanner() {
     });
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        try {
-          if (scannerRef.current.isScanning) scannerRef.current.stop();
-          scannerRef.current.clear();
-        } catch (_) {}
-      }
-    };
-  }, []);
-
-  // Auto-start camera when navigated with { state: { autoStart: true } }
+  // Auto-start camera if navigated with autoStart: true
   useEffect(() => {
     if (location.state?.autoStart) {
       startScanner();
     }
-  }, [location.state?.autoStart, startScanner]);
+    return () => {
+      stopScanner();
+    };
+  }, [location.state?.autoStart, startScanner, stopScanner]);
 
-  // Process decoded QR payload
-  async function handleScannedData(rawData) {
+  // Main QR Data Parser and Router
+  async function handleScannedData(rawText) {
+    if (!rawText || typeof rawText !== 'string') {
+      setScanState(SCAN_STATES.INVALID);
+      setErrorMsg('Scanned QR code contains no readable data.');
+      return;
+    }
+
     setScanState(SCAN_STATES.VERIFYING);
-    try {
-      const parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+    setErrorMsg('');
 
-      // ─── CASE 1: PAYMENT REQUEST (User scanned someone's receive/request QR) ───
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(rawText.trim());
+      } catch {
+        setScanState(SCAN_STATES.INVALID);
+        setErrorMsg('Scanned QR does not contain valid OfflinePay JSON payload.');
+        return;
+      }
+
+      // CASE 1: PAYMENT REQUEST (Scan to Send)
       if (parsed.type === 'PAYMENT_REQUEST') {
+        if (!parsed.receiverId) {
+          setScanState(SCAN_STATES.INVALID);
+          setErrorMsg('Invalid payment request: Missing recipient ID.');
+          return;
+        }
+
         if (parsed.receiverId === currentUser?.id) {
           setScanState(SCAN_STATES.INVALID);
-          setErrorMsg('You scanned your own payment request QR. You cannot send money to yourself.');
+          setErrorMsg('You cannot pay your own wallet address.');
           return;
         }
 
@@ -195,58 +207,38 @@ function QRScanner() {
         return;
       }
 
-      // ─── CASE 2: OFFLINE PAYMENT (Receiver claims signed money sent by sender) ───
+      // CASE 2: OFFLINE PAYMENT (Receiver claims sender's voucher)
       if (parsed.type === 'OFFLINE_PAYMENT') {
-        // Validate required cryptographic fields
-        if (!parsed.id || !parsed.senderId || !parsed.amount || !parsed.nonce) {
+        if (!parsed.id || !parsed.amount || !parsed.senderId || !parsed.signature) {
           setScanState(SCAN_STATES.INVALID);
-          setErrorMsg('Malformed payment token: Required cryptographic fields are missing from QR code.');
+          setErrorMsg('Invalid offline payment: Missing essential transaction fields.');
           return;
         }
 
-        // Validate receiver match
         if (parsed.receiverId && parsed.receiverId !== currentUser?.id) {
           setScanState(SCAN_STATES.INVALID);
-          setErrorMsg(`This payment was created specifically for ${parsed.receiverName || 'another user'}, not your account.`);
+          setErrorMsg(`Payment is addressed to "${parsed.receiverName || parsed.receiverId}", not your account.`);
           return;
         }
 
-        if (Number(parsed.amount) <= 0) {
+        if (parsed.senderId === currentUser?.id) {
           setScanState(SCAN_STATES.INVALID);
-          setErrorMsg('Invalid payment amount detected (must be greater than 0).');
+          setErrorMsg('You cannot accept a payment that you sent yourself.');
           return;
         }
 
-        // Validate 5-minute expiration window
-        const txTimestamp = new Date(parsed.timestamp || parsed.createdAt).getTime();
-        if (!isNaN(txTimestamp) && (Date.now() - txTimestamp) >= 5 * 60 * 1000) {
-          setScanState(SCAN_STATES.INVALID);
-          setErrorMsg('Payment expired: This offline payment QR was generated more than 5 minutes ago and has been automatically cancelled & refunded on the sender\'s device.');
-          return;
-        }
-
-        // 1. Check if transaction was already received / claimed on this device
-        try {
-          const existingTx = await getTransaction(parsed.id);
-          if (existingTx) {
+        // Check 5-minute offline expiration
+        const txTime = new Date(parsed.timestamp).getTime();
+        if (!isNaN(txTime)) {
+          const elapsedMs = Date.now() - txTime;
+          if (elapsedMs > 5 * 60 * 1000) {
             setScanState(SCAN_STATES.INVALID);
-            setErrorMsg(`Transaction ${parsed.id} has already been claimed on this device.`);
+            setErrorMsg('Offline payment QR expired: Created more than 5 minutes ago.');
             return;
           }
-        } catch (_) {}
+        }
 
-        // 2. Check if nonce was already registered
-        try {
-          const db = await getDB();
-          const existingNonce = await db.get('nonces', parsed.nonce);
-          if (existingNonce) {
-            setScanState(SCAN_STATES.INVALID);
-            setErrorMsg('Replay attack detected: This payment nonce has already been claimed.');
-            return;
-          }
-        } catch (_) {}
-
-        // 3. Verify cryptographic P-256 signature locally
+        // Verify cryptographic signature
         let sigValid = false;
         let sigNote = 'Signature verification skipped';
 
@@ -279,11 +271,11 @@ function QRScanner() {
         return;
       }
 
-      // ─── CASE 3: RECEIVER ACKNOWLEDGMENT (Sender scans receiver's signed acknowledgment) ───
+      // CASE 3: RECEIVER ACKNOWLEDGMENT
       if (parsed.type === 'OFFLINE_PAYMENT_ACK') {
         if (!parsed.transactionRef || !parsed.signature || !parsed.ackNonce) {
           setScanState(SCAN_STATES.INVALID);
-          setErrorMsg('Malformed acknowledgment token: Required cryptographic fields are missing from QR code.');
+          setErrorMsg('Malformed acknowledgment token: Required cryptographic fields are missing.');
           return;
         }
 
@@ -306,7 +298,7 @@ function QRScanner() {
         }
       }
 
-      // ─── CASE 4: Unknown QR payload ───
+      // Unknown payload
       setScanState(SCAN_STATES.INVALID);
       setErrorMsg('This QR code is not a valid OfflinePay payment or request.');
     } catch (err) {
@@ -315,13 +307,12 @@ function QRScanner() {
     }
   }
 
-  // Receiver generates signed acknowledgment QR for sender to scan
+  // Receiver generates signed acknowledgment QR
   const handleGenerateAcknowledgment = async () => {
     if (!scannedTx) return;
     setIsGeneratingAck(true);
     setErrorMsg('');
     try {
-      // 1. Accept and record incoming payment locally on receiver device
       const acceptedResult = await acceptIncomingPayment({
         ...scannedTx,
         receiverId: currentUser.id,
@@ -332,14 +323,12 @@ function QRScanner() {
         setScannedTx(acceptedResult);
       }
 
-      // 2. Cryptographically sign the acknowledgment payload with receiver's device key
       const ack = await createReceiverAcknowledgment(scannedTx);
       setAckPayload(ack);
 
-      // 3. Render Acknowledgment QR
       const dataUrl = await QRCode.toDataURL(JSON.stringify(ack), {
-        width: 420,
-        margin: 4,
+        width: 440,
+        margin: 3,
         color: { dark: '#0F172A', light: '#FFFFFF' },
         errorCorrectionLevel: 'H',
       });
@@ -351,28 +340,6 @@ function QRScanner() {
       setScanState(SCAN_STATES.ERROR);
     } finally {
       setIsGeneratingAck(false);
-    }
-  };
-
-  // Accept incoming offline payment into local wallet directly (legacy claim fallback)
-  const handleAcceptOfflinePayment = async () => {
-    if (!scannedTx) return;
-    setIsAccepting(true);
-    try {
-      const acceptedResult = await acceptIncomingPayment({
-        ...scannedTx,
-        receiverId: currentUser.id,
-        receiverName: currentUser.name,
-      });
-      if (acceptedResult) {
-        setScannedTx(acceptedResult);
-      }
-      setScanState(SCAN_STATES.ACCEPTED);
-    } catch (e) {
-      setErrorMsg(e.message || 'Failed to accept payment');
-      setScanState(SCAN_STATES.ERROR);
-    } finally {
-      setIsAccepting(false);
     }
   };
 
@@ -401,36 +368,67 @@ function QRScanner() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-md mx-auto space-y-5 animate-fade-in">
-        {/* Page Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div
+        className="max-w-2xl mx-auto animate-fade-in pb-16"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '22px',
+        }}
+      >
+        {/* ─── Page Header with High-Contrast Typography ─── */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
             <Link
               to="/dashboard"
-              className="p-1.5 rounded-lg hover:bg-[#172337] text-[#94A3B8] hover:text-[#F8FAFC] transition-colors no-underline"
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                color: isDark ? '#738EE4' : '#172B75',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                transition: 'all 0.15s ease',
+              }}
               aria-label="Back to dashboard"
             >
               <ArrowLeft size={18} />
             </Link>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[#F8FAFC] tracking-tight">
-                Scan Payment QR
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                Scan QR Code
               </h1>
-              <p className="text-xs text-[#94A3B8] mt-0.5">
-                Scan to pay someone or claim an offline transfer
+              <p className="text-xs sm:text-sm font-medium mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                Scan to transfer funds or claim offline payment vouchers
               </p>
             </div>
           </div>
 
           <button
             onClick={() => setShowManual(p => !p)}
-            className="text-xs font-semibold text-[#38BDF8] hover:text-[#14B8A6] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+            style={{
+              padding: '6px 14px',
+              borderRadius: '0.75rem',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+              color: isDark ? '#738EE4' : '#3155B8',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
           >
-            <Edit3 size={13} /> {showManual ? 'Hide Manual' : 'Paste Code'}
+            <Edit3 size={14} />
+            <span>{showManual ? 'Hide Manual' : 'Paste Code'}</span>
           </button>
         </div>
 
-        {/* Hidden File Input for Image & Screenshot Upload */}
+        {/* Hidden File Input for Image Upload */}
         <input
           ref={fileInputRef}
           type="file"
@@ -439,18 +437,45 @@ function QRScanner() {
           onChange={handleImageFileChange}
         />
 
-        {/* Manual Payload Fallback (Convenient for quick testing or camera restriction) */}
+        {/* Manual Payload Fallback Drawer */}
         {showManual && (
-          <Card padding className="bg-white border border-[#DCE3F2] space-y-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[#172B75]">
-              Manual QR Code Payload
-            </h2>
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.25rem',
+              padding: '20px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-3 animate-fade-in"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                Paste Raw QR JSON Payload
+              </span>
+              <button
+                onClick={() => setShowManual(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
             <textarea
               rows={3}
-              placeholder='Paste JSON payload or QR string here...'
+              placeholder='{"type":"PAYMENT_REQUEST", "receiverId":"...", ...}'
               value={manualInput}
               onChange={e => setManualInput(e.target.value)}
-              className="w-full p-2.5 text-xs font-mono bg-[#F5F7FF] text-[#172033] border border-[#DCE3F2] focus:border-[#3155B8] rounded-lg outline-none"
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '0.75rem',
+                padding: '10px 12px',
+                width: '100%',
+                fontSize: '0.75rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+              }}
             />
             <Button
               size="sm"
@@ -458,190 +483,373 @@ function QRScanner() {
               block
               disabled={!manualInput.trim()}
               onClick={() => handleScannedData(manualInput.trim())}
+              className="font-bold"
             >
               Process Payload
             </Button>
-          </Card>
+          </div>
         )}
 
-        {/* ─── STATE 1: IDLE / ENTRY ─── */}
+        {/* ─── STATE 1: IDLE / READY TO SCAN ─── */}
         {scanState === SCAN_STATES.IDLE && (
-          <Card padding className="text-center py-8 space-y-4 bg-white border border-[#DCE3F2] shadow-xs">
-            <div className="w-20 h-20 rounded-2xl bg-[#EAF0FF] border border-[#DCE3F2] text-[#3155B8] flex items-center justify-center mx-auto shadow-xs">
-              <Camera size={40} />
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '36px 28px',
+              textAlign: 'center',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 4px 14px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-6"
+          >
+            <div
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '1.25rem',
+                background: isDark ? 'rgba(79,111,216,0.18)' : '#EAF0FF',
+                color: isDark ? '#738EE4' : '#172B75',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto',
+              }}
+            >
+              <Camera size={36} strokeWidth={2.2} />
             </div>
+
             <div>
-              <h2 className="text-base font-bold text-[#172033]">Ready to Scan</h2>
-              <p className="text-xs text-[#5F6B85] max-w-xs mx-auto mt-1">
-                Scan using camera or upload a payment screenshot/photo directly from your gallery.
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Ready to Scan
+              </h2>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '340px', margin: '6px auto 0', lineHeight: 1.45 }}>
+                Scan using your device camera or upload a QR screenshot directly from your photos.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
-              <Button
-                size="lg"
-                variant="accent"
-                className="flex-1 font-bold"
-                onClick={startScanner}
-                leftIcon={<QrCode size={18} />}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 max-w-md mx-auto">
+              <button
+                type="button"
                 id="btn-open-camera-scanner"
+                onClick={startScanner}
+                style={{
+                  padding: '14px 20px',
+                  borderRadius: '1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 800,
+                  background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(23,43,117,0.25)',
+                  transition: 'all 0.15s ease',
+                }}
+                className="hover:opacity-95 active:scale-95"
               >
-                Camera Scanner
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="flex-1 font-semibold border-[#DCE3F2] text-[#172033] hover:bg-[#F5F7FF]"
-                onClick={() => fileInputRef.current?.click()}
-                leftIcon={<ImageIcon size={18} />}
+                <QrCode size={18} />
+                <span>Open Camera</span>
+              </button>
+
+              <button
+                type="button"
                 id="btn-upload-qr-image"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  padding: '14px 20px',
+                  borderRadius: '1rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  color: 'var(--text-primary)',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s ease',
+                }}
+                className="hover:border-[#3155B8] active:scale-95"
               >
-                Upload Image
-              </Button>
+                <ImageIcon size={18} />
+                <span>Upload Photo</span>
+              </button>
             </div>
-          </Card>
+
+            {/* Supported formats indicator */}
+            <div
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#EAF0FF'}`,
+                borderRadius: '0.875rem',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div className="flex items-center gap-1.5 font-semibold">
+                <ShieldCheck size={14} className="text-[#16A66A]" />
+                <span>Offline ECDSA Vouchers</span>
+              </div>
+              <span>•</span>
+              <div className="flex items-center gap-1.5 font-semibold">
+                <Sparkles size={14} className="text-[#4F6FD8]" />
+                <span>Digital Payment Requests</span>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* ─── STATE 2: SCANNING (Camera Active) ─── */}
+        {/* ─── STATE 2: SCANNING (Active Camera Viewfinder) ─── */}
         {scanState === SCAN_STATES.SCANNING && (
-          <Card padding className="space-y-4 bg-white border border-[#DCE3F2] shadow-xs">
-            <CardHeader
-              title="Camera Viewfinder"
-              subtitle="Hold steady over the QR code or select an image"
-            />
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '24px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 4px 14px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Camera Viewfinder
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                  Position the QR code within the frame
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={stopScanner}>
+                Cancel
+              </Button>
+            </div>
+
             <div
               id="qr-reader"
-              className="w-full rounded-2xl overflow-hidden border-2 border-[#3155B8]/40 shadow-inner bg-black min-h-[200px]"
+              style={{
+                width: '100%',
+                borderRadius: '1.25rem',
+                overflow: 'hidden',
+                background: '#0F172A',
+                minHeight: '260px',
+                border: '2px solid rgba(49,85,184,0.4)',
+              }}
             />
-            <div className="flex gap-2">
+
+            <div className="flex gap-2.5 pt-1">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 text-xs border-[#DCE3F2] text-[#172033]"
+                className="flex-1 text-xs"
                 leftIcon={<ImageIcon size={14} />}
               >
-                Upload Image
+                Upload Photo Instead
               </Button>
-              <Button size="sm" variant="outline" onClick={stopScanner} className="flex-1 text-xs">
-                Cancel Scanner
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={stopScanner}
+                className="flex-1 text-xs"
+              >
+                Close Viewfinder
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ─── STATE 3: VERIFYING ─── */}
         {scanState === SCAN_STATES.VERIFYING && (
-          <Card padding className="text-center py-10 space-y-3 bg-white border border-[#DCE3F2] shadow-xs">
-            <div className="w-12 h-12 rounded-full border-4 border-[#DCE3F2] border-t-[#3155B8] animate-spin mx-auto" />
-            <p className="font-bold text-sm text-[#172033]">
-              {isDecodingImage ? 'Decoding QR from Image...' : 'Verifying QR Data...'}
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '44px 28px',
+              textAlign: 'center',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-4"
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '9999px',
+                border: '4px solid #DCE3F2',
+                borderTopColor: '#3155B8',
+              }}
+              className="animate-spin mx-auto"
+            />
+            <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              {isDecodingImage ? 'Decoding QR Photo...' : 'Verifying Cryptographic Voucher...'}
             </p>
-            <p className="text-xs text-[#5F6B85]">
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
               {isDecodingImage
-                ? 'Applying multi-engine analysis (BarcodeDetector & jsQR)'
-                : 'Checking cryptographic signature & payload structure'}
+                ? 'Applying multi-engine analysis'
+                : 'Verifying ECDSA P-256 signature and device nonce'}
             </p>
-          </Card>
+          </div>
         )}
 
         {/* ─── STATE 4: PAYMENT REQUEST DETECTED ─── */}
         {scanState === SCAN_STATES.REQUEST_DETECTED && paymentRequest && (
-          <Card padding className="space-y-5 bg-white border border-[#DCE3F2] shadow-xs">
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[#EAF0FF] border border-[#DCE3F2]">
-              <div className="w-10 h-10 rounded-xl bg-[#172B75] text-white flex items-center justify-center flex-shrink-0">
-                <ArrowUpRight size={22} strokeWidth={2.5} />
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-5 animate-fade-in"
+          >
+            <div
+              style={{
+                background: isDark ? 'rgba(79,111,216,0.15)' : '#EAF0FF',
+                border: `1px solid ${isDark ? 'rgba(79,111,216,0.25)' : '#DCE3F2'}`,
+                borderRadius: '1rem',
+                padding: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+              }}
+            >
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '0.75rem',
+                  background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <ArrowUpRight size={22} strokeWidth={2.4} />
               </div>
               <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#3155B8]">
-                  Payment Request
+                <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: isDark ? '#738EE4' : '#3155B8' }}>
+                  Payment Request Found
                 </span>
-                <p className="text-sm font-bold text-[#172033] truncate">
+                <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }} className="truncate">
                   Pay {paymentRequest.receiverName || 'Recipient'}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#F5F7FF]">
-                <span className="text-[#5F6B85]">Recipient:</span>
-                <span className="font-bold text-[#172033]">{paymentRequest.receiverName}</span>
+            <div
+              style={{
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '1rem',
+                overflow: 'hidden',
+                fontSize: '0.8125rem',
+              }}
+              className="divide-y"
+            >
+              <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-elevated)' : '#F5F7FF' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Recipient:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{paymentRequest.receiverName}</strong>
               </div>
               {paymentRequest.amount ? (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#F5F7FF]">
-                  <span className="text-[#5F6B85]">Requested Amount:</span>
-                  <span className="font-black text-[#172B75] text-sm">
+                <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-surface)' : '#FFFFFF' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Requested Amount:</span>
+                  <strong style={{ color: '#16A66A', fontSize: '1.125rem' }}>
                     {formatCurrency(paymentRequest.amount)}
-                  </span>
+                  </strong>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#F5F7FF]">
-                  <span className="text-[#5F6B85]">Amount:</span>
-                  <span className="font-medium text-[#172033]">Enter upon payment</span>
+                <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-surface)' : '#FFFFFF' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Amount:</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Enter amount in next step</span>
                 </div>
               )}
               {paymentRequest.note && (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#F5F7FF]">
-                  <span className="text-[#5F6B85]">Note:</span>
-                  <span className="text-[#172033] italic">{paymentRequest.note}</span>
+                <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-elevated)' : '#F5F7FF' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Note:</span>
+                  <span style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>{paymentRequest.note}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2.5 pt-1">
+            <div className="flex gap-3 pt-1">
               <Button variant="outline" onClick={handleReset} className="w-1/3">
                 Cancel
               </Button>
               <Button
                 variant="primary"
                 onClick={handleProceedToPay}
-                className="w-2/3"
+                className="w-2/3 font-bold"
                 leftIcon={<ArrowUpRight size={16} />}
                 id="btn-proceed-to-pay"
               >
                 Proceed to Pay
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* ─── STATE 5: OFFLINE PAYMENT VALIDATED — GENERATE ACKNOWLEDGMENT ─── */}
+        {/* ─── STATE 5: OFFLINE PAYMENT VALIDATED ─── */}
         {scanState === SCAN_STATES.OFFLINE_VERIFIED && scannedTx && (
-          <Card padding className="space-y-5 bg-white border border-[#DCE3F2] shadow-xs">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-[#E8F8F1] border border-[#16A66A]/30">
-              <ShieldCheck size={26} className="text-[#16A66A] flex-shrink-0" />
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-5 animate-fade-in"
+          >
+            <div
+              style={{
+                background: isDark ? 'rgba(22,166,106,0.12)' : '#E8F8F1',
+                border: `1px solid ${isDark ? 'rgba(22,166,106,0.25)' : 'rgba(22,166,106,0.3)'}`,
+                borderRadius: '1rem',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <ShieldCheck size={26} className="text-[#16A66A] shrink-0" />
               <div>
-                <p className="text-sm font-bold text-[#172033]">Payment Validated Offline</p>
-                <p className="text-[11px] text-[#16A66A] font-semibold">{verifyResult?.sigNote || 'ECDSA P-256 Signature Verified ✓'}</p>
+                <p style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Offline Payment Verified
+                </p>
+                <p style={{ fontSize: '0.75rem', color: '#16A66A', fontWeight: 600, margin: '2px 0 0 0' }}>
+                  {verifyResult?.sigNote || 'ECDSA P-256 Signature Verified ✓'}
+                </p>
               </div>
             </div>
 
             <div className="text-center py-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#8993A8]">
+              <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
                 Incoming Amount To Claim
               </span>
-              <p className="text-3xl font-black text-[#16A66A] mt-0.5">
+              <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#16A66A', margin: '4px 0' }}>
                 +{formatCurrency(scannedTx.amount)}
               </p>
-              <p className="text-xs text-[#5F6B85]">Sender: <strong className="text-[#172033]">{scannedTx.senderName || 'Sender'}</strong></p>
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+                From: <strong style={{ color: 'var(--text-primary)' }}>{scannedTx.senderName || 'Sender'}</strong>
+              </p>
             </div>
 
-            <div className="divide-y divide-[#DCE3F2] border border-[#DCE3F2] rounded-xl overflow-hidden bg-[#F5F7FF] text-xs">
-              <div className="flex items-center justify-between p-3 bg-white">
-                <span className="text-[#5F6B85]">Sender:</span>
-                <span className="font-bold text-[#172033]">{scannedTx.senderName || 'Sender'}</span>
-              </div>
-              <div className="flex items-center justify-between p-3">
-                <span className="text-[#5F6B85]">Transaction Ref:</span>
-                <span className="font-mono text-[11px] text-[#3155B8] font-bold">{scannedTx.id}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-white">
-                <span className="text-[#5F6B85]">Validation Status:</span>
-                <span className="font-bold text-[#16A66A] text-[11px]">Valid Offline Payment</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Button variant="outline" onClick={handleReset} className="w-full sm:w-1/3">
                 Dismiss
               </Button>
@@ -657,158 +865,139 @@ function QRScanner() {
                 Generate Acknowledgment QR
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* ─── STATE 5B: RECEIVER ACKNOWLEDGMENT QR (Show to Sender) ─── */}
+        {/* ─── STATE 5B: RECEIVER ACKNOWLEDGMENT QR ─── */}
         {scanState === SCAN_STATES.SHOW_ACK_QR && (
-          <Card padding className="space-y-5 text-center bg-white border border-[#DCE3F2] shadow-xs">
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.5rem',
+              padding: '30px',
+              textAlign: 'center',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-5 animate-fade-in"
+          >
             <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#EAF0FF] border border-[#3155B8]/30 text-[#3155B8] mb-2">
-                <CheckCircle2 size={13} className="text-[#3155B8]" />
-                <span>Locally Acknowledged — Awaiting Settlement</span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 12px',
+                  borderRadius: '9999px',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  background: isDark ? 'rgba(79,111,216,0.18)' : '#EAF0FF',
+                  color: isDark ? '#738EE4' : '#3155B8',
+                  border: `1px solid ${isDark ? 'rgba(79,111,216,0.3)' : '#DCE3F2'}`,
+                  marginBottom: '10px',
+                }}
+              >
+                <CheckCircle2 size={13} />
+                <span>Locally Claimed — Awaiting Sync</span>
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[#172033] tracking-tight">
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>
                 Receiver Acknowledgment QR
               </h2>
-              <p className="text-xs text-[#5F6B85] max-w-sm mx-auto mt-1">
-                Show this QR to the sender so their device records that you have validated and claimed the payment offline.
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '380px', margin: '6px auto 0' }}>
+                Show this QR to the sender so their device records your signed acknowledgment offline.
               </p>
             </div>
 
-            {/* Acknowledgment QR Display */}
             {ackQrDataUrl && (
-              <div className="p-4 rounded-2xl border border-[#DCE3F2] bg-[#F5F7FF] max-w-xs mx-auto space-y-2.5">
-                <div className="p-3 bg-white rounded-2xl inline-block shadow-xs border border-[#DCE3F2]">
+              <div
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  borderRadius: '1.25rem',
+                  padding: '20px',
+                  maxWidth: '340px',
+                  margin: '0 auto',
+                }}
+                className="space-y-3"
+              >
+                <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#DCE3F2]">
                   <img src={ackQrDataUrl} alt="Receiver Acknowledgment QR" className="w-56 h-56 mx-auto" />
                 </div>
-                <div className="text-[11px] text-[#5F6B85] space-y-0.5">
-                  <p className="font-semibold text-[#172033]">Ref: {scannedTx?.id}</p>
-                  <p>Amount: <strong className="text-[#16A66A]">+{formatCurrency(scannedTx?.amount)}</strong></p>
-                  <p className="text-[10px] text-[#3155B8]">Signed with your ECDSA P-256 receiver key</p>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>Ref: {scannedTx?.id}</p>
+                  <p style={{ margin: '2px 0 0 0' }}>Amount: <strong className="text-[#16A66A]">+{formatCurrency(scannedTx?.amount)}</strong></p>
                 </div>
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-[#EAF0FF] border border-[#DCE3F2] text-xs text-left max-w-xs mx-auto space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-[#172B75]">
-                <ShieldCheck size={14} className="text-[#3155B8]" />
-                <span>Notice: Not Authoritatively Settled Yet</span>
-              </div>
-              <p className="text-[11px] text-[#5F6B85] leading-relaxed">
-                Funds are held and credited locally. Final ledger settlement will occur automatically once either device reconnects to the network.
-              </p>
-            </div>
-
-            <div className="pt-1 max-w-xs mx-auto">
-              <Button
-                block
-                variant="primary"
-                onClick={() => navigate('/dashboard')}
-                id="btn-done-ack"
-              >
-                Done
-              </Button>
-            </div>
-          </Card>
+            <Button
+              variant="primary"
+              onClick={() => navigate('/dashboard')}
+              className="w-full max-w-xs mx-auto font-bold"
+            >
+              Done & Return to Dashboard
+            </Button>
+          </div>
         )}
 
-        {/* ─── STATE 5C: SENDER SCANNED ACKNOWLEDGMENT CONFIRMATION ─── */}
-        {scanState === SCAN_STATES.ACK_RECORDED && (
-          <Card padding className="space-y-5 text-center bg-white border border-[#DCE3F2] shadow-xs">
+        {/* ─── STATE 6: INVALID / ERROR ─── */}
+        {(scanState === SCAN_STATES.INVALID || scanState === SCAN_STATES.ERROR) && (
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'rgba(214,69,69,0.3)' : 'rgba(214,69,69,0.3)'}`,
+              borderRadius: '1.5rem',
+              padding: '36px 24px',
+              textAlign: 'center',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-4 animate-fade-in"
+          >
+            <div
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '1rem',
+                background: isDark ? 'rgba(214,69,69,0.18)' : '#FDECEC',
+                color: '#D64545',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto',
+              }}
+            >
+              <AlertTriangle size={32} />
+            </div>
+
             <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#E8F8F1] border border-[#16A66A]/30 text-[#16A66A] mb-2">
-                <CheckCircle2 size={13} className="text-[#16A66A]" />
-                <span>Receiver Acknowledged Offline</span>
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[#172033] tracking-tight">
-                Payment Acknowledged Offline
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: isDark ? '#F87171' : '#D64545', margin: 0 }}>
+                Scan Failed
               </h2>
-              <p className="text-xs text-[#5F6B85] max-w-sm mx-auto mt-1">
-                Awaiting Synchronization — The receiver has cryptographically verified and acknowledged this offline transaction.
+              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '340px', margin: '6px auto 0', lineHeight: 1.45 }}>
+                {errorMsg || 'Could not validate QR code. Please try again.'}
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#F5F7FF] border border-[#DCE3F2] max-w-sm mx-auto space-y-3 text-left text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-[#5F6B85]">Payment Ref:</span>
-                <span className="font-mono text-[#172033] font-bold">{ackPayload?.transactionRef || scannedTx?.id}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#5F6B85]">Receiver:</span>
-                <span className="font-bold text-[#172033]">{ackPayload?.receiverName || scannedTx?.receiverName || 'Receiver'}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#5F6B85]">Amount:</span>
-                <span className="font-black text-[#172B75] text-sm">{formatCurrency(ackPayload?.amount || scannedTx?.amount)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#5F6B85]">Ack Status:</span>
-                <span className="text-[#3155B8] font-bold">RECEIVER_ACKNOWLEDGED</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#5F6B85]">Timer Protection:</span>
-                <span className="text-[#16A66A] font-semibold">Exempt from 5m unclaimed timeout</span>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[#EAF0FF] border border-[#DCE3F2] text-xs text-left max-w-sm mx-auto space-y-1">
-              <p className="text-[11px] text-[#5F6B85] leading-relaxed">
-                Both devices now hold a signed record of this transaction. Central authoritative settlement will occur when internet connectivity returns.
-              </p>
-            </div>
-
-            <div className="pt-1 max-w-sm mx-auto flex gap-2.5">
+            <div className="flex gap-2.5 pt-2 max-w-xs mx-auto">
+              <Button
+                variant="primary"
+                onClick={startScanner}
+                className="flex-1 font-bold"
+                leftIcon={<RefreshCw size={14} />}
+              >
+                Retry Scanner
+              </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate('/transactions')}
-                className="w-1/2"
+                onClick={handleReset}
+                className="flex-1"
               >
-                View History
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => navigate('/dashboard')}
-                className="w-1/2 font-bold"
-                id="btn-sender-ack-done"
-              >
-                Done
+                Back
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* ─── STATE 6: PAYMENT ACCEPTED RESULT (Direct claim fallback) ─── */}
-        {scanState === SCAN_STATES.ACCEPTED && scannedTx && (
-          <PaymentReceipt
-            transaction={{
-              ...scannedTx,
-              status: scannedTx.status || 'RECEIVER_ACKNOWLEDGED',
-              method: 'OFFLINE_QR',
-              receiverName: currentUser?.name || 'Receiver',
-            }}
-            isSender={false}
-            onDone={() => navigate('/dashboard')}
-          />
-        )}
-
-        {/* ─── STATE 7: INVALID / ERROR ─── */}
-        {(scanState === SCAN_STATES.INVALID || scanState === SCAN_STATES.ERROR) && (
-          <Card padding className="text-center py-8 space-y-4 bg-white border border-[#D64545]/40 shadow-xs">
-            <div className="w-16 h-16 rounded-full bg-[#FDECEC] text-[#D64545] flex items-center justify-center mx-auto">
-              <XCircle size={32} />
-            </div>
-
-            <h2 className="text-base font-bold text-[#D64545]">Invalid Payment QR</h2>
-            <p className="text-xs text-[#5F6B85] max-w-xs mx-auto leading-relaxed">
-              {errorMsg || 'Could not verify or process this QR code.'}
-            </p>
-
-            <Button block variant="outline" onClick={handleReset}>
-              Try Again
-            </Button>
-          </Card>
-        )}
       </div>
     </DashboardLayout>
   );

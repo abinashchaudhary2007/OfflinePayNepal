@@ -1,7 +1,7 @@
 /**
  * Security.jsx — Phase 10 (Security Center)
  * Shows live device status, authorization, security events, and system health.
- * Styled with UPI-inspired Nepali fintech design system:
+ * Styled with OfflinePay Nepali fintech design system:
  * Primary Navy (#172B75), Primary Blue (#3155B8), Light Blue (#EAF0FF), White (#FFFFFF)
  */
 import { Link } from 'react-router-dom';

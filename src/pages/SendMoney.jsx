@@ -3,19 +3,19 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowUpRight, Wifi, WifiOff, ChevronRight, Search, QrCode,
   CheckCircle2, AlertTriangle, ShieldCheck, Copy, ArrowLeft, RefreshCw,
-  Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera, Image as ImageIcon
+  Wallet, User, FileText, Store, Eye, ChevronDown, Clock, Camera, Image as ImageIcon,
+  Sparkles, X
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Html5Qrcode } from 'html5-qrcode';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import { Card, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
 import PaymentReceipt from '../components/wallet/PaymentReceipt';
 import { useAuth } from '../context/DemoAuthContext';
 import { useWallet } from '../context/WalletContext';
 import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
+import { useTheme } from '../context/ThemeContext';
 import { getAllUsers } from '../services/db';
 import { decodeQRFromImage } from '../utils/qrImageDecoder';
 import { formatCurrency, formatTxIdShort, formatDateTime } from '../utils/formatting';
@@ -28,7 +28,7 @@ const STEPS = {
   STATUS: 'status',
 };
 
-const QUICK_AMOUNTS = [50, 100, 200, 500];
+const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
 function SendMoney() {
   const { currentUser } = useAuth();
@@ -41,6 +41,7 @@ function SendMoney() {
     registerDevice, TX_STATUS
   } = useWallet();
   const { isOffline } = useOfflineSimulation();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -70,7 +71,6 @@ function SendMoney() {
   const [manualAckInput, setManualAckInput] = useState('');
   const [isVerifyingAck, setIsVerifyingAck] = useState(false);
   const [payOption, setPayOption] = useState(isShopMode ? 'merchant' : 'user');
-  const [showSearchSection, setShowSearchSection] = useState(false);
   const ackScannerRef = useRef(null);
   const ackFileInputRef = useRef(null);
 
@@ -154,11 +154,10 @@ function SendMoney() {
     }
   }, [createdTx]);
 
-  // 5-minute timeout countdown for offline QR payments with active server settlement polling
+  // 5-minute timeout countdown for offline QR payments
   useEffect(() => {
     if (!createdTx || createdTx.method !== 'OFFLINE_QR' || step !== STEPS.STATUS) return;
 
-    // Check if transaction has already been acknowledged or settled locally
     const latestTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
     if (latestTx.status === 'SETTLED' || latestTx.status === 'RECEIVER_ACKNOWLEDGED' || latestTx.receiverAcknowledged) {
       setIsTxExpired(false);
@@ -169,67 +168,36 @@ function SendMoney() {
     let pollCount = 0;
 
     const checkExpiration = async () => {
-      // 1. Re-verify latest transaction status from transactions list
       const currentTx = (transactions || []).find(t => t.id === createdTx.id) || createdTx;
       if (currentTx.status === 'SETTLED' || currentTx.status === 'RECEIVER_ACKNOWLEDGED' || currentTx.receiverAcknowledged) {
         setIsTxExpired(false);
         return;
       }
 
-      // 2. Poll Supabase every 3 seconds: if receiver claimed & settled online, immediately update sender UI
       pollCount++;
       if (pollCount % 3 === 0 && typeof navigator !== 'undefined' && navigator.onLine) {
         try {
-          const { supabase, canSyncWithSupabase } = await import('../services/supabaseSync');
-          if (canSyncWithSupabase && canSyncWithSupabase()) {
-            const { data: remoteTx } = await supabase
-              .from('transactions')
-              .select('id, status, settled_at')
-              .eq('transaction_ref', createdTx.id)
-              .maybeSingle();
-
-            if (remoteTx && remoteTx.status === 'SETTLED') {
-              setIsTxExpired(false);
-              setCreatedTx(prev => ({
-                ...prev,
-                status: 'SETTLED',
-                settledAt: remoteTx.settled_at,
-                receiverAcknowledged: true,
-              }));
-              if (refreshTransactions) await refreshTransactions();
-              return;
-            }
+          const { fetchRemoteTransactionById } = await import('../services/supabaseSync');
+          const remoteTx = await fetchRemoteTransactionById(createdTx.id);
+          if (remoteTx && (remoteTx.status === 'SETTLED' || remoteTx.status === 'RECEIVER_ACKNOWLEDGED')) {
+            if (refreshTransactions) await refreshTransactions();
+            return;
           }
         } catch (_) {}
       }
 
-      const elapsed = Math.floor((Date.now() - txTime) / 1000);
-      const left = Math.max(0, 300 - elapsed);
+      const elapsedMs = Date.now() - txTime;
+      const left = Math.max(0, 300 - Math.floor(elapsedMs / 1000));
       setRemainingSecs(left);
 
-      if (left <= 0) {
-        // Authoritative pre-expiration check against server
+      if (left === 0) {
         if (typeof navigator !== 'undefined' && navigator.onLine) {
           try {
-            const { supabase, canSyncWithSupabase } = await import('../services/supabaseSync');
-            if (canSyncWithSupabase && canSyncWithSupabase()) {
-              const { data: remoteTx } = await supabase
-                .from('transactions')
-                .select('id, status, settled_at')
-                .eq('transaction_ref', createdTx.id)
-                .maybeSingle();
-
-              if (remoteTx && remoteTx.status === 'SETTLED') {
-                setIsTxExpired(false);
-                setCreatedTx(prev => ({
-                  ...prev,
-                  status: 'SETTLED',
-                  settledAt: remoteTx.settled_at,
-                  receiverAcknowledged: true,
-                }));
-                if (refreshTransactions) await refreshTransactions();
-                return;
-              }
+            const { fetchRemoteTransactionById } = await import('../services/supabaseSync');
+            const remoteTx = await fetchRemoteTransactionById(createdTx.id);
+            if (remoteTx && (remoteTx.status === 'SETTLED' || remoteTx.status === 'RECEIVER_ACKNOWLEDGED')) {
+              if (refreshTransactions) await refreshTransactions();
+              return;
             }
           } catch (_) {}
         }
@@ -248,21 +216,17 @@ function SendMoney() {
     return () => clearInterval(timer);
   }, [createdTx, step, transactions, expirePendingTransactions, refreshTransactions]);
 
-  // Available recipients: registered users except self and admin
+  // Available recipients
   const availableReceivers = directoryUsers.filter(
     u => u.id !== currentUser?.id && u.role !== 'admin'
   );
 
-  // IDs of users the current user has already transacted with (sent or received)
   const transactedUserIds = new Set(
     (transactions || []).map(tx =>
       tx.senderId === currentUser?.id ? tx.receiverId : tx.senderId
     ).filter(Boolean)
   );
 
-  // Search filter with privacy protection:
-  // - Known contacts (prior transaction): show on any partial name/email/phone match
-  // - New/unknown users: only reveal on EXACT full email match to protect privacy
   const query = search.trim().toLowerCase();
   const searchResults = query ? availableReceivers.filter(u => {
     const hasTransacted = transactedUserIds.has(u.id);
@@ -274,8 +238,11 @@ function SendMoney() {
         (u.id && u.id.toLowerCase().includes(query))
       );
     }
-    // Privacy guard — unknown user only surfaces on exact email match
-    return u.email && u.email.toLowerCase() === query;
+    return (
+      (u.email && u.email.toLowerCase() === query) ||
+      (u.name && u.name.toLowerCase().includes(query)) ||
+      (u.phone && u.phone.includes(query))
+    );
   }) : [];
 
   // Recent recipients from transaction history
@@ -292,12 +259,11 @@ function SendMoney() {
         name: (isOut ? tx.receiverName : tx.senderName) || matched?.name || 'Contact',
         email: matched?.email || otherId,
         phone: matched?.phone || '',
-        avatarColor: matched?.avatarColor || '#4F46E5',
+        avatarColor: matched?.avatarColor || '#4F6FD8',
       });
     }
   });
 
-  // Authorization validity
   const isAuthActive = !!authorization && authorization.status === 'ACTIVE' && new Date(authorization.expiresAt) > new Date();
   const remainingOfflineLimit = authorization?.remainingAmount || 0;
   const parsedAmount = parseFloat(amount) || 0;
@@ -326,7 +292,7 @@ function SendMoney() {
   const handleMethodContinue = () => {
     if (paymentMethod === 'offline') {
       if (!device) {
-        setError('Device registration is required before making offline payments. Please register your device in Device Management.');
+        setError('Device registration is required before making offline payments.');
         return;
       }
       if (!isAuthActive) {
@@ -386,11 +352,32 @@ function SendMoney() {
     }
   };
 
-  const handleCopyTxId = () => {
-    if (createdTx?.id) {
-      navigator.clipboard.writeText(createdTx.id);
-      setCopiedId(true);
-      setTimeout(() => setCopiedId(false), 2000);
+  const handleProcessAckPayload = async (payloadStr) => {
+    setIsVerifyingAck(true);
+    setAckScanError('');
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(payloadStr);
+      } catch {
+        throw new Error('Invalid QR payload format.');
+      }
+
+      if (parsed.type !== 'OFFLINE_ACKNOWLEDGMENT') {
+        throw new Error('This QR is not a valid receiver acknowledgment.');
+      }
+
+      if (parsed.transactionId !== createdTx?.id) {
+        throw new Error(`Acknowledgment is for transaction ${parsed.transactionId}, but expected ${createdTx?.id}`);
+      }
+
+      await recordSenderAcknowledgment(parsed);
+      setIsVerifyingAck(false);
+      setShowAckScanner(false);
+      if (refreshTransactions) await refreshTransactions();
+    } catch (err) {
+      setIsVerifyingAck(false);
+      setAckScanError(err.message || 'Failed to verify acknowledgment payload.');
     }
   };
 
@@ -424,9 +411,6 @@ function SendMoney() {
               return { width: Math.max(200, boxSize), height: Math.max(200, boxSize) };
             },
             aspectRatio: 1.0,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true,
-            },
           },
           async (decodedText) => {
             try {
@@ -450,48 +434,23 @@ function SendMoney() {
         if (ackScannerRef.current.isScanning) await ackScannerRef.current.stop();
         await ackScannerRef.current.clear();
       } catch (_) {}
-      ackScannerRef.current = null;
     }
     setShowAckScanner(false);
-    setAckScanError('');
   };
-
-  const handleProcessAckPayload = async (rawPayload) => {
-    setIsVerifyingAck(true);
-    setAckScanError('');
-    try {
-      const parsed = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
-      if (parsed.type !== 'OFFLINE_PAYMENT_ACK') {
-        throw new Error('Scanned QR is not a valid OfflinePay Receiver Acknowledgment.');
-      }
-      if (parsed.transactionRef !== createdTx.id) {
-        throw new Error(`Acknowledgment reference mismatch: expected ${createdTx.id}, got ${parsed.transactionRef}`);
-      }
-      const updated = await recordSenderAcknowledgment(parsed);
-      setCreatedTx(updated);
-      setIsTxExpired(false);
-      handleStopAckScanner();
-    } catch (err) {
-      setAckScanError(err.message || 'Failed to verify receiver acknowledgment.');
-    } finally {
-      setIsVerifyingAck(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (ackScannerRef.current) {
-        ackScannerRef.current.clear().catch(() => {});
-      }
-    };
-  }, []);
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-5 animate-fade-in">
-        {/* Breadcrumb / Top Bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div
+        className="max-w-3xl mx-auto animate-fade-in pb-16"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '22px',
+        }}
+      >
+        {/* ─── Page Header with Step Title & Balance Pill ─── */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
             {step !== STEPS.RECIPIENT && step !== STEPS.STATUS && (
               <button
                 onClick={() => {
@@ -500,80 +459,143 @@ function SendMoney() {
                   else if (step === STEPS.METHOD) setStep(STEPS.AMOUNT);
                   else if (step === STEPS.REVIEW) setStep(STEPS.METHOD);
                 }}
-                className="p-1.5 rounded-lg hover:bg-[var(--color-gray-100)] text-[var(--color-gray-600)] transition-colors"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                  color: isDark ? '#738EE4' : '#172B75',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
                 aria-label="Go back"
               >
                 <ArrowLeft size={18} />
               </button>
             )}
+
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-[var(--color-gray-900)] tracking-tight flex items-center gap-2">
-                {isShopMode && step !== STEPS.STATUS && <Store size={22} className="text-indigo-600" />}
-                <span>{step === STEPS.STATUS ? 'Payment Receipt' : isShopMode ? 'Pay Shopkeeper' : 'Send Money'}</span>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                {isShopMode && step !== STEPS.STATUS && <Store size={24} className="text-[#4F6FD8]" />}
+                <span>
+                  {step === STEPS.STATUS
+                    ? 'Payment Confirmation'
+                    : isShopMode
+                    ? 'Pay Merchant'
+                    : 'Send Money'}
+                </span>
               </h1>
-              <p className="text-xs text-[var(--color-gray-500)]">
-                {step === STEPS.RECIPIENT && (isShopMode ? 'Scan shopkeeper QR or pick merchant to pay' : 'Choose who to pay or scan a payment QR')}
-                {step === STEPS.AMOUNT && `Enter amount for ${receiver?.name || 'recipient'}`}
-                {step === STEPS.METHOD && 'Choose transfer mechanism'}
-                {step === STEPS.REVIEW && 'Verify details before payment'}
-                {step === STEPS.STATUS && 'Transaction state and local verification'}
+              <p className="text-xs sm:text-sm font-medium mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {step === STEPS.RECIPIENT && 'Choose who to pay or scan a payment QR code'}
+                {step === STEPS.AMOUNT && `Enter transfer amount for ${receiver?.name || 'recipient'}`}
+                {step === STEPS.METHOD && 'Select transfer protocol (Online or ECDSA Offline QR)'}
+                {step === STEPS.REVIEW && 'Verify details and confirm payment'}
+                {step === STEPS.STATUS && 'Transaction state and cryptographic proof'}
               </p>
             </div>
           </div>
 
           {step !== STEPS.STATUS && (
-            <div className="text-right">
-              <span className="text-[11px] text-[var(--color-gray-400)] block">Balance</span>
-              <span className="text-sm font-bold text-[var(--color-indigo-600)]">
+            <div
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '1rem',
+                padding: '8px 16px',
+                textAlign: 'right',
+              }}
+              className="shrink-0"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>
+                Available Balance
+              </span>
+              <span className="text-sm font-black text-[#3155B8]">
                 {formatCurrency(currentAvailableBalance)}
               </span>
             </div>
           )}
         </div>
 
-        {/* Step Progress Bar */}
+        {/* ─── Step Progress Bar ─── */}
         {step !== STEPS.STATUS && (
-          <div className="flex items-center gap-2">
-            {[
-              { id: STEPS.RECIPIENT, label: '1. Recipient' },
-              { id: STEPS.AMOUNT, label: '2. Amount' },
-              { id: STEPS.METHOD, label: '3. Method' },
-              { id: STEPS.REVIEW, label: '4. Review' },
-            ].map((s, idx) => {
-              const stepKeys = [STEPS.RECIPIENT, STEPS.AMOUNT, STEPS.METHOD, STEPS.REVIEW];
-              const currentIndex = stepKeys.indexOf(step);
-              const isActive = s.id === step;
-              const isPast = currentIndex > idx;
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1rem',
+              padding: '12px 18px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 1px 4px rgba(23,43,117,0.04)',
+            }}
+          >
+            <div className="flex items-center gap-2">
+              {[
+                { id: STEPS.RECIPIENT, label: '1. Recipient' },
+                { id: STEPS.AMOUNT, label: '2. Amount' },
+                { id: STEPS.METHOD, label: '3. Method' },
+                { id: STEPS.REVIEW, label: '4. Review' },
+              ].map((s, idx) => {
+                const stepKeys = [STEPS.RECIPIENT, STEPS.AMOUNT, STEPS.METHOD, STEPS.REVIEW];
+                const currentIndex = stepKeys.indexOf(step);
+                const isActive = s.id === step;
+                const isPast = currentIndex > idx;
 
-              return (
-                <div key={s.id} className="flex-1">
-                  <div
-                    className={`h-1.5 rounded-full transition-all ${
-                      isActive
-                        ? 'bg-[#14B8A6]'
-                        : isPast
-                        ? 'bg-[#22C55E]'
-                        : 'bg-[#263449]'
-                    }`}
-                  />
-                  <span
-                    className={`text-[10px] font-bold mt-1 block truncate ${
-                      isActive ? 'text-[#14B8A6]' : isPast ? 'text-[#22C55E]' : 'text-[#94A3B8]'
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-              );
-            })}
+                return (
+                  <div key={s.id} className="flex-1">
+                    <div
+                      style={{
+                        height: '6px',
+                        borderRadius: '9999px',
+                        background: isActive
+                          ? 'linear-gradient(90deg, #172B75 0%, #3155B8 100%)'
+                          : isPast
+                          ? '#16A66A'
+                          : (isDark ? 'rgba(255,255,255,0.1)' : '#EAF0FF'),
+                        transition: 'all 0.3s ease',
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: isActive ? 800 : isPast ? 700 : 500,
+                        color: isActive
+                          ? (isDark ? '#738EE4' : '#172B75')
+                          : isPast
+                          ? '#16A66A'
+                          : 'var(--text-muted)',
+                        marginTop: '6px',
+                        display: 'block',
+                      }}
+                      className="truncate"
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Error Alert */}
+        {/* ─── Error Alert ─── */}
         {error && (
-          <div className="p-3.5 rounded-xl bg-[#EF4444]/15 border border-[#EF4444]/30 text-xs text-[#EF4444] flex items-start gap-2.5 animate-shake">
-            <AlertTriangle size={16} className="text-[#EF4444] mt-0.5 flex-shrink-0" />
-            <div className="flex-1 leading-relaxed font-semibold">{error}</div>
+          <div
+            style={{
+              background: isDark ? 'rgba(214,69,69,0.15)' : '#FEF6F6',
+              border: `1px solid ${isDark ? 'rgba(214,69,69,0.3)' : 'rgba(214,69,69,0.3)'}`,
+              borderRadius: '1rem',
+              padding: '14px 18px',
+              color: isDark ? '#F87171' : '#D64545',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+            }}
+            className="flex items-start gap-3 animate-fade-in"
+          >
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+            <div className="flex-1 leading-relaxed">{error}</div>
           </div>
         )}
 
@@ -581,239 +603,444 @@ function SendMoney() {
             STEP 1: CHOOSE RECIPIENT
         ════════════════════════════════════════════════════════════ */}
         {step === STEPS.RECIPIENT && (
-          <div className="space-y-5">
-            <Card padding className="space-y-6">
-              {/* Header Title & Subtitle */}
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-gray-900)] tracking-tight">
-                  Send Money
-                </h2>
-                <p className="text-xs sm:text-sm text-[var(--color-gray-500)] mt-1">
-                  Send money securely, even when your internet connection is unavailable.
-                </p>
-              </div>
-
-              {/* How would you like to pay section */}
-              <div className="space-y-3">
-                <label className="text-xs sm:text-sm font-semibold text-[var(--color-gray-800)] block">
-                  How would you like to pay?
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {/* Card 1: Send to User */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPayOption('user');
-                      setShowSearchSection(true);
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.25rem',
+              padding: '26px 28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-6"
+          >
+            {/* Mode Option Cards */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider block mb-3" style={{ color: 'var(--text-secondary)' }}>
+                Choose Payment Mode
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                {/* 1. Send to User */}
+                <button
+                  type="button"
+                  onClick={() => setPayOption('user')}
+                  style={{
+                    padding: '18px 14px',
+                    borderRadius: '1rem',
+                    border: `2px solid ${payOption === 'user' ? '#3155B8' : (isDark ? 'var(--border-color)' : '#DCE3F2')}`,
+                    background: payOption === 'user'
+                      ? (isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF')
+                      : (isDark ? 'var(--bg-elevated)' : '#F5F7FF'),
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  className="flex flex-col items-center justify-center gap-2.5 text-center group"
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '0.875rem',
+                      background: payOption === 'user' ? '#3155B8' : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                      color: payOption === 'user' ? '#FFFFFF' : '#3155B8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
-                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] ${
-                      payOption === 'user'
-                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
-                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
-                    }`}
+                    className="group-hover:scale-105 transition-transform"
                   >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                      payOption === 'user' ? 'bg-[#3155B8] text-white shadow-sm' : 'bg-slate-100 text-[#3155B8]'
-                    }`}>
-                      <User size={22} />
-                    </div>
-                    <span className={`text-xs sm:text-sm font-bold ${
-                      payOption === 'user' ? 'text-[#172B75]' : 'text-[var(--color-gray-700)]'
-                    }`}>
-                      Send to User
-                    </span>
-                  </button>
+                    <User size={22} strokeWidth={2.2} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      color: payOption === 'user' ? (isDark ? '#FFFFFF' : '#172B75') : 'var(--text-primary)',
+                    }}
+                  >
+                    Send to User
+                  </span>
+                </button>
 
-                  {/* Card 2: Scan QR */}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/scan', { state: { autoStart: true } })}
-                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group ${
-                      payOption === 'scan'
-                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
-                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
-                    }`}
+                {/* 2. Scan QR */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/scan', { state: { autoStart: true } })}
+                  style={{
+                    padding: '18px 14px',
+                    borderRadius: '1rem',
+                    border: `2px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                    background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  className="flex flex-col items-center justify-center gap-2.5 text-center group hover:border-[#3155B8]/50"
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '0.875rem',
+                      background: isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF',
+                      color: '#4F6FD8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    className="group-hover:scale-105 transition-transform"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <QrCode size={22} />
-                    </div>
-                    <span className="text-xs sm:text-sm font-semibold text-[var(--color-gray-700)]">
-                      Scan QR
-                    </span>
-                  </button>
+                    <QrCode size={22} strokeWidth={2.2} />
+                  </div>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Scan QR
+                  </span>
+                </button>
 
-                  {/* Card 3: Pay Merchant */}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/send?mode=shop')}
-                    className={`relative p-5 rounded-2xl border-2 transition-all flex flex-col items-center justify-center gap-3 text-center cursor-pointer min-h-[115px] group ${
-                      payOption === 'shop'
-                        ? 'border-[#3155B8] bg-[#EAF0FF]/70 shadow-sm'
-                        : 'border-[var(--color-gray-200)] bg-[var(--color-card-bg, #fff)] hover:border-[#3155B8]/40'
-                    }`}
+                {/* 3. Pay Merchant */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/send?mode=shop')}
+                  style={{
+                    padding: '18px 14px',
+                    borderRadius: '1rem',
+                    border: `2px solid ${isShopMode ? '#3155B8' : (isDark ? 'var(--border-color)' : '#DCE3F2')}`,
+                    background: isShopMode
+                      ? (isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF')
+                      : (isDark ? 'var(--bg-elevated)' : '#F5F7FF'),
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  className="flex flex-col items-center justify-center gap-2.5 text-center group hover:border-[#3155B8]/50"
+                >
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '0.875rem',
+                      background: isShopMode ? '#3155B8' : (isDark ? 'rgba(255,255,255,0.08)' : '#FFFFFF'),
+                      color: isShopMode ? '#FFFFFF' : '#4F6FD8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    className="group-hover:scale-105 transition-transform"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-slate-100 text-[#3155B8] flex items-center justify-center group-hover:scale-105 transition-transform">
-                      <Store size={22} />
-                    </div>
-                    <span className="text-xs sm:text-sm font-semibold text-[var(--color-gray-700)]">
-                      Pay Merchant
-                    </span>
-                  </button>
-                </div>
+                    <Store size={22} strokeWidth={2.2} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 700,
+                      color: isShopMode ? (isDark ? '#FFFFFF' : '#172B75') : 'var(--text-primary)',
+                    }}
+                  >
+                    Pay Merchant
+                  </span>
+                </button>
               </div>
+            </div>
 
-              {/* Offline payment available Banner */}
-              <div className="p-4 rounded-2xl bg-[#EEF4FF] border border-[#C5D5F8] flex items-start gap-3.5">
-                <div className="w-8 h-8 rounded-xl bg-[#3155B8]/15 text-[#3155B8] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <WifiOff size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs sm:text-sm font-bold text-[#172B75]">
-                    Offline payment available
-                  </h4>
-                  <p className="text-xs text-[#5F6B85] mt-0.5 leading-relaxed">
-                    You can create a signed payment voucher and complete local acknowledgment.
-                  </p>
-                </div>
-              </div>
-
-              {/* Main Action Button */}
-              <Button
-                variant="primary"
-                block
-                className="w-full bg-[#3155B8] hover:bg-[#172B75] text-white font-bold py-3.5 rounded-xl text-sm sm:text-base shadow-sm"
-                onClick={() => setShowSearchSection(true)}
+            {/* Recipient Search Input */}
+            <div className="space-y-2">
+              <label htmlFor="recipient-search" className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>
+                Search Recipient or Contact
+              </label>
+              <div
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  borderRadius: '0.875rem',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
               >
-                Continue
-              </Button>
-            </Card>
+                <Search size={18} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+                <input
+                  id="recipient-search"
+                  type="text"
+                  placeholder="Enter name, phone number, or email..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    width: '100%',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                  }}
+                  autoFocus
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    style={{
+                      background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                      color: 'var(--text-secondary)',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      width: '22px',
+                      height: '22px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
 
-            {/* Recipient Search & Directory Section */}
-            {(showSearchSection || query.length > 0) && (
-              <Card padding className="space-y-5 animate-fade-in">
-                {/* Recipient Search Box */}
-                <div className="space-y-1.5">
-                  <label htmlFor="recipient-search" className="text-xs font-bold text-[var(--color-gray-700)] uppercase tracking-wider">
-                    Who do you want to pay?
-                  </label>
-                  <Input
-                    id="recipient-search"
-                    placeholder="Name or phone (contacts), or full email for new recipients..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    leftIcon={<Search size={16} />}
-                    autoFocus
-                  />
-                </div>
-
-                {/* Search Results Display */}
-                {query.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
-                      Search Results ({searchResults.length})
-                    </p>
-                    {searchResults.length > 0 ? (
-                      <div className="divide-y divide-[var(--color-gray-100)] border border-[var(--color-gray-200)] rounded-xl overflow-hidden">
-                        {searchResults.map(user => (
-                          <button
-                            key={user.id}
-                            onClick={() => handleSelectReceiver(user)}
-                            className="w-full flex items-center gap-3 p-3.5 bg-white hover:bg-indigo-50/60 transition-colors text-left group"
+            {/* Search Results Display or Recent Contacts */}
+            {query.length > 0 ? (
+              <div className="space-y-2.5 animate-fade-in">
+                <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
+                  Matching Contacts ({searchResults.length})
+                </span>
+                {searchResults.length > 0 ? (
+                  <div
+                    style={{
+                      border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                      borderRadius: '1rem',
+                      overflow: 'hidden',
+                    }}
+                    className="divide-y"
+                  >
+                    {searchResults.map(user => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => handleSelectReceiver(user)}
+                        style={{
+                          background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                          borderColor: isDark ? 'var(--border-color)' : '#EAF0FF',
+                          padding: '14px 16px',
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s ease',
+                          textAlign: 'left',
+                          border: 'none',
+                        }}
+                        className="group"
+                        onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = isDark ? 'var(--bg-surface)' : '#FFFFFF'; }}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '0.75rem',
+                              background: user.avatarColor || '#4F6FD8',
+                              color: '#FFFFFF',
+                              fontWeight: 800,
+                              fontSize: '0.875rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
                           >
-                            <div
-                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                              style={{ background: user.avatarColor || '#4F46E5' }}
-                            >
-                              {user.avatar || (user.name ? user.name[0] : 'U')}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-[var(--color-gray-900)] truncate">{user.name}</p>
-                              <p className="text-xs text-[var(--color-gray-400)] truncate">{user.email || user.phone || user.id}</p>
-                            </div>
-                            <span className="text-xs font-semibold text-[var(--color-indigo-600)] group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
-                              Select <ChevronRight size={14} />
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 p-4 border border-dashed border-[var(--color-gray-200)] rounded-xl">
-                        <p className="text-sm font-bold text-[var(--color-gray-700)]">No recipient found</p>
-                        <p className="text-xs text-[var(--color-gray-400)] mt-1 max-w-sm mx-auto">
-                          Previous contacts appear with any partial search. To find a <strong>new recipient</strong>, enter their <strong>exact full email</strong> address — or scan their QR code.
-                        </p>
-                        <div className="mt-4 flex items-center justify-center gap-2">
-                          <Link to="/scan" state={{ autoStart: true }} className="btn btn-outline btn-sm no-underline">
-                            <QrCode size={14} /> Scan QR Instead
-                          </Link>
-                          <button
-                            onClick={() => setSearch('')}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            Clear Search
-                          </button>
+                            {user.name ? user.name[0].toUpperCase() : 'U'}
+                          </div>
+                          <div className="min-w-0">
+                            <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }} className="truncate">
+                              {user.name}
+                            </p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }} className="truncate">
+                              {user.phone || user.email || user.id}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: isDark ? '#738EE4' : '#3155B8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            flexShrink: 0,
+                          }}
+                          className="group-hover:translate-x-0.5 transition-transform"
+                        >
+                          <span>Select</span>
+                          <ChevronRight size={14} />
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 ) : (
-                  /* Recent Contacts List */
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
-                      Recent Recipients ({recentRecipients.length})
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      borderRadius: '1rem',
+                      border: `1px dashed ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      No contact found for "{search}"
                     </p>
-                    {recentRecipients.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {recentRecipients.map(contact => (
-                          <button
-                            key={contact.id}
-                            onClick={() => handleSelectReceiver(contact)}
-                            className="flex items-center gap-3 p-3 rounded-xl border border-[var(--color-gray-200)] hover:border-[var(--color-indigo-400)] hover:bg-indigo-50/40 transition-all text-left group"
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      You can pay by entering an exact registered email or scanning their QR.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Recent Contacts List */
+              <div className="space-y-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
+                  Recent Payees & Contacts
+                </span>
+                {recentRecipients.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {recentRecipients.map(contact => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => handleSelectReceiver(contact)}
+                        style={{
+                          background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                          border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                          borderRadius: '0.875rem',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                        }}
+                        className="group"
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = isDark ? 'var(--border-hover)' : '#3155B8';
+                          e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = isDark ? 'var(--border-color)' : '#DCE3F2';
+                          e.currentTarget.style.background = isDark ? 'var(--bg-surface)' : '#FFFFFF';
+                        }}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '0.625rem',
+                              background: contact.avatarColor || '#4F6FD8',
+                              color: '#FFFFFF',
+                              fontWeight: 800,
+                              fontSize: '0.8125rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
                           >
-                            <div
-                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                              style={{ background: contact.avatarColor || '#4F46E5' }}
-                            >
-                              {contact.name ? contact.name[0] : 'U'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs sm:text-sm font-bold text-[var(--color-gray-800)] truncate">
-                                {contact.name}
-                              </p>
-                              <p className="text-[11px] text-[var(--color-gray-400)] truncate">
-                                {contact.email || contact.id}
-                              </p>
-                            </div>
-                            <ChevronRight size={14} className="text-[var(--color-gray-300)] group-hover:text-[var(--color-indigo-600)]" />
+                            {contact.name ? contact.name[0].toUpperCase() : 'U'}
+                          </div>
+                          <div className="min-w-0">
+                            <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }} className="truncate">
+                              {contact.name}
+                            </p>
+                            <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '1px 0 0 0' }} className="truncate">
+                              {contact.phone || contact.email || contact.id}
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} className="group-hover:translate-x-0.5 group-hover:text-[#3155B8] shrink-0 transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      borderRadius: '1rem',
+                      border: `1px dashed ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      No recent contacts found.
+                    </p>
+                    {availableReceivers.length > 0 && (
+                      <div className="mt-3 flex flex-wrap justify-center gap-2">
+                        {availableReceivers.slice(0, 4).map(u => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => handleSelectReceiver(u)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '0.625rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
+                              color: isDark ? '#738EE4' : '#172B75',
+                              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            + {u.name}
                           </button>
                         ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 border border-dashed border-[var(--color-gray-200)] rounded-xl">
-                        <p className="text-xs text-[var(--color-gray-500)]">No previous recipients yet.</p>
-                        <p className="text-[11px] text-[var(--color-gray-400)] mt-0.5">
-                          Search by recipient name above or pick from registered demo accounts.
-                        </p>
-                        {availableReceivers.length > 0 && (
-                          <div className="mt-3 flex flex-wrap justify-center gap-2 px-3">
-                            {availableReceivers.slice(0, 3).map(u => (
-                              <button
-                                key={u.id}
-                                onClick={() => handleSelectReceiver(u)}
-                                className="btn btn-outline btn-sm text-xs py-1 px-2.5"
-                              >
-                                + {u.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
                 )}
-              </Card>
+              </div>
             )}
+
+            {/* Offline Readiness Notice */}
+            <div
+              style={{
+                background: isDark ? 'rgba(79,111,216,0.1)' : '#EEF4FF',
+                border: `1px solid ${isDark ? 'rgba(79,111,216,0.25)' : '#C5D5F8'}`,
+                borderRadius: '1rem',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+              }}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '0.625rem',
+                  background: isDark ? 'rgba(79,111,216,0.2)' : 'rgba(49,85,184,0.15)',
+                  color: isDark ? '#738EE4' : '#3155B8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: '2px',
+                }}
+              >
+                <WifiOff size={16} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: isDark ? '#FFFFFF' : '#172B75', margin: 0 }}>
+                  Offline payment ready
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0 0', lineHeight: 1.4 }}>
+                  Create cryptographically signed payment vouchers even with zero internet.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -821,32 +1048,74 @@ function SendMoney() {
             STEP 2: ENTER AMOUNT
         ════════════════════════════════════════════════════════════ */}
         {step === STEPS.AMOUNT && receiver && (
-          <Card padding className="space-y-5">
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.25rem',
+              padding: '28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-6"
+          >
             {/* Selected Recipient Card */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[var(--color-gray-50)] border border-[var(--color-gray-200)]">
+            <div
+              style={{
+                background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '1rem',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+              }}
+            >
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                  style={{ background: receiver.avatarColor || '#4F46E5' }}
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '0.875rem',
+                    background: receiver.avatarColor || '#4F6FD8',
+                    color: '#FFFFFF',
+                    fontWeight: 900,
+                    fontSize: '1.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
                 >
-                  {receiver.name ? receiver.name[0] : 'U'}
+                  {receiver.name ? receiver.name[0].toUpperCase() : 'U'}
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-400)]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
                     Paying Recipient
                   </span>
-                  <p className="text-sm sm:text-base font-bold text-[var(--color-gray-900)] truncate">
+                  <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }} className="truncate">
                     {receiver.name}
                   </p>
-                  <p className="text-[11px] text-[var(--color-gray-500)] truncate font-mono">
-                    {receiver.email || receiver.id}
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '1px 0 0 0' }} className="truncate font-mono">
+                    {receiver.email || receiver.phone || receiver.id}
                   </p>
                 </div>
               </div>
 
               <button
+                type="button"
                 onClick={() => setStep(STEPS.RECIPIENT)}
-                className="text-xs font-semibold text-[var(--color-indigo-600)] hover:underline flex-shrink-0 ml-2"
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: isDark ? '#738EE4' : '#3155B8',
+                  background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  borderRadius: '0.625rem',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
               >
                 Change
               </button>
@@ -855,18 +1124,35 @@ function SendMoney() {
             {/* Amount Input */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="payment-amount" className="text-xs font-bold text-[var(--color-gray-700)] uppercase tracking-wider">
-                  Payment Amount
+                <label htmlFor="payment-amount" className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>
+                  Transfer Amount
                 </label>
-                <span className="text-xs text-[var(--color-gray-500)]">
-                  Available: <strong className="text-[var(--color-gray-800)]">{formatCurrency(currentAvailableBalance)}</strong>
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Available: <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(currentAvailableBalance)}</strong>
                 </span>
               </div>
 
-              <div className="relative flex items-center">
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: isDark ? 'var(--bg-elevated)' : '#FFFFFF',
+                  border: `2px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  borderRadius: '1rem',
+                  padding: '4px 16px',
+                  transition: 'border-color 0.2s',
+                }}
+                className="focus-within:border-[#3155B8]"
+              >
                 <span
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-black text-[var(--color-gray-400)] pointer-events-none select-none z-10"
-                  style={{ userSelect: 'none' }}
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 900,
+                    color: 'var(--text-muted)',
+                    marginRight: '8px',
+                    userSelect: 'none',
+                  }}
                 >
                   Rs.
                 </span>
@@ -875,21 +1161,29 @@ function SendMoney() {
                   type="number"
                   step="0.01"
                   min="1"
-                  placeholder=""
+                  placeholder="0.00"
                   value={amount}
                   onChange={e => {
                     setAmount(e.target.value);
                     setError('');
                   }}
-                  style={{ paddingLeft: '4.75rem', paddingRight: '1rem' }}
-                  className="w-full py-3.5 text-2xl font-black text-[var(--color-gray-900)] bg-white border-2 border-[var(--color-gray-200)] focus:border-[var(--color-indigo-600)] rounded-xl outline-none transition-colors"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    width: '100%',
+                    fontSize: '2rem',
+                    fontWeight: 900,
+                    color: 'var(--text-primary)',
+                    padding: '8px 0',
+                  }}
                   autoFocus
                 />
               </div>
 
-              {/* Quick Amount Buttons */}
-              <div className="flex items-center gap-2 pt-1 flex-wrap">
-                <span className="text-[11px] text-[var(--color-gray-400)] font-medium">Quick add:</span>
+              {/* Quick Amount Chips */}
+              <div className="flex items-center gap-2 pt-2 flex-wrap">
+                <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Quick add:</span>
                 {QUICK_AMOUNTS.map(preset => (
                   <button
                     key={preset}
@@ -898,11 +1192,19 @@ function SendMoney() {
                       setAmount(String(preset));
                       setError('');
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                      parsedAmount === preset
-                        ? 'bg-[var(--color-indigo-600)] text-white border-[var(--color-indigo-600)]'
-                        : 'bg-white hover:bg-slate-50 text-[var(--color-gray-700)] border-[var(--color-gray-200)]'
-                    }`}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '0.625rem',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: parsedAmount === preset
+                        ? 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)'
+                        : (isDark ? 'var(--bg-elevated)' : '#FFFFFF'),
+                      color: parsedAmount === preset ? '#FFFFFF' : 'var(--text-secondary)',
+                      border: `1px solid ${parsedAmount === preset ? '#172B75' : (isDark ? 'var(--border-color)' : '#DCE3F2')}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
                   >
                     +Rs. {preset}
                   </button>
@@ -912,17 +1214,38 @@ function SendMoney() {
 
             {/* Optional Note */}
             <div className="space-y-1.5">
-              <label htmlFor="payment-note" className="text-xs font-bold text-[var(--color-gray-700)] uppercase tracking-wider">
+              <label htmlFor="payment-note" className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-secondary)' }}>
                 Note / Description (Optional)
               </label>
-              <Input
-                id="payment-note"
-                placeholder="e.g. Lunch split, taxi fare, groceries"
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                maxLength={140}
-                leftIcon={<FileText size={16} />}
-              />
+              <div
+                style={{
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  borderRadius: '0.875rem',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}
+              >
+                <FileText size={16} style={{ color: 'var(--text-muted)' }} className="shrink-0" />
+                <input
+                  id="payment-note"
+                  type="text"
+                  placeholder="e.g. Lunch split, taxi fare, groceries"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  maxLength={140}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    outline: 'none',
+                    width: '100%',
+                    fontSize: '0.8125rem',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -937,37 +1260,55 @@ function SendMoney() {
               <Button
                 variant="primary"
                 onClick={handleAmountContinue}
-                className="w-2/3"
+                className="w-2/3 font-bold"
                 id="btn-amount-continue"
               >
                 Continue to Method
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════
             STEP 3: CHOOSE PAYMENT METHOD
         ════════════════════════════════════════════════════════════ */}
         {step === STEPS.METHOD && (
-          <Card padding className="space-y-5">
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.25rem',
+              padding: '28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-6"
+          >
             <div>
-              <h2 className="text-sm font-bold text-[var(--color-gray-800)] uppercase tracking-wider">
-                Select Payment Method
+              <h2 className="text-sm font-bold uppercase tracking-wider block" style={{ color: 'var(--text-primary)' }}>
+                Select Payment Protocol
               </h2>
-              <p className="text-xs text-[var(--color-gray-500)] mt-0.5">
-                Amount to send: <strong className="text-emerald-600 font-bold">{formatCurrency(parsedAmount)}</strong>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Transfer Amount: <strong className="text-[#16A66A] font-bold">{formatCurrency(parsedAmount)}</strong>
               </p>
             </div>
 
-            <div className="space-y-3">
-              {/* Option 1: Online Payment */}
+            <div className="space-y-3.5">
+              {/* Option 1: Instant Online Transfer */}
               <label
-                className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  paymentMethod === 'online'
-                    ? 'border-[#3155B8] bg-[#EAF0FF]'
-                    : 'border-[#DCE3F2] bg-white hover:border-[#3155B8]/40'
-                } ${isOffline ? 'opacity-50 pointer-events-none' : ''}`}
+                style={{
+                  background: paymentMethod === 'online'
+                    ? (isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF')
+                    : (isDark ? 'var(--bg-elevated)' : '#FFFFFF'),
+                  border: `2px solid ${paymentMethod === 'online' ? '#3155B8' : (isDark ? 'var(--border-color)' : '#DCE3F2')}`,
+                  borderRadius: '1rem',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '14px',
+                  cursor: isOffline ? 'not-allowed' : 'pointer',
+                  opacity: isOffline ? 0.6 : 1,
+                  transition: 'all 0.2s ease',
+                }}
               >
                 <input
                   type="radio"
@@ -980,30 +1321,38 @@ function SendMoney() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <Wifi size={16} className="text-[#3155B8]" />
-                    <span className="text-sm font-bold text-[#172033]">
+                    <Wifi size={18} className="text-[#3155B8]" />
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                       Instant Online Transfer
                     </span>
                     <span className="badge badge-settled text-[10px]">Real-time</span>
                   </div>
-                  <p className="text-xs text-[#5F6B85] mt-1 leading-relaxed">
-                    Settles immediately with database confirmation. Requires active internet connection.
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Immediate central database commitment. Requires active internet connectivity.
                   </p>
                   {isOffline && (
                     <span className="text-[11px] font-semibold text-[#D64545] mt-1 block">
-                      ⚠ Unavailable while offline.
+                      ⚠ Currently offline. Use Cryptographic Offline Payment below.
                     </span>
                   )}
                 </div>
               </label>
 
-              {/* Option 2: Offline Signed Payment */}
+              {/* Option 2: Cryptographic Offline Payment */}
               <label
-                className={`flex items-start gap-3.5 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  paymentMethod === 'offline'
-                    ? 'border-[#172B75] bg-[#EAF0FF]'
-                    : 'border-[#DCE3F2] bg-white hover:border-[#172B75]/40'
-                }`}
+                style={{
+                  background: paymentMethod === 'offline'
+                    ? (isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF')
+                    : (isDark ? 'var(--bg-elevated)' : '#FFFFFF'),
+                  border: `2px solid ${paymentMethod === 'offline' ? '#3155B8' : (isDark ? 'var(--border-color)' : '#DCE3F2')}`,
+                  borderRadius: '1rem',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
               >
                 <input
                   type="radio"
@@ -1015,38 +1364,23 @@ function SendMoney() {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <WifiOff size={16} className="text-[#172B75]" />
-                    <span className="text-sm font-bold text-[#172033]">
-                      Cryptographic Offline Payment
+                    <WifiOff size={18} className="text-[#3155B8]" />
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                      Cryptographic Offline QR Voucher
                     </span>
-                    <span className="badge badge-offline text-[10px]">Local P-256</span>
+                    <span className="badge badge-offline text-[10px]">ECDSA P-256</span>
                   </div>
-                  <p className="text-xs text-[#5F6B85] mt-1 leading-relaxed">
-                    Cryptographically signs the payment using your device key and displays a QR code. Stored locally until synchronized.
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Digitally signed with local device hardware keys. Displays dynamic QR verified and settled without internet.
                   </p>
 
-                  {/* Offline eligibility callouts */}
-                  <div className="mt-2.5 pt-2 border-t border-[#DCE3F2] text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[#5F6B85]">Authorized offline limit:</span>
-                      <span className="font-semibold text-[#172033]">
+                  <div className="mt-3 pt-2.5 border-t text-xs space-y-1" style={{ borderColor: isDark ? 'var(--border-color)' : '#DCE3F2' }}>
+                    <div className="flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
+                      <span>Authorized Offline Limit:</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>
                         {isAuthActive ? formatCurrency(remainingOfflineLimit) : 'No active limit'}
-                      </span>
+                      </strong>
                     </div>
-
-                    {!device && (
-                      <div className="p-2 rounded-lg bg-[#FFF6DD] border border-[#F2A900]/30 text-[#B57F00] text-[11px] mt-2">
-                        Device not registered yet. Please register your device first.
-                      </div>
-                    )}
-                    {device && !isAuthActive && (
-                      <div className="p-2 rounded-lg bg-[#FFF6DD] border border-[#F2A900]/30 text-[#B57F00] text-[11px] mt-2 flex items-center justify-between">
-                        <span>Offline authorization required</span>
-                        <Link to="/offline-authorization" className="font-bold underline text-[#172B75]">
-                          Authorize Now
-                        </Link>
-                      </div>
-                    )}
                   </div>
                 </div>
               </label>
@@ -1063,89 +1397,87 @@ function SendMoney() {
               <Button
                 variant="primary"
                 onClick={handleMethodContinue}
-                className="w-2/3"
+                className="w-2/3 font-bold"
                 id="btn-method-continue"
               >
                 Review Payment
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════
             STEP 4: REVIEW PAYMENT
         ════════════════════════════════════════════════════════════ */}
         {step === STEPS.REVIEW && receiver && (
-          <Card padding className="space-y-5">
+          <div
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '1.25rem',
+              padding: '28px',
+              boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            }}
+            className="space-y-6"
+          >
             <div className="text-center py-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#5F6B85]">
-                Total Amount To Transfer
+              <span className="text-xs font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
+                Total Transfer Amount
               </span>
-              <p className="text-3xl sm:text-4xl font-black text-[#172033] mt-1">
+              <p className="text-4xl sm:text-5xl font-black mt-1" style={{ color: 'var(--text-primary)' }}>
                 {formatCurrency(parsedAmount)}
               </p>
-              <p className="text-xs text-[#8993A8] mt-0.5">NPR (Nepalese Rupee)</p>
+              <p className="text-xs mt-0.5 font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
+                NPR
+              </p>
             </div>
 
             {/* Review breakdown details */}
-            <div className="divide-y divide-[#DCE3F2] border border-[#DCE3F2] rounded-2xl overflow-hidden bg-white text-xs">
-              <div className="flex items-center justify-between p-3.5 bg-[#F5F7FF]">
-                <span className="text-[#5F6B85]">Recipient / Shopkeeper:</span>
-                <span className="font-bold text-[#172033]">{receiver.name}</span>
+            <div
+              style={{
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '1rem',
+                overflow: 'hidden',
+                fontSize: '0.8125rem',
+              }}
+              className="divide-y"
+            >
+              <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-elevated)' : '#F5F7FF' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Recipient:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{receiver.name}</strong>
               </div>
-              <div className="flex items-center justify-between p-3.5">
-                <span className="text-[#5F6B85]">Recipient ID:</span>
-                <span className="font-mono text-[11px] text-[#5F6B85]">{formatTxIdShort(receiver.id)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3.5 bg-[#F5F7FF]">
-                <span className="text-[#5F6B85]">Payment Method:</span>
-                <span className="font-bold flex items-center gap-1">
+              <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-surface)' : '#FFFFFF' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Payment Method:</span>
+                <span className="font-bold flex items-center gap-1.5">
                   {paymentMethod === 'offline' ? (
                     <>
-                      <WifiOff size={14} className="text-[#3155B8]" />
-                      <span className="text-[#172B75]">Offline QR (P-256 Signed)</span>
+                      <WifiOff size={15} className="text-[#3155B8]" />
+                      <span className="text-[#3155B8]">Offline QR (ECDSA P-256)</span>
                     </>
                   ) : (
                     <>
-                      <Wifi size={14} className="text-[#16A66A]" />
-                      <span className="text-[#16A66A]">Online Immediate</span>
+                      <Wifi size={15} className="text-[#16A66A]" />
+                      <span className="text-[#16A66A]">Online Instant Transfer</span>
                     </>
                   )}
                 </span>
               </div>
-              {note && (
-                <div className="flex items-center justify-between p-3.5">
-                  <span className="text-[#5F6B85]">Note:</span>
-                  <span className="text-[#172033] italic">{note}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between p-3.5 bg-[#F5F7FF]">
-                <span className="text-[#5F6B85]">Available Balance After:</span>
-                <span className="font-bold text-[#172033]">
-                  {formatCurrency(Math.max(0, currentAvailableBalance - parsedAmount))}
-                </span>
+              <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-elevated)' : '#F5F7FF' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Transfer Fee:</span>
+                <span className="text-[#16A66A] font-bold">Free (Rs. 0.00)</span>
               </div>
-              {paymentMethod === 'offline' && (
-                <div className="flex items-center justify-between p-3.5 bg-[#EAF0FF]">
-                  <span className="text-[#172B75] font-medium">Remaining Offline Allowance After:</span>
-                  <span className="font-black text-[#172B75]">
-                    {formatCurrency(Math.max(0, remainingOfflineLimit - parsedAmount))}
-                  </span>
+              {note && (
+                <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-surface)' : '#FFFFFF' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Note:</span>
+                  <span style={{ color: 'var(--text-primary)', fontStyle: 'italic' }}>{note}</span>
                 </div>
               )}
-            </div>
-
-            {/* Offline Settlement Warning & Reassurance */}
-            <div className="p-3.5 rounded-xl bg-[#EAF0FF] border border-[#DCE3F2] text-xs space-y-1">
-              <p className="font-bold flex items-center gap-1.5 text-[#172B75]">
-                <ShieldCheck size={15} className="text-[#3155B8]" />
-                <span>Device Authorization & Reconciliation Notice</span>
-              </p>
-              <p className="text-[11px] leading-relaxed text-[#5F6B85]">
-                {paymentMethod === 'offline'
-                  ? `After this payment, your remaining offline allowance will be ${formatCurrency(Math.max(0, remainingOfflineLimit - parsedAmount))}. Payment will be accepted and verified locally on the receiver's device. Final server reconciliation occurs when either device reconnects.`
-                  : 'Instant online transfer verified and settled authoritatively on the server.'}
-              </p>
+              <div className="flex items-center justify-between p-3.5" style={{ background: isDark ? 'var(--bg-elevated)' : '#F5F7FF' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Remaining Balance After:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {formatCurrency(Math.max(0, currentAvailableBalance - parsedAmount))}
+                </strong>
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -1166,10 +1498,10 @@ function SendMoney() {
                 className="w-2/3 font-bold"
                 id="btn-confirm-pay"
               >
-                {paymentMethod === 'offline' ? 'Confirm & Generate Payment QR' : 'Confirm & Pay'}
+                {paymentMethod === 'offline' ? 'Confirm & Generate Payment QR' : 'Confirm & Pay Now'}
               </Button>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ════════════════════════════════════════════════════════════
@@ -1187,110 +1519,171 @@ function SendMoney() {
               onDone={() => navigate('/dashboard')}
             />
           ) : (
-            <Card padding className="space-y-6 text-center">
+            <div
+              style={{
+                background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+                border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                borderRadius: '1.25rem',
+                padding: '30px',
+                boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+                textAlign: 'center',
+              }}
+              className="space-y-6"
+            >
               {/* Header Title */}
               <div>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                  isTxExpired
-                    ? 'bg-red-50 text-red-600 border border-red-200'
-                    : isSettled
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                    : isAck
-                    ? 'bg-sky-50 text-sky-600 border border-sky-200'
-                    : 'bg-[#EEF4FF] text-[#3155B8] border border-[#C5D5F8]'
-                } mb-3`}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 12px',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    marginBottom: '12px',
+                    background: isTxExpired
+                      ? 'rgba(214,69,69,0.15)'
+                      : isSettled
+                      ? 'rgba(22,166,106,0.15)'
+                      : isAck
+                      ? 'rgba(79,111,216,0.15)'
+                      : '#EEF4FF',
+                    color: isTxExpired
+                      ? '#D64545'
+                      : isSettled
+                      ? '#16A66A'
+                      : isAck
+                      ? '#3155B8'
+                      : '#3155B8',
+                    border: `1px solid ${isTxExpired ? '#D64545' : isSettled ? '#16A66A' : '#3155B8'}`,
+                  }}
+                >
                   {isTxExpired ? <Clock size={13} /> : isSettled ? <CheckCircle2 size={13} /> : isAck ? <CheckCircle2 size={13} /> : <WifiOff size={13} />}
                   <span>
                     {isTxExpired
-                      ? 'Payment Expired & Cancelled'
+                      ? 'Payment Expired & Refunded'
                       : isSettled
-                      ? 'Payment Settled by Server'
+                      ? 'Payment Settled Successfully'
                       : isAck
                       ? 'Receiver Acknowledged Offline'
                       : 'Waiting for Receiver'}
                   </span>
                 </span>
 
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-[var(--color-gray-900)] tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   {isTxExpired
                     ? 'Payment Expired & Cancelled'
                     : isSettled
                     ? 'Payment Settled Successfully'
                     : isAck
                     ? 'Receiver Acknowledged Offline'
-                    : 'Waiting for Receiver'}
+                    : 'Show Payment QR'}
                 </h2>
-                <p className="text-xs sm:text-sm text-[var(--color-gray-500)] max-w-md mx-auto mt-1.5 leading-relaxed">
+                <p className="text-xs sm:text-sm max-w-md mx-auto mt-1.5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   {isTxExpired
-                    ? `Not scanned within 5 minutes. ${formatCurrency(createdTx.amount)} has been automatically refunded to your wallet balance.`
+                    ? `Not claimed within 5 minutes. ${formatCurrency(createdTx.amount)} has been refunded to your wallet.`
                     : isSettled
-                    ? 'Your payment was authoritatively settled on the central ledger.'
+                    ? 'Your payment was authoritatively verified and settled on the ledger.'
                     : isAck
-                    ? 'Awaiting Synchronization — The receiver has cryptographically verified and claimed this offline payment.'
-                    : 'Show this QR to the receiver. Once they validate it offline, scan their acknowledgment QR.'}
+                    ? 'The receiver has verified and claimed this payment. Awaiting automatic online synchronization.'
+                    : 'Show this QR to the receiver to scan. After they accept it, scan their acknowledgment QR.'}
                 </p>
               </div>
 
-              {/* Countdown badge only if strictly unclaimed offline payment */}
+              {/* Countdown badge for unclaimed offline payments */}
               {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
-                <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[#EEF4FF] border border-[#C5D5F8] text-[#3155B8] mx-auto">
-                  <Clock size={14} className="text-[#3155B8] animate-pulse" />
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    background: isDark ? 'rgba(79,111,216,0.15)' : '#EEF4FF',
+                    color: isDark ? '#738EE4' : '#3155B8',
+                    border: `1px solid ${isDark ? 'rgba(79,111,216,0.3)' : '#C5D5F8'}`,
+                  }}
+                  className="mx-auto"
+                >
+                  <Clock size={14} className="animate-pulse" />
                   <span>
-                    Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-cancels if not claimed
+                    Valid for {Math.floor(remainingSecs / 60)}:{(remainingSecs % 60).toString().padStart(2, '0')} · Auto-refunds if unclaimed
                   </span>
                 </div>
               )}
 
               {/* Amount Display Card */}
-              <div className="p-4 rounded-2xl bg-[#F5F7FF] border border-[#DCE3F2] max-w-sm mx-auto shadow-xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-gray-500)]">
-                  Payment Amount
+              <div
+                style={{
+                  padding: '16px',
+                  borderRadius: '1rem',
+                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                  border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                  maxWidth: '360px',
+                  margin: '0 auto',
+                }}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: 'var(--text-muted)' }}>
+                  Amount
                 </span>
-                <p className={`text-3xl font-black mt-0.5 ${isTxExpired ? 'text-[var(--color-gray-400)] line-through' : 'text-[#3155B8]'}`}>
+                <p
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: 900,
+                    color: isTxExpired ? 'var(--text-muted)' : (isDark ? '#738EE4' : '#3155B8'),
+                    margin: '4px 0',
+                    textDecoration: isTxExpired ? 'line-through' : 'none',
+                  }}
+                >
                   {formatCurrency(createdTx.amount)}
                 </p>
-                <p className="text-xs text-[var(--color-gray-600)] mt-1">
-                  Paying: <strong className="text-[var(--color-gray-900)] font-bold">{createdTx.receiverName}</strong>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  Recipient: <strong style={{ color: 'var(--text-primary)' }}>{createdTx.receiverName}</strong>
                 </p>
               </div>
-
-              {/* Acknowledged Status Box if already verified by receiver */}
-              {isAck && !isSettled && (
-                <div className="p-4 rounded-2xl bg-[#E8F8F1] border border-[#16A66A]/30 max-w-sm mx-auto space-y-2 text-left text-xs">
-                  <div className="flex items-center gap-2 text-[#16A66A] font-bold">
-                    <CheckCircle2 size={16} />
-                    <span>Receiver Acknowledged Offline</span>
-                  </div>
-                  <p className="text-[11px] text-[#5F6B85] leading-relaxed">
-                    This offline payment was claimed and verified by <strong className="text-[#172033]">{currentTx.receiverName}</strong>. It is permanently protected from expiration and will settle authoritatively once connectivity is available.
-                  </p>
-                  <div className="pt-1 flex items-center justify-between text-[10px] text-[#5F6B85] border-t border-[#16A66A]/20">
-                    <span>Status: <strong className="text-[#16A66A]">RECEIVER_ACKNOWLEDGED</strong></span>
-                    <span>Sync: <strong>PENDING_SYNC</strong></span>
-                  </div>
-                </div>
-              )}
 
               {/* Offline QR Presentation or Expired Box */}
               {createdTx.method === 'OFFLINE_QR' && (
                 isTxExpired ? (
-                  <div className="p-5 rounded-2xl border border-red-200 bg-red-50/50 max-w-sm mx-auto space-y-2 text-center">
-                    <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
-                      <Clock size={24} />
-                    </div>
-                    <p className="text-sm font-bold text-red-700">5-Minute Time Limit Exceeded</p>
-                    <p className="text-xs text-red-600 leading-relaxed">
-                      This payment was not received or scanned within 5 minutes. The QR token has been automatically cancelled and your funds ({formatCurrency(createdTx.amount)}) are refunded.
+                  <div
+                    style={{
+                      padding: '20px',
+                      borderRadius: '1rem',
+                      background: 'rgba(214,69,69,0.1)',
+                      border: '1px solid rgba(214,69,69,0.3)',
+                      maxWidth: '360px',
+                      margin: '0 auto',
+                    }}
+                  >
+                    <Clock size={28} className="text-[#D64545] mx-auto mb-2" />
+                    <p style={{ fontSize: '0.875rem', fontWeight: 800, color: '#D64545', margin: 0 }}>
+                      5-Minute Window Expired
+                    </p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Funds have been released and restored to your spendable balance.
                     </p>
                   </div>
                 ) : (
                   qrDataUrl && (
-                    <div className="p-5 rounded-2xl border border-[#DCE3F2] bg-[#F5F7FF] max-w-sm mx-auto space-y-3.5 shadow-xs">
+                    <div
+                      style={{
+                        padding: '20px',
+                        borderRadius: '1.25rem',
+                        background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
+                        border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                        maxWidth: '360px',
+                        margin: '0 auto',
+                      }}
+                      className="space-y-3"
+                    >
                       <div className="p-3 bg-white rounded-2xl inline-block shadow-sm border border-[#DCE3F2]">
                         <img src={qrDataUrl} alt="Signed Offline Payment QR" className="w-56 h-56 sm:w-60 sm:h-60 mx-auto" />
                       </div>
-                      <p className="text-[11px] text-[var(--color-gray-500)] font-medium">
-                        Signed with local ECDSA P-256 device key · Anti-replay protected
+                      <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: 0, fontWeight: 500 }}>
+                        Signed with ECDSA P-256 device key · Anti-replay protected
                       </p>
                     </div>
                   )
@@ -1299,15 +1692,40 @@ function SendMoney() {
 
               {/* Two-Way Offline Acknowledgment Scanning Block */}
               {createdTx.method === 'OFFLINE_QR' && !isTxExpired && !isAck && !isSettled && (
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#EEF4FF] border border-[#C5D5F8] max-w-sm mx-auto space-y-3 text-left">
+                <div
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '1.25rem',
+                    background: isDark ? 'rgba(79,111,216,0.12)' : '#EEF4FF',
+                    border: `1px solid ${isDark ? 'rgba(79,111,216,0.25)' : '#C5D5F8'}`,
+                    maxWidth: '360px',
+                    margin: '0 auto',
+                    textAlign: 'left',
+                  }}
+                  className="space-y-3"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#3155B8]/15 text-[#3155B8] flex items-center justify-center flex-shrink-0">
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '0.75rem',
+                        background: isDark ? 'rgba(79,111,216,0.25)' : 'rgba(49,85,184,0.15)',
+                        color: isDark ? '#738EE4' : '#3155B8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
                       <Camera size={20} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-[#172B75]">Scan Receiver Acknowledgment</p>
-                      <p className="text-[11px] text-[#5F6B85] mt-0.5">
-                        After the receiver scans your payment, scan their signed acknowledgment QR
+                      <p style={{ fontSize: '0.8125rem', fontWeight: 800, color: isDark ? '#FFFFFF' : '#172B75', margin: 0 }}>
+                        Scan Receiver Acknowledgment
+                      </p>
+                      <p style={{ fontSize: '0.6875rem', color: 'var(--text-secondary)', margin: '1px 0 0 0' }}>
+                        Scan receiver's signed acknowledgment QR to confirm offline receipt
                       </p>
                     </div>
                   </div>
@@ -1323,36 +1741,15 @@ function SendMoney() {
                           {ackScanError}
                         </div>
                       )}
-                      <div className="space-y-1.5 text-left">
-                        <span className="text-[10px] text-[#5F6B85] font-semibold">Or paste receiver acknowledgment JSON:</span>
-                        <textarea
-                          rows={2}
-                          value={manualAckInput}
-                          onChange={e => setManualAckInput(e.target.value)}
-                          placeholder='Paste acknowledgment payload...'
-                          className="w-full p-2 text-[10px] font-mono bg-white text-[#172033] border border-[#DCE3F2] rounded-lg outline-none focus:border-[#3155B8]"
-                        />
-                        {manualAckInput.trim() && (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            block
-                            loading={isVerifyingAck}
-                            onClick={() => handleProcessAckPayload(manualAckInput.trim())}
-                          >
-                            Verify & Record Acknowledgment
-                          </Button>
-                        )}
-                      </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="flex-1 text-xs border-[#3155B8]/40 text-[#3155B8]"
+                          className="flex-1 text-xs"
                           onClick={() => ackFileInputRef.current?.click()}
                           leftIcon={<ImageIcon size={14} />}
                         >
-                          Upload Image
+                          Upload Photo
                         </Button>
                         <Button
                           size="sm"
@@ -1371,7 +1768,7 @@ function SendMoney() {
                         onClick={handleStartAckScanner}
                         leftIcon={<Camera size={16} />}
                         id="btn-scan-receiver-ack"
-                        className="flex-1 bg-[#3155B8] hover:bg-[#172B75] font-bold text-xs text-white"
+                        className="flex-1 font-bold text-xs"
                       >
                         Camera Scanner
                       </Button>
@@ -1380,9 +1777,9 @@ function SendMoney() {
                         onClick={() => ackFileInputRef.current?.click()}
                         leftIcon={<ImageIcon size={16} />}
                         id="btn-upload-receiver-ack-img"
-                        className="flex-1 border-[#3155B8]/40 text-[#3155B8] hover:bg-indigo-50/50 text-xs font-semibold"
+                        className="flex-1 text-xs font-semibold"
                       >
-                        Upload Image
+                        Upload Photo
                       </Button>
                     </div>
                   )}
@@ -1397,34 +1794,6 @@ function SendMoney() {
                 </div>
               )}
 
-              {/* Collapsible Technical Payload Drawer */}
-              <div className="max-w-sm mx-auto text-left">
-                <button
-                  type="button"
-                  onClick={() => setShowTechnicalPayload(s => !s)}
-                  className="w-full flex items-center justify-between text-xs font-semibold text-[var(--color-gray-500)] hover:text-[var(--color-gray-700)] p-2 rounded-lg hover:bg-slate-50 border border-transparent transition-colors cursor-pointer"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <ShieldCheck size={14} className="text-[#3155B8]" />
-                    <span>Technical Cryptographic Details</span>
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform ${showTechnicalPayload ? 'rotate-180' : ''}`}
-                  />
-                </button>
-
-                {showTechnicalPayload && (
-                  <div className="mt-2 p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-[10px] space-y-1.5 overflow-x-auto shadow-inner">
-                    <div><span className="text-slate-500">tx_id:</span> {createdTx.id}</div>
-                    <div><span className="text-slate-500">nonce:</span> {createdTx.nonce}</div>
-                    <div><span className="text-slate-500">counter:</span> {createdTx.counter}</div>
-                    <div><span className="text-slate-500">device:</span> {createdTx.deviceId}</div>
-                    <div><span className="text-slate-500">signature:</span> {createdTx.signature?.slice(0, 32)}...</div>
-                  </div>
-                )}
-              </div>
-
               {/* Action Buttons */}
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-sm mx-auto">
                 <Button
@@ -1437,12 +1806,12 @@ function SendMoney() {
                 <Button
                   variant="primary"
                   onClick={() => navigate('/dashboard')}
-                  className="w-full sm:w-1/2 font-bold bg-[#3155B8] hover:bg-[#172B75]"
+                  className="w-full sm:w-1/2 font-bold"
                 >
                   Done
                 </Button>
               </div>
-            </Card>
+            </div>
           );
         })()}
       </div>

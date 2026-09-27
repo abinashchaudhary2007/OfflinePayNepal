@@ -3,7 +3,7 @@ import { ArrowUp, ArrowDown, QrCode, Store } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 /**
- * PaymentActions — 4 quick-action cards with dark mode support.
+ * PaymentActions — 4 quick-action cards with dark mode support and generous spacing.
  */
 function PaymentActions({ isOffline }) {
   const { isDark } = useTheme();
@@ -14,7 +14,7 @@ function PaymentActions({ isOffline }) {
       id: 'dashboard-send-money-btn',
       icon: ArrowUp,
       label: 'Send',
-      iconBg: isDark ? 'rgba(49,85,184,0.15)' : '#EAF0FF',
+      iconBg: isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF',
       iconColor: '#4F6FD8',
     },
     {
@@ -22,7 +22,7 @@ function PaymentActions({ isOffline }) {
       id: 'dashboard-receive-shortcut',
       icon: ArrowDown,
       label: 'Receive',
-      iconBg: isDark ? 'rgba(22,166,106,0.12)' : '#E8F8F1',
+      iconBg: isDark ? 'rgba(22,166,106,0.18)' : '#E8F8F1',
       iconColor: '#16A66A',
     },
     {
@@ -30,7 +30,7 @@ function PaymentActions({ isOffline }) {
       id: 'dashboard-scan-qr-btn',
       icon: QrCode,
       label: 'Scan QR',
-      iconBg: isDark ? 'rgba(49,85,184,0.15)' : '#EAF0FF',
+      iconBg: isDark ? 'rgba(49,85,184,0.18)' : '#EAF0FF',
       iconColor: '#4F6FD8',
     },
     {
@@ -38,13 +38,21 @@ function PaymentActions({ isOffline }) {
       id: 'dashboard-pay-shopkeeper-btn',
       icon: Store,
       label: 'Pay Merchant',
-      iconBg: isDark ? 'rgba(79,111,216,0.12)' : '#F0F4FF',
+      iconBg: isDark ? 'rgba(79,111,216,0.18)' : '#F0F4FF',
       iconColor: '#4F6FD8',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5">
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+        gap: '16px',
+        width: '100%',
+      }}
+      className="grid grid-cols-2 sm:grid-cols-4"
+    >
       {actions.map(({ to, id, icon: Icon, label, iconBg, iconColor }) => (
         <Link
           key={label}
@@ -54,26 +62,52 @@ function PaymentActions({ isOffline }) {
             background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
             border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
             color: 'var(--text-primary)',
+            padding: '24px 18px',
+            borderRadius: '1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textDecoration: 'none',
+            boxShadow: isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)',
+            transition: 'all 0.2s ease',
           }}
-          className="
-            group flex flex-col items-center justify-center p-6 sm:p-7 rounded-2xl sm:rounded-3xl no-underline
-            shadow-xs hover:shadow-md
-            transition-all duration-200 hover:-translate-y-0.5 active:scale-95 cursor-pointer
-          "
+          className="group cursor-pointer hover:-translate-y-1 active:scale-95"
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = isDark ? 'var(--border-hover)' : 'rgba(49,85,184,0.35)';
+            e.currentTarget.style.borderColor = isDark ? 'var(--border-hover)' : '#3155B8';
+            e.currentTarget.style.boxShadow = isDark ? '0 6px 18px rgba(0,0,0,0.35)' : '0 8px 20px rgba(23,43,117,0.12)';
           }}
           onMouseLeave={e => {
             e.currentTarget.style.borderColor = isDark ? 'var(--border-color)' : '#DCE3F2';
+            e.currentTarget.style.boxShadow = isDark ? 'var(--shadow-card)' : '0 2px 8px rgba(23,43,117,0.06)';
           }}
         >
           <div
-            style={{ backgroundColor: iconBg, color: iconColor, width: 52, height: 52 }}
-            className="rounded-2xl flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105"
+            style={{
+              backgroundColor: iconBg,
+              color: iconColor,
+              width: '52px',
+              height: '52px',
+              borderRadius: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '12px',
+              transition: 'transform 0.2s ease',
+            }}
+            className="group-hover:scale-110"
           >
-            <Icon size={24} strokeWidth={2.2} />
+            <Icon size={24} strokeWidth={2.4} />
           </div>
-          <span style={{ color: 'var(--text-primary)' }} className="text-sm font-bold tracking-tight text-center">
+          <span
+            style={{
+              color: 'var(--text-primary)',
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              textAlign: 'center',
+            }}
+          >
             {label}
           </span>
         </Link>

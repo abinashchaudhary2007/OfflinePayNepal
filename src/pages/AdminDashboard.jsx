@@ -1,7 +1,7 @@
 /**
  * AdminDashboard.jsx — Phase 12
  * Admin-only dashboard with live metrics from WalletContext and mock data.
- * Styled with UPI-inspired Nepali fintech design system:
+ * Styled with OfflinePay Nepali fintech design system:
  * Primary Navy (#172B75), Primary Blue (#3155B8), Light Blue (#EAF0FF), White (#FFFFFF)
  */
 import { useEffect, useState } from 'react';

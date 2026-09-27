@@ -17,7 +17,7 @@ const NAV_ITEMS = [
 ];
 
 /**
- * Sidebar — Deep navy UPI-style sidebar.
+ * Sidebar — Deep navy fintech sidebar.
  * Brand tag sits in the header row next to the close button.
  * Nav items are pushed down with generous spacing and fill the full sidebar width.
  */

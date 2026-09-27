@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatting';
 
 /**
- * BalanceCard — Matches the UPI-style modern reference dashboard card.
+ * BalanceCard — High-contrast Fintech style balance card with generous padding & inline refresh.
  * Features:
- * - AVAILABLE BALANCE label
- * - High-contrast large NPR balance
- * - Dynamic offline spending limit indicator with status dot
- * - Elegant circular watermark graphic on right
+ * - AVAILABLE BALANCE label & Privacy eye toggle
+ * - High-contrast large NPR balance with inline Refresh button
+ * - Currency badge & Offline spending limit indicator
+ * - Guaranteed padding and breathing room across all screen sizes
  */
-function BalanceCard({ wallet, isOffline, className = '' }) {
+function BalanceCard({ wallet, isOffline, onRefresh, isRefreshing = false, syncStatus = 'idle', className = '' }) {
   const [isHidden, setIsHidden] = useState(false);
+  const [localSpinning, setLocalSpinning] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
 
   if (!wallet) return <BalanceCardSkeleton />;
 
@@ -23,17 +25,56 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
   const hide = (val) => (isHidden ? '••••••' : val);
 
+  const handleRefreshClick = async (e) => {
+    e.stopPropagation();
+    if (localSpinning || isRefreshing) return;
+
+    setLocalSpinning(true);
+    setJustRefreshed(false);
+
+    try {
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err) {
+      console.error('[balance refresh error]', err);
+    } finally {
+      setTimeout(() => {
+        setLocalSpinning(false);
+        setJustRefreshed(true);
+        setTimeout(() => setJustRefreshed(false), 2500);
+      }, 600);
+    }
+  };
+
+  const isSpinning = localSpinning || isRefreshing || syncStatus === 'syncing';
+
   return (
     <div
-      className={`
-        relative overflow-hidden rounded-2xl sm:rounded-3xl p-8 sm:p-9 text-white
-        bg-gradient-to-r from-[#172B75] via-[#1C358A] to-[#2B4DAE]
-        border border-white/10 shadow-lg ${className}
-      `}
-      style={{ boxShadow: '0 12px 30px -8px rgba(23, 43, 117, 0.4)' }}
+      style={{
+        padding: '30px 32px',
+        borderRadius: '1.5rem',
+        background: 'linear-gradient(135deg, #172B75 0%, #1C358A 50%, #2B4DAE 100%)',
+        boxShadow: '0 14px 35px -8px rgba(23, 43, 117, 0.45)',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
+        position: 'relative',
+        overflow: 'hidden',
+        color: '#FFFFFF',
+      }}
+      className={`select-none transition-all ${className}`}
     >
       {/* Decorative overlapping translucent concentric circles watermark */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/4 pointer-events-none opacity-20 select-none">
+      <div
+        style={{
+          position: 'absolute',
+          right: '-40px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          pointerEvents: 'none',
+          opacity: 0.22,
+          userSelect: 'none',
+        }}
+      >
         <svg width="340" height="340" viewBox="0 0 340 340" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="170" cy="170" r="160" stroke="white" strokeWidth="2" strokeDasharray="6 6" />
           <circle cx="170" cy="170" r="120" stroke="white" strokeWidth="2" />
@@ -42,15 +83,68 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
         </svg>
       </div>
 
-      {/* Top row: Label and Eye Toggle */}
-      <div className="relative z-10 flex items-center justify-between gap-3 mb-3">
-        <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-white/70">
-          Available Balance
-        </span>
+      {/* ─── Top Row: Label, Status Pill & Privacy Toggle ─── */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          marginBottom: '14px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.12em',
+              color: 'rgba(255, 255, 255, 0.75)',
+            }}
+          >
+            Available Balance
+          </span>
+          {justRefreshed && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                color: '#34D399',
+                background: 'rgba(22, 166, 106, 0.25)',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+              }}
+              className="animate-fade-in"
+            >
+              <CheckCircle2 size={11} />
+              <span>Updated</span>
+            </span>
+          )}
+        </div>
 
         <button
           onClick={() => setIsHidden(h => !h)}
-          className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all cursor-pointer"
+          style={{
+            width: '34px',
+            height: '34px',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255, 255, 255, 0.12)',
+            color: 'rgba(255, 255, 255, 0.85)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.22)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'; }}
           aria-label={isHidden ? 'Show balance' : 'Hide balance'}
           title={isHidden ? 'Show balance' : 'Hide balance'}
         >
@@ -58,25 +152,127 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
         </button>
       </div>
 
-      {/* Balance Amount Display */}
-      <div className="relative z-10 my-4 sm:my-5">
-        <div className="text-4xl sm:text-5xl font-black text-white tracking-tight select-none">
+      {/* ─── Balance Amount Row with Refresh Button ─── */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          margin: '10px 0 12px 0',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div
+          style={{
+            fontSize: 'clamp(2.25rem, 5vw, 3.25rem)',
+            fontWeight: 900,
+            color: '#FFFFFF',
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1,
+          }}
+        >
           {hide(formatCurrency(wallet.availableBalance))}
         </div>
-        <p className="text-xs font-bold text-white/70 mt-2 uppercase tracking-widest">
-          NPR
-        </p>
+
+        {/* Refresh Button beside Amount */}
+        <button
+          id="dashboard-refresh-balance-btn"
+          onClick={handleRefreshClick}
+          disabled={isSpinning}
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255, 255, 255, 0.15)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            color: '#FFFFFF',
+            cursor: isSpinning ? 'default' : 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            transition: 'all 0.2s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={e => {
+            if (!isSpinning) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.28)';
+          }}
+          onMouseLeave={e => {
+            if (!isSpinning) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+          }}
+          aria-label="Refresh balance and sync transactions"
+          title="Refresh balance"
+        >
+          <RefreshCw
+            size={18}
+            style={{
+              transition: 'transform 0.4s ease',
+              animation: isSpinning ? 'spin 1s linear infinite' : 'none',
+            }}
+          />
+        </button>
       </div>
 
-      {/* Offline spending limit status line */}
-      <div className="relative z-10 mt-6 sm:mt-7 pt-4 sm:pt-5 border-t border-white/15 flex items-center gap-2.5 text-xs sm:text-sm font-medium text-white/90">
-        <span className="w-2.5 h-2.5 rounded-full bg-[#16A66A] shadow-xs" />
-        <span>
-          Offline spending limit:{' '}
-          <strong className="font-bold text-white">
-            {hide(formatCurrency(offlineRemaining > 0 ? offlineRemaining : wallet.availableBalance))}
-          </strong>
+      {/* Currency Label Pill */}
+      <div style={{ position: 'relative', zIndex: 10, marginBottom: '18px' }}>
+        <span
+          style={{
+            fontSize: '0.6875rem',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color: 'rgba(255, 255, 255, 0.8)',
+            background: 'rgba(255, 255, 255, 0.12)',
+            padding: '3px 8px',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          }}
+        >
+          {wallet.currency || 'NPR'}
         </span>
+      </div>
+
+      {/* ─── Bottom Status Line: Offline Limit & Sync State ─── */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          paddingTop: '16px',
+          marginTop: '16px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.18)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+          fontSize: '0.8125rem',
+          color: 'rgba(255, 255, 255, 0.9)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '9999px',
+              background: '#16A66A',
+              boxShadow: '0 0 8px #16A66A',
+              flexShrink: 0,
+            }}
+          />
+          <span>
+            Offline spending limit:{' '}
+            <strong style={{ fontWeight: 800, color: '#FFFFFF' }}>
+              {hide(formatCurrency(offlineRemaining > 0 ? offlineRemaining : wallet.availableBalance))}
+            </strong>
+          </span>
+        </div>
+
+        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.75)' }}>
+          {isOffline ? '⚡ Offline Ready' : '🟢 Real-time Sync'}
+        </div>
       </div>
     </div>
   );
@@ -84,7 +280,16 @@ function BalanceCard({ wallet, isOffline, className = '' }) {
 
 function BalanceCardSkeleton() {
   return (
-    <div className="rounded-2xl sm:rounded-3xl p-7 bg-[#172B75] animate-pulse h-48 sm:h-52 border border-white/10" />
+    <div
+      style={{
+        padding: '30px 32px',
+        borderRadius: '1.5rem',
+        background: '#172B75',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        height: '210px',
+      }}
+      className="animate-pulse"
+    />
   );
 }
 

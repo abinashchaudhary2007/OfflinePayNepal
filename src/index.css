@@ -3,6 +3,8 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─── OfflinePay Nepal — UI Color Palette & Design System ──────────── */
 :root {
   /* Primary Color Palette */
@@ -410,16 +412,18 @@ html {
 /* ─── Form Inputs (White, #DCE3F2 border, #3155B8 focus) ───────────── */
 .input-field {
   width: 100%;
-  padding: 12px 16px;
+  padding: 14px 18px;
   font-family: var(--font-primary);
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
   font-weight: 500;
+  line-height: 1.5;
   color: var(--text-primary);
   background: #FFFFFF;
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
   outline: none;
+  min-height: 48px;
 }
 .input-field::placeholder { color: var(--text-muted); font-weight: 400; }
 .input-field:focus {
@@ -429,8 +433,8 @@ html {
 .input-field:hover:not(:focus) { border-color: var(--border-hover); }
 .input-field.error { border-color: var(--status-error); }
 .input-field.error:focus { box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.15); }
-.input-field.has-left-icon { padding-left: 42px !important; }
-.input-field.has-right-icon { padding-right: 42px !important; }
+.input-field.has-left-icon { padding-left: 46px !important; }
+.input-field.has-right-icon { padding-right: 46px !important; }
 
 /* ─── Disable Browser Native Password Reveal (Edge / IE) ──────────── */
 input::-ms-reveal,
