@@ -121,7 +121,7 @@ function Landing() {
   };
 
   return (
-    <div style={{
+    <div className="landing-page" style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
       background: C.pageBg, color: C.textPrimary,
       fontFamily: 'var(--font-primary)',
@@ -278,9 +278,8 @@ function Landing() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }} className="hero-grid">
 
             {/* Left: Text */}
-            <div>
-              {/* Badge */}
-              <div style={{
+            <div className="hero-copy">
+              <div className="hero-badge" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
                 padding: '6px 14px', borderRadius: 100,
                 background: C.accentBg, border: `1px solid ${C.accentBorder}`,
@@ -291,7 +290,7 @@ function Landing() {
                 Offline-First Payments · ECDSA P-256
               </div>
 
-              <h1 style={{
+              <h1 className="hero-title" style={{
                 fontSize: 'clamp(2.2rem, 5vw, 3.6rem)', fontWeight: 800,
                 lineHeight: 1.1, letterSpacing: '-0.04em',
                 color: C.textPrimary, marginBottom: 20,
@@ -306,7 +305,7 @@ function Landing() {
                 }}>even offline.</span>
               </h1>
 
-              <p style={{
+              <p className="hero-copy-text" style={{
                 fontSize: 18, color: C.textSecondary, lineHeight: 1.7, marginBottom: 36,
                 maxWidth: 460, fontWeight: 400,
               }}>
@@ -315,9 +314,8 @@ function Landing() {
                 and seamless online sync.
               </p>
 
-              {/* CTAs */}
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
-                <Link to="/register" style={{
+              <div className="hero-cta" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 40 }}>
+                <Link className="hero-cta-primary" to="/register" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '13px 28px', borderRadius: 10,
                   background: C.btnPrimary,
@@ -330,7 +328,7 @@ function Landing() {
                 >
                   Open Wallet <ArrowRight size={16} />
                 </Link>
-                <Link to="/login" style={{
+                <Link className="hero-cta-secondary" to="/login" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '13px 28px', borderRadius: 10,
                   border: `1px solid ${C.border}`, background: C.accentBg,
@@ -344,14 +342,13 @@ function Landing() {
                 </Link>
               </div>
 
-              {/* Trust Badges */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
+              <div className="hero-trust-list" style={{ display: 'flex', flexWrap: 'wrap', gap: 20 }}>
                 {[
                   { icon: <ShieldCheck size={14} />, label: 'ECDSA P-256 Signatures' },
                   { icon: <WifiOff size={14} />, label: 'Zero Internet Required' },
                   { icon: <Lock size={14} />, label: 'Anti-Replay Nonces' },
                 ].map(({ icon, label }) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textMuted, fontWeight: 500 }}>
+                  <div className="hero-trust-item" key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.textMuted, fontWeight: 500 }}>
                     <span style={{ color: C.accent }}>{icon}</span>
                     {label}
                   </div>
@@ -359,8 +356,7 @@ function Landing() {
               </div>
             </div>
 
-            {/* Right: App Mockup */}
-            <div style={{ display: 'flex', justifyContent: 'center' }} className="hero-mockup">
+            <div className="hero-visual-wrap" style={{ display: 'flex', justifyContent: 'center' }} className="hero-mockup">
               <HeroMockup isDark={isDark} C={C} />
             </div>
           </div>
@@ -379,7 +375,7 @@ function Landing() {
             { val: 'NPR', label: 'Simulated Currency' },
             { val: '0ms', label: 'Server Round-trip Offline' },
           ].map(({ val, label }) => (
-            <div key={label}>
+            <div className="stat-item" key={label}>
               <div style={{ fontSize: 28, fontWeight: 800, color: C.statVal, letterSpacing: '-0.04em', lineHeight: 1.1 }}>{val}</div>
               <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500, marginTop: 4 }}>{label}</div>
             </div>
@@ -426,7 +422,7 @@ function Landing() {
               desc: "Upon reconnecting, all queued vouchers are atomically settled on Supabase — debiting sender, crediting receiver, preventing double-spend.",
             },
           ].map(({ num, icon, color, bg, title, desc }) => (
-            <div key={num} style={{
+            <div className="step-card" key={num} style={{
               background: C.cardBg, border: `1px solid ${C.cardBorder}`,
               borderRadius: 16, padding: 28, position: 'relative', zIndex: 1,
               transition: 'all 0.3s ease',
@@ -468,7 +464,7 @@ function Landing() {
               { icon: <Lock size={22} />, color: C.green, bg: C.greenBg, title: 'Monotonic Nonce Tracking', desc: "Every voucher carries a sequential counter + cryptographic nonce. The receiver's scanner rejects any replayed or duplicate token." },
               { icon: <ShieldCheck size={22} />, color: isDark ? '#738EE4' : '#3155B8', bg: isDark ? 'rgba(115,142,228,0.10)' : 'rgba(49,85,184,0.08)', title: 'Pre-Allocated Limit Locks', desc: "Double-spend is architecturally impossible: funds are locked in a reserve pool. You can't authorize beyond your verified offline limit." },
             ].map(({ icon, color, bg, title, desc }) => (
-              <div key={title} style={{
+              <div className="security-card" key={title} style={{
                 background: C.cardBg, border: `1px solid ${C.cardBorder}`,
                 borderRadius: 16, padding: 28, transition: 'all 0.3s ease',
               }}
@@ -524,7 +520,7 @@ function Landing() {
           </div>
 
           {/* Receiver Panel */}
-          <div style={{ background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: 28 }}>
+          <div className="demo-panel demo-panel-right" style={{ background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 20, padding: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.green, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Receiver Scanner</span>
               <span style={{ padding: '3px 10px', borderRadius: 100, background: C.greenBg, border: `1px solid ${C.greenBorder}`, color: C.green, fontSize: 11, fontWeight: 600 }}>Verified</span>
@@ -595,7 +591,7 @@ function Landing() {
 
       {/* ── CTA BANNER ── */}
       <section style={{ padding: '80px 24px' }}>
-        <div style={{
+        <div className="cta-shell" style={{
           maxWidth: 860, margin: '0 auto', textAlign: 'center',
           background: isDark
             ? 'linear-gradient(135deg, rgba(23,43,117,0.35) 0%, rgba(49,85,184,0.25) 100%)'
@@ -697,6 +693,82 @@ function Landing() {
 
       {/* ── CSS for responsive + animations ── */}
       <style>{`
+        .landing-page * {
+          box-sizing: border-box;
+        }
+
+        .landing-page .hero-copy,
+        .landing-page .hero-visual-wrap,
+        .landing-page .stat-item,
+        .landing-page .step-card,
+        .landing-page .security-card,
+        .landing-page .demo-panel,
+        .landing-page .cta-shell,
+        .landing-page .hero-trust-item,
+        .landing-page .hero-badge {
+          animation: fadeUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .landing-page .hero-badge { animation-delay: 0.05s; }
+        .landing-page .hero-title { animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.12s; }
+        .landing-page .hero-copy-text { animation: fadeUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.2s; }
+        .landing-page .hero-cta { animation: fadeUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.28s; }
+        .landing-page .hero-trust-list { animation: fadeUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both 0.35s; }
+        .landing-page .hero-visual-wrap { animation: visualFloat 7s ease-in-out infinite 0.4s; }
+        .landing-page .stat-item { animation-delay: 0.12s; }
+        .landing-page .step-card { animation-delay: 0.14s; }
+        .landing-page .security-card { animation-delay: 0.18s; }
+        .landing-page .demo-panel { animation-delay: 0.2s; }
+        .landing-page .cta-shell { animation-delay: 0.16s; }
+
+        .landing-page .hero-cta-primary,
+        .landing-page .hero-cta-secondary,
+        .landing-page .hero-badge,
+        .landing-page .step-card,
+        .landing-page .security-card,
+        .landing-page .demo-panel,
+        .landing-page .stat-item,
+        .landing-page .hero-trust-item {
+          will-change: transform, box-shadow;
+        }
+
+        .landing-page .hero-cta-primary:hover,
+        .landing-page .hero-cta-secondary:hover,
+        .landing-page .step-card:hover,
+        .landing-page .security-card:hover,
+        .landing-page .stat-item:hover,
+        .landing-page .hero-trust-item:hover {
+          transform: translateY(-3px);
+        }
+
+        .landing-page .hero-cta-primary {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .landing-page .hero-cta-primary::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, rgba(255,255,255,0.28), rgba(255,255,255,0));
+          transform: translateX(-130%);
+          transition: transform 0.55s ease;
+        }
+
+        .landing-page .hero-cta-primary:hover::before {
+          transform: translateX(130%);
+        }
+
+        @keyframes fadeUp {
+          0% { opacity: 0; transform: translateY(24px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes visualFloat {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(-1deg); }
+        }
+
         @keyframes float1 {
           0%, 100% { transform: translate(0, 0) scale(1); }
           50% { transform: translate(30px, -20px) scale(1.05); }
