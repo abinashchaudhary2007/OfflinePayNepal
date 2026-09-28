@@ -623,15 +623,6 @@ function Landing() {
               }}>
                 Open Wallet Free <ArrowRight size={16} />
               </Link>
-              <a href="https://github.com/abinashchaudhary2007/OfflinePayNepal" target="_blank" rel="noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8,
-                  padding: '13px 24px', borderRadius: 10,
-                  border: `1px solid ${C.border}`, background: C.accentBg,
-                  color: C.textSecondary, fontSize: 15, fontWeight: 500, textDecoration: 'none',
-                }}>
-                <ExternalLink size={14} /> View Source
-              </a>
             </div>
           </div>
         </div>
