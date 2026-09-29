@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Wallet2, Bell, Settings, LogOut, Menu, X, Shield,
-  User, ChevronDown, Wifi, WifiOff, AlertTriangle
+  User, ChevronDown, ChevronRight, Wifi, WifiOff, AlertTriangle
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../context/DemoAuthContext';
@@ -123,61 +123,256 @@ function Navbar({
           <>
             <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
             <div
-              className="absolute right-0 top-full mt-2 w-56 rounded-2xl shadow-xl z-40 py-2 animate-scale-in"
+              className="absolute right-0 top-full mt-2.5 w-64 sm:w-72 rounded-2xl shadow-2xl z-40 animate-scale-in"
               style={{
                 background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
                 border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+                boxShadow: isDark
+                  ? '0 16px 40px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-color)'
+                  : '0 16px 40px -8px rgba(23, 43, 117, 0.16), 0 0 0 1px rgba(220, 227, 242, 0.8)',
+                overflow: 'hidden',
               }}
             >
-              {/* User info */}
-              <div style={{
-                padding: '12px 16px',
-                borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-              }}>
-                <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{currentUser?.name}</p>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser?.email}</p>
+              {/* User info Header with Avatar & Details */}
+              <div
+                style={{
+                  padding: '16px 18px',
+                  borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#F1F4F9'}`,
+                  background: isDark
+                    ? 'rgba(255, 255, 255, 0.02)'
+                    : 'linear-gradient(180deg, #FAFBFF 0%, #FFFFFF 100%)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '12px',
+                      background: currentUser?.avatarPhotoUrl ? 'transparent' : 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '0.875rem',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                    }}
+                  >
+                    {currentUser?.avatarPhotoUrl ? (
+                      <img src={currentUser.avatarPhotoUrl} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      currentUser?.avatar || currentUser?.name?.slice(0, 2).toUpperCase() || 'AJ'
+                    )}
+                  </div>
+
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p
+                      style={{
+                        fontSize: '0.9375rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        margin: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {currentUser?.name || 'User'}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                        margin: '2px 0 0 0',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {currentUser?.email || 'No email registered'}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {[{
-                to: '/profile', icon: <User size={16} style={{ color: '#4F6FD8' }} />, label: 'My Profile',
-              }, {
-                to: '/security', icon: <Shield size={16} style={{ color: '#16A66A' }} />, label: 'Security',
-              }].map(({ to, icon, label }) => (
-                <Link
-                  key={to}
-                  to={to}
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 no-underline transition-colors"
-                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                >
-                  {icon} {label}
-                </Link>
-              ))}
+              {/* Menu items navigation list with generous padding and gap */}
+              <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {[{
+                  to: '/profile',
+                  icon: <User size={16} />,
+                  label: 'My Profile',
+                  iconBg: isDark ? 'rgba(79, 111, 216, 0.18)' : '#EAF0FF',
+                  iconColor: '#3155B8',
+                }, {
+                  to: '/security',
+                  icon: <Shield size={16} />,
+                  label: 'Security',
+                  iconBg: isDark ? 'rgba(22, 166, 106, 0.18)' : '#E8F8F1',
+                  iconColor: '#16A66A',
+                }].map(({ to, icon, label, iconBg, iconColor }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="no-underline group"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      transition: 'all 0.15s ease',
+                      gap: '12px',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '9px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: iconBg,
+                          color: iconColor,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {icon}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                ))}
 
-              {currentUser?.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 no-underline transition-colors"
-                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#EAF0FF'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                >
-                  <Settings size={16} style={{ color: '#F2A900' }} /> Admin Dashboard
-                </Link>
-              )}
+                {currentUser?.role === 'admin' && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="no-underline group"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      transition: 'all 0.15s ease',
+                      gap: '12px',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = isDark ? 'var(--bg-elevated)' : '#F5F7FF';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '9px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: isDark ? 'rgba(242, 169, 0, 0.18)' : '#FFF6DD',
+                          color: '#F2A900',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Settings size={16} />
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        Admin Dashboard
+                      </span>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                  </Link>
+                )}
 
-              <div style={{ borderTop: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`, marginTop: 4, paddingTop: 4 }}>
+                {/* Divider */}
+                <div
+                  style={{
+                    height: '1px',
+                    background: isDark ? 'var(--border-color)' : '#F1F4F9',
+                    margin: '4px 4px',
+                  }}
+                />
+
+                {/* Sign Out Button */}
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 transition-colors cursor-pointer"
-                  style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = isDark ? 'rgba(214,69,69,0.12)' : '#FDECEC'; e.currentTarget.style.color = isDark ? '#E57373' : '#D64545'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                  className="cursor-pointer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: 'transparent',
+                    width: '100%',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = isDark ? 'rgba(214, 69, 69, 0.15)' : '#FDECEC';
+                    e.currentTarget.style.color = '#D64545';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'inherit';
+                  }}
                 >
-                  <LogOut size={16} /> Sign Out
+                  <div
+                    style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '9px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: isDark ? 'rgba(214, 69, 69, 0.15)' : '#FDECEC',
+                      color: '#D64545',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <LogOut size={16} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: 600,
+                      color: isDark ? '#FCA5A5' : '#D64545',
+                    }}
+                  >
+                    Sign Out
+                  </span>
                 </button>
               </div>
             </div>
