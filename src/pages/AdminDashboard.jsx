@@ -62,15 +62,15 @@ function AdminDashboard() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5 animate-fade-in max-w-7xl mx-auto">
+      <div className="space-y-6 sm:space-y-7 animate-fade-in max-w-7xl mx-auto pb-10">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-[#172033]">Admin Dashboard</h1>
-          <p className="text-[#5F6B85] text-sm mt-1">System monitoring, active devices & audit oversight</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-[#172033] tracking-tight">Admin Dashboard</h1>
+          <p className="text-[#5F6B85] text-xs sm:text-sm mt-1">System monitoring, active devices & audit oversight</p>
         </div>
 
         {/* Tab navigation */}
         <div className="scroll-x pb-1">
-          <div className="flex gap-2 w-max">
+          <div className="flex gap-2.5 w-max">
             {TABS.map(tab => (
               <button
                 key={tab}
@@ -90,7 +90,7 @@ function AdminDashboard() {
         {/* OVERVIEW */}
         {activeTab === 'overview' && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4.5">
               <MetricCard icon={<Users size={18} />}        label="Total Users"         value={stats.totalUsers}          color="#3155B8" />
               <MetricCard icon={<Smartphone size={18} />}   label="Active Devices"      value={stats.activeDevices}       color="#16A66A" />
               <MetricCard icon={<ArrowUpRight size={18} />} label="Total Transactions"  value={stats.totalTransactions}   color="#172B75" />

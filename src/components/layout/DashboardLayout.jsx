@@ -46,7 +46,7 @@ function DashboardLayout({ children, maxWidth = 'max-w-6xl' }) {
       />
 
       {/* Body: Sidebar + Main */}
-      <div className="flex flex-1 overflow-hidden gap-0 md:gap-6">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
           isOpen={isSidebarOpen}
@@ -55,11 +55,10 @@ function DashboardLayout({ children, maxWidth = 'max-w-6xl' }) {
 
         {/* Main content */}
         <main
-          className="flex-1 overflow-y-auto pb-24 md:pb-10"
+          className="flex-1 overflow-y-auto pb-24 md:pb-12"
         >
           <div
-            className={`w-full ${maxWidth} mx-auto px-4 sm:px-8 lg:px-10 py-6 sm:py-8`}
-            style={{ margin: '0 auto' }}
+            className={`w-full ${maxWidth} mx-auto px-4 sm:px-6 md:px-8 lg:px-9 py-6 sm:py-8`}
           >
             {children}
           </div>

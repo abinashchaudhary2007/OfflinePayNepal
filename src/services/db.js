@@ -415,6 +415,20 @@ export async function getSecurityEvents(userId) {
   return db.getAll('security_events');
 }
 
+export async function clearSecurityEvents(userId) {
+  const db = await getDB();
+  if (!userId) {
+    await db.clear('security_events');
+    return;
+  }
+  const events = await db.getAllFromIndex('security_events', 'userId', userId);
+  const tx = db.transaction('security_events', 'readwrite');
+  for (const e of events) {
+    await tx.store.delete(e.id);
+  }
+  await tx.done;
+}
+
 // ─── Nonce Registry ───────────────────────────
 export async function checkAndSaveNonce(nonce) {
   const db = await getDB();

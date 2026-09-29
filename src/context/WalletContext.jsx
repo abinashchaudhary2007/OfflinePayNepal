@@ -15,7 +15,7 @@ import {
   saveDevice, getDevicesByUser, getDevice,
   saveAuthorization, getActiveAuthorization, updateAuthorization,
   getPendingSyncItems, getAllSyncQueueItems, addToSyncQueue, updateSyncItem, removeSyncItem,
-  getSecurityEvents, saveSecurityEvent, checkAndSaveNonce,
+  getSecurityEvents, saveSecurityEvent, clearSecurityEvents, checkAndSaveNonce,
   executeAtomicOnlinePayment, executeAtomicOfflineCreation, executeAtomicOfflineAcceptance,
   executeSenderRecordAcknowledgment,
   cancelAndRefundExpiredTransactions,
@@ -299,6 +299,14 @@ export function WalletProvider({ children }) {
     if (!userId) return;
     const events = await getSecurityEvents(userId);
     setSecurityEvents(events.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+  }, []);
+
+  // ─── Clear all security events for active user ────────────
+  const clearAllSecurityEvents = useCallback(async () => {
+    const userId = currentUserIdRef.current;
+    if (!userId) return;
+    await clearSecurityEvents(userId);
+    setSecurityEvents([]);
   }, []);
 
   // ─── Sweep and cancel expired pending transactions ──────
@@ -1075,6 +1083,7 @@ export function WalletProvider({ children }) {
       resetWallet,
       refreshTransactions,
       refreshSecurityEvents,
+      clearAllSecurityEvents,
       expirePendingTransactions,
       registerDevice,
       createOfflineAuthorization,

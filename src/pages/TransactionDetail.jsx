@@ -14,8 +14,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ArrowUpRight, ArrowDownLeft, CheckCircle2,
-  Clock, Copy, Check, Printer, Share2, ShieldCheck,
-  ChevronDown, ChevronUp, Cpu, XCircle, Send, Store,
+  Clock, Copy, Check, Printer, Share2,
+  XCircle, Send, Store,
   AlertTriangle, RefreshCw, Key, Smartphone
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -36,8 +36,6 @@ function TransactionDetail() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [copiedPayload, setCopiedPayload] = useState(false);
-  const [showTechnical, setShowTechnical] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -69,13 +67,6 @@ function TransactionDetail() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleCopyPayload = () => {
-    if (tx) {
-      navigator.clipboard.writeText(JSON.stringify(tx, null, 2));
-      setCopiedPayload(true);
-      setTimeout(() => setCopiedPayload(false), 2000);
-    }
-  };
 
   const handlePrint = () => {
     window.print();
@@ -179,17 +170,17 @@ function TransactionDetail() {
   );
 
   return (
-    <DashboardLayout maxWidth="max-w-3xl">
+    <DashboardLayout maxWidth="max-w-2xl">
       <div
         style={{
-          maxWidth: '680px',
+          maxWidth: '520px',
           width: '100%',
           margin: '0 auto',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px',
+          gap: '22px',
         }}
-        className="animate-fade-in pb-16 print-receipt-container"
+        className="animate-fade-in pb-12 print-receipt-container"
       >
         {/* ─── Top Bar: Navigation & Quick Actions ─── */}
         <div
@@ -210,9 +201,9 @@ function TransactionDetail() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '12px',
-              fontSize: '0.8125rem',
+              padding: '8px 14px',
+              borderRadius: '11px',
+              fontSize: '0.78rem',
               fontWeight: 700,
               background: isDark ? 'var(--bg-elevated)' : '#FFFFFF',
               color: isDark ? '#FFFFFF' : '#172B75',
@@ -220,7 +211,7 @@ function TransactionDetail() {
               transition: 'all 0.15s ease',
             }}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={14} />
             <span>All Statements</span>
           </Link>
 
@@ -232,7 +223,7 @@ function TransactionDetail() {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '8px 14px',
-                borderRadius: '12px',
+                borderRadius: '11px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
@@ -253,7 +244,7 @@ function TransactionDetail() {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '8px 14px',
-                borderRadius: '12px',
+                borderRadius: '11px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
@@ -263,7 +254,7 @@ function TransactionDetail() {
               }}
               title="Print official receipt"
             >
-              <Printer size={14} />
+              <Printer size={13} />
               <span>Print Receipt</span>
             </button>
           </div>
@@ -275,7 +266,7 @@ function TransactionDetail() {
             background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
             border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
             borderRadius: '24px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+            boxShadow: '0 4px 20px rgba(23,43,117,0.05)',
             overflow: 'hidden',
           }}
         >
@@ -287,7 +278,7 @@ function TransactionDetail() {
               alignItems: 'center',
               justifyContent: 'center',
               textAlign: 'center',
-              padding: '36px 24px 28px',
+              padding: '30px 24px 24px',
               borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#F1F4F9'}`,
               background: isDark
                 ? 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)'
@@ -297,9 +288,9 @@ function TransactionDetail() {
             {/* Visual Icon Badge */}
             <div
               style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '20px',
+                width: '48px',
+                height: '48px',
+                borderRadius: '14px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -324,22 +315,22 @@ function TransactionDetail() {
               }}
             >
               {isExpired ? (
-                <Clock size={32} />
+                <Clock size={24} />
               ) : isMerchant ? (
-                <Store size={32} />
+                <Store size={24} />
               ) : isSent ? (
-                <ArrowUpRight size={32} />
+                <ArrowUpRight size={24} />
               ) : (
-                <ArrowDownLeft size={32} />
+                <ArrowDownLeft size={24} />
               )}
             </div>
 
             {/* Context Title */}
             <p
               style={{
-                fontSize: '0.75rem',
+                fontSize: '0.72rem',
                 fontWeight: 700,
-                letterSpacing: '0.05em',
+                letterSpacing: '0.04em',
                 textTransform: 'uppercase',
                 color: 'var(--text-secondary)',
                 margin: '0 0 6px 0',
@@ -357,11 +348,11 @@ function TransactionDetail() {
             {/* Statement Amount */}
             <h1
               style={{
-                fontSize: 'clamp(2.25rem, 6vw, 3rem)',
-                fontWeight: 900,
-                letterSpacing: '-0.03em',
-                margin: '4px 0 10px 0',
-                lineHeight: 1.1,
+                fontSize: '2rem',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                margin: '4px 0 12px 0',
+                lineHeight: 1.15,
                 color: isExpired
                   ? (isDark ? '#94A3B8' : '#8993A8')
                   : isSent
@@ -387,7 +378,7 @@ function TransactionDetail() {
               
               <span
                 style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
                   padding: '4px 12px',
                   borderRadius: '9999px',
@@ -402,32 +393,32 @@ function TransactionDetail() {
           </div>
 
           {/* Parties Cards (Sender & Receiver) */}
-          <div style={{ padding: '24px 24px 0 24px' }}>
+          <div style={{ padding: '20px 22px 0 22px' }}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Sender Box */}
               <div
                 style={{
-                  padding: '16px 18px',
-                  borderRadius: '16px',
+                  padding: '13px 16px',
+                  borderRadius: '14px',
                   border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
                   background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '14px',
+                  gap: '12px',
                 }}
               >
                 <div
                   style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
                     background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
                     color: '#FFFFFF',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 800,
-                    fontSize: '0.8125rem',
+                    fontSize: '0.75rem',
                     flexShrink: 0,
                   }}
                 >
@@ -436,22 +427,23 @@ function TransactionDetail() {
                 <div style={{ minWidth: 0, overflow: 'hidden' }}>
                   <span
                     style={{
-                      fontSize: '0.625rem',
+                      fontSize: '0.62rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      letterSpacing: '0.04em',
                       color: isDark ? '#94A3B8' : '#8993A8',
                       display: 'block',
+                      marginBottom: '2px',
                     }}
                   >
                     Paid From (Sender)
                   </span>
                   <p
                     style={{
-                      fontSize: '0.875rem',
+                      fontSize: '0.85rem',
                       fontWeight: 700,
                       color: 'var(--text-primary)',
-                      margin: '2px 0 0 0',
+                      margin: 0,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -465,27 +457,27 @@ function TransactionDetail() {
               {/* Receiver Box */}
               <div
                 style={{
-                  padding: '16px 18px',
-                  borderRadius: '16px',
+                  padding: '13px 16px',
+                  borderRadius: '14px',
                   border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
                   background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '14px',
+                  gap: '12px',
                 }}
               >
                 <div
                   style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
                     background: 'linear-gradient(135deg, #16A66A 0%, #0D8252 100%)',
                     color: '#FFFFFF',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 800,
-                    fontSize: '0.8125rem',
+                    fontSize: '0.75rem',
                     flexShrink: 0,
                   }}
                 >
@@ -494,22 +486,23 @@ function TransactionDetail() {
                 <div style={{ minWidth: 0, overflow: 'hidden' }}>
                   <span
                     style={{
-                      fontSize: '0.625rem',
+                      fontSize: '0.62rem',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
+                      letterSpacing: '0.04em',
                       color: isDark ? '#94A3B8' : '#8993A8',
                       display: 'block',
+                      marginBottom: '2px',
                     }}
                   >
                     Paid To (Receiver)
                   </span>
                   <p
                     style={{
-                      fontSize: '0.875rem',
+                      fontSize: '0.85rem',
                       fontWeight: 700,
                       color: 'var(--text-primary)',
-                      margin: '2px 0 0 0',
+                      margin: 0,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -523,10 +516,10 @@ function TransactionDetail() {
           </div>
 
           {/* Statement Specification Rows */}
-          <div style={{ padding: '24px' }}>
+          <div style={{ padding: '20px 22px 24px 22px' }}>
             <div
               style={{
-                borderRadius: '18px',
+                borderRadius: '16px',
                 border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
                 background: isDark ? 'var(--bg-elevated)' : '#FFFFFF',
                 overflow: 'hidden',
@@ -543,7 +536,7 @@ function TransactionDetail() {
               <StatementRow
                 label="Payment Method"
                 value={isOffline ? 'Offline Signed QR' : 'Online Immediate Settlement'}
-                subtext={isOffline ? 'Locally authorized with asymmetric ECDSA signature' : 'Instant central ledger reconciliation'}
+                subtext={isOffline ? 'Offline QR Payment (Zero Internet)' : 'Instant digital wallet transfer'}
                 isDark={isDark}
               />
 
@@ -564,7 +557,7 @@ function TransactionDetail() {
                       alignItems: 'center',
                       gap: '6px',
                       fontFamily: 'monospace',
-                      fontSize: '0.8125rem',
+                      fontSize: '0.74rem',
                       fontWeight: 700,
                       color: '#3155B8',
                       background: isDark ? 'rgba(49,85,184,0.18)' : '#F5F7FF',
@@ -609,215 +602,30 @@ function TransactionDetail() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  padding: '14px 20px',
-                  borderRadius: '16px',
+                  padding: '13px 20px',
+                  borderRadius: '14px',
                   fontSize: '0.875rem',
                   fontWeight: 700,
                   color: '#FFFFFF',
                   background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
-                  boxShadow: '0 4px 14px rgba(23,43,117,0.25)',
+                  boxShadow: '0 3px 12px rgba(23,43,117,0.2)',
                   transition: 'transform 0.15s ease',
                 }}
               >
-                <Send size={16} />
+                <Send size={15} />
                 <span>{isSent ? 'Send Money Again' : 'Send Payment to ' + counterpartyName}</span>
               </Link>
             </div>
           </div>
         </div>
 
-        {/* ─── Discreet "View Technical Details" Option for Hackathon Demos ─── */}
-        <div style={{ textAlign: 'center', paddingTop: '4px' }} className="no-print">
-          <button
-            type="button"
-            onClick={() => setShowTechnical(p => !p)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '10px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Cpu size={14} className="text-[#3155B8]" />
-            <span>{showTechnical ? 'Hide Technical Details' : 'View Technical Details'}</span>
-            {showTechnical ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </button>
-        </div>
-
-        {/* ─── Cryptographic Audit Proof (Hidden by default, shown for demos) ─── */}
-        {showTechnical && (
-          <div
-            className="no-print animate-fade-in"
-            style={{
-              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
-              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-              borderRadius: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                padding: '14px 20px',
-                borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.8125rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-              }}
-            >
-              <ShieldCheck size={16} className="text-[#3155B8]" />
-              <span>Security & Cryptographic Audit Proof</span>
-            </div>
-            <div
-              style={{
-                padding: '20px',
-                borderTop: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-              }}
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                    background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>Signature Proof:</span>
-                  <span style={{ fontWeight: 700, color: '#16A66A' }}>
-                    {tx.signature && tx.signature !== 'DEMO_SIG'
-                      ? 'ECDSA P-256 Validated'
-                      : isOffline
-                      ? 'Demo Signature Verified'
-                      : 'Central Ledger Settled'}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                    background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span style={{ color: 'var(--text-secondary)' }}>Hardware Node:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    {tx.deviceId ? `${tx.deviceId.slice(0, 14)}...` : 'Online Node'}
-                  </span>
-                </div>
-
-                {tx.authorizationId && (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                      background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text-secondary)' }}>Auth Token:</span>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#3155B8' }}>
-                      {tx.authorizationId}
-                    </span>
-                  </div>
-                )}
-
-                {tx.counter !== undefined && (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      border: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
-                      background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text-secondary)' }}>Monotonic Counter:</span>
-                    <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>#{tx.counter}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Raw JSON Payload */}
-              <div style={{ paddingTop: '10px', borderTop: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                    Raw IndexedDB Payload:
-                  </span>
-                  <button
-                    onClick={handleCopyPayload}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 10px',
-                      borderRadius: '8px',
-                      fontSize: '0.6875rem',
-                      fontWeight: 700,
-                      background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
-                      color: copiedPayload ? '#16A66A' : '#3155B8',
-                      border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {copiedPayload ? <Check size={12} /> : <Copy size={12} />}
-                    <span>{copiedPayload ? 'Copied' : 'Copy JSON'}</span>
-                  </button>
-                </div>
-                <pre
-                  style={{
-                    padding: '14px',
-                    borderRadius: '14px',
-                    fontSize: '0.6875rem',
-                    fontFamily: 'monospace',
-                    overflowX: 'auto',
-                    lineHeight: '1.6',
-                    background: isDark ? '#0F172A' : '#F5F7FF',
-                    color: isDark ? '#93C5FD' : '#172B75',
-                    border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-                    maxHeight: '180px',
-                    margin: 0,
-                  }}
-                >
-                  {JSON.stringify(tx, null, 2)}
-                </pre>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );
 }
 
 /**
- * StatementRow — Generously padded statement key-value row with zero clipping
+ * StatementRow — Compact, clean statement key-value row
  */
 function StatementRow({ label, value, subtext, highlight, highlightColor, isDark }) {
   return (
@@ -826,7 +634,7 @@ function StatementRow({ label, value, subtext, highlight, highlightColor, isDark
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '16px 20px',
+        padding: '13px 18px',
         borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : '#F1F4F9'}`,
         gap: '16px',
       }}
@@ -834,7 +642,7 @@ function StatementRow({ label, value, subtext, highlight, highlightColor, isDark
       <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <span
           style={{
-            fontSize: '0.8125rem',
+            fontSize: '0.78rem',
             fontWeight: 600,
             color: 'var(--text-secondary)',
           }}
@@ -842,7 +650,7 @@ function StatementRow({ label, value, subtext, highlight, highlightColor, isDark
           {label}
         </span>
         {subtext && (
-          <span style={{ fontSize: '0.6875rem', color: isDark ? '#94A3B8' : '#8993A8', marginTop: '2px' }}>
+          <span style={{ fontSize: '0.66rem', color: isDark ? '#94A3B8' : '#8993A8', marginTop: '2px' }}>
             {subtext}
           </span>
         )}
@@ -852,8 +660,8 @@ function StatementRow({ label, value, subtext, highlight, highlightColor, isDark
         {typeof value === 'string' ? (
           <span
             style={{
-              fontSize: highlight ? '1rem' : '0.875rem',
-              fontWeight: highlight ? 900 : 700,
+              fontSize: highlight ? '0.975rem' : '0.84rem',
+              fontWeight: highlight ? 800 : 600,
               color: highlightColor || 'var(--text-primary)',
             }}
           >
@@ -868,3 +676,4 @@ function StatementRow({ label, value, subtext, highlight, highlightColor, isDark
 }
 
 export default TransactionDetail;
+

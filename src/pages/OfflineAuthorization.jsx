@@ -55,79 +55,77 @@ function OfflineAuthorization() {
     : 0;
 
   return (
-    <DashboardLayout maxWidth="max-w-5xl">
-      <div className="w-full space-y-8 animate-fade-in pb-16">
+    <DashboardLayout maxWidth="max-w-4xl">
+      <div className="w-full space-y-7 sm:space-y-8 animate-fade-in pb-12">
         {/* Top Header */}
         <div
-          className="border-b pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+          className="border-b pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
           style={{ borderColor: isDark ? 'var(--border-color)' : '#E2E8F0' }}
         >
           <div>
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-3">
               <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white shadow-sm"
+                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-2xs shrink-0"
                 style={{ background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)' }}
               >
-                <Key size={22} />
+                <Key size={18} />
               </div>
               <div className="space-y-0.5">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                   Offline Authorization
                 </h1>
-                <p className="text-xs sm:text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Pre-authorize cryptographic spending allowances on this hardware node.
+                <p className="text-xs text-[#5F6B85]">
+                  Pre-authorize an offline spending reserve for payments when disconnected.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             <span
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs"
               style={{
                 background: isDark ? 'var(--bg-elevated)' : '#F0FDF4',
                 color: isDark ? '#4ADE80' : '#166534',
                 borderColor: isDark ? 'var(--border-color)' : '#BBF7D0'
               }}
             >
-              <ShieldCheck size={14} className="text-[#16A66A]" />
-              ECDSA P-256 Armed
+              <ShieldCheck size={13} className="text-[#16A66A]" />
+              Hardware Protected
             </span>
           </div>
         </div>
 
         {/* Info callout */}
         <div
-          className="rounded-2xl text-xs sm:text-sm flex items-center gap-4 border shadow-xs"
+          className="rounded-xl text-xs sm:text-[13px] flex items-center gap-3.5 border shadow-2xs"
           style={{
-            padding: '20px 24px',
+            padding: '14px 18px',
             background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
             borderColor: isDark ? 'var(--border-color)' : '#D4E2FF',
             color: isDark ? '#FFFFFF' : '#172B75',
-            borderRadius: '18px',
           }}
         >
-          <Shield size={22} className="text-[#3155B8] flex-shrink-0" />
+          <Shield size={18} className="text-[#3155B8] flex-shrink-0" />
           <span className="font-medium leading-relaxed">
-            Set an offline reserve limit while connected. Authorizations are signed locally by your hardware key and valid for 30 rolling days.
+            Set an offline reserve limit while connected. Authorizations are signed locally by your device key and valid for 30 rolling days.
           </span>
         </div>
 
         {/* Device check */}
         {!device && (
           <div
-            className="rounded-2xl border space-y-2 shadow-xs"
+            className="rounded-xl border space-y-1.5 shadow-2xs"
             style={{
-              padding: '24px 28px',
+              padding: '16px 20px',
               background: isDark ? 'var(--bg-elevated)' : '#FFF6DD',
               borderColor: isDark ? 'var(--border-color)' : '#FCE7A6',
-              borderRadius: '20px',
             }}
           >
-            <p className="text-sm font-bold text-[#B57F00] flex items-center gap-2">
-              <AlertTriangle size={16} /> Device Registration Required
+            <p className="text-xs sm:text-sm font-bold text-[#B57F00] flex items-center gap-1.5">
+              <AlertTriangle size={15} /> Device Registration Required
             </p>
-            <p className="text-xs sm:text-sm text-[#5F6B85] leading-relaxed">
+            <p className="text-xs text-[#5F6B85] leading-relaxed">
               You need to register this device before creating an offline authorization token.
               Visit <a href="/devices" className="text-[#3155B8] underline font-bold">Device Management</a> to register with one click.
             </p>
@@ -137,85 +135,79 @@ function OfflineAuthorization() {
         {/* Current Authorization Card */}
         {authorization && (
           <div
-            className="rounded-3xl border shadow-sm space-y-7"
+            className="rounded-2xl border shadow-2xs space-y-6"
             style={{
-              padding: '30px 32px',
+              padding: '24px 26px',
               background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
               borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
-              borderRadius: '24px',
             }}
           >
-            <div className="border-b pb-4" style={{ borderColor: isDark ? 'var(--border-color)' : '#E2E8F0' }}>
-              <h2 className="text-lg sm:text-xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            <div className="border-b pb-3.5" style={{ borderColor: isDark ? 'var(--border-color)' : '#F1F4F9' }}>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 Current Authorization Token
               </h2>
-              <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Active cryptographic spending allowance reserved on this device.
+              <p className="text-xs text-[#5F6B85] mt-1">
+                Active offline spending allowance reserved on this device.
               </p>
             </div>
 
-            {/* Total vs Remaining Metric Cards with Guaranteed Deep Padding */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Total vs Remaining Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4.5 sm:gap-5">
               <div
-                className="border rounded-2xl flex flex-col justify-between"
+                className="border rounded-xl flex flex-col justify-between"
                 style={{
-                  padding: '28px 30px',
-                  background: isDark ? 'var(--bg-elevated)' : '#F5F7FF',
-                  borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
-                  borderRadius: '20px',
-                  minHeight: '140px',
+                  padding: '18px 22px',
+                  background: isDark ? 'var(--bg-elevated)' : '#F8FAFD',
+                  borderColor: isDark ? 'var(--border-color)' : '#E2E8F0',
                 }}
               >
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wider" style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#8993A8] mb-1">
                     TOTAL AUTHORIZED LIMIT
                   </p>
-                  <p className="text-2xl sm:text-3xl font-black" style={{ color: 'var(--text-primary)', margin: '6px 0' }}>
+                  <p className="text-xl sm:text-2xl font-black text-[#172033] my-0.5">
                     {formatCurrency(authorization.maximumAmount)}
                   </p>
                 </div>
-                <p className="text-xs text-[#8993A8]" style={{ marginTop: '10px' }}>Original offline reserve cap</p>
+                <p className="text-[11px] text-[#8993A8] mt-2">Original offline reserve cap</p>
               </div>
 
               <div
-                className="border rounded-2xl flex flex-col justify-between"
+                className="border rounded-xl flex flex-col justify-between"
                 style={{
-                  padding: '28px 30px',
+                  padding: '18px 22px',
                   background: isDark ? 'var(--bg-elevated)' : '#EAF0FF',
                   borderColor: isDark ? 'var(--border-color)' : '#D4E2FF',
-                  borderRadius: '20px',
-                  minHeight: '140px',
                 }}
               >
                 <div>
-                  <p className="text-xs font-black uppercase tracking-wider text-[#3155B8]" style={{ marginBottom: '8px' }}>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-[#3155B8] mb-1">
                     REMAINING OFFLINE ALLOWANCE
                   </p>
-                  <p className="text-2xl sm:text-3xl font-black text-[#3155B8]" style={{ margin: '6px 0' }}>
+                  <p className="text-xl sm:text-2xl font-black text-[#3155B8] my-0.5">
                     {formatCurrency(authorization.remainingAmount)}
                   </p>
                 </div>
-                <p className="text-xs text-[#5F6B85]" style={{ marginTop: '10px' }}>Spendable without network access</p>
+                <p className="text-[11px] text-[#5F6B85] mt-2">Spendable without network access</p>
               </div>
             </div>
 
             {/* Progress Bar Container */}
             <div
-              className="border rounded-2xl space-y-4"
+              className="border rounded-xl space-y-3"
               style={{
-                padding: '22px 26px',
+                padding: '16px 20px',
                 background: isDark ? 'var(--bg-elevated)' : '#FAFBFF',
-                borderColor: isDark ? 'var(--border-color)' : '#E2E8F0',
-                borderRadius: '18px',
+                borderColor: isDark ? 'var(--border-color)' : '#E9EFFD',
               }}
             >
-              <div className="flex justify-between items-center text-xs sm:text-sm">
-                <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-[#5F6B85]">
                   Used: <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(authorization.maximumAmount - authorization.remainingAmount)}</strong>
                 </span>
-                <span className="font-extrabold text-[#3155B8]">{usedPercent}% Utilized</span>
+                <span className="font-bold text-[#3155B8]">{usedPercent}% Utilized</span>
               </div>
-              <div className="h-3 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700/60 p-0.5">
+              <div className="h-2 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700/60 p-0.5">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
@@ -229,7 +221,7 @@ function OfflineAuthorization() {
             </div>
 
             {/* Parameter Details Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs sm:text-sm pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-1">
               <InfoBox label="MAX SINGLE TX" value={formatCurrency(authorization.maxSingleTransaction)} isDark={isDark} />
               <InfoBox label="AUTH STATUS" value={<Badge status={authorization.status} />} isDark={isDark} />
               <InfoBox label="ISSUED AT" value={formatDateTime(authorization.issuedAt)} isDark={isDark} />
@@ -239,16 +231,15 @@ function OfflineAuthorization() {
             {/* Expiry warning */}
             {new Date(authorization.expiresAt) - new Date() < 3 * 60 * 60 * 1000 && (
               <div
-                className="flex items-center gap-3 rounded-2xl text-xs sm:text-sm font-semibold border"
+                className="flex items-center gap-2.5 rounded-xl text-xs font-semibold border"
                 style={{
-                  padding: '18px 24px',
+                  padding: '12px 16px',
                   background: '#FFF6DD',
                   color: '#B57F00',
                   borderColor: '#F2A900/30',
-                  borderRadius: '16px',
                 }}
               >
-                <Clock size={18} />
+                <Clock size={16} />
                 <span>Authorization token expires {formatRelativeTime(authorization.expiresAt)} — please renew while online.</span>
               </div>
             )}
@@ -258,25 +249,24 @@ function OfflineAuthorization() {
         {/* Create / Renew Authorization Form */}
         {device && (
           <div
-            className="border shadow-sm space-y-7"
+            className="rounded-2xl border shadow-2xs space-y-5"
             style={{
-              padding: '30px 32px',
+              padding: '22px 24px',
               background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
               borderColor: isDark ? 'var(--border-color)' : '#DCE3F2',
-              borderRadius: '24px',
             }}
           >
-            <div className="border-b pb-4" style={{ borderColor: isDark ? 'var(--border-color)' : '#E2E8F0' }}>
-              <h2 className="text-lg sm:text-xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            <div className="border-b pb-3" style={{ borderColor: isDark ? 'var(--border-color)' : '#F1F4F9' }}>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
                 {authorization ? 'Renew or Adjust Offline Limits' : 'Initialize Offline Spending Authorization'}
               </h2>
-              <p className="text-xs sm:text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                Set spending ceilings locked with your device's asymmetric key.
+              <p className="text-xs text-[#5F6B85] mt-0.5">
+                Set spending ceilings secured with your registered device key.
               </p>
             </div>
 
-            <div className="space-y-6">
-              <div className="space-y-2">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
                 <Input
                   id="auth-amount"
                   label="Offline Spending Limit (NPR)"
@@ -290,7 +280,7 @@ function OfflineAuthorization() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Input
                   id="auth-max-single"
                   label="Max Per Single Transaction (NPR)"
@@ -305,13 +295,12 @@ function OfflineAuthorization() {
 
               {createError && (
                 <div
-                  className="rounded-2xl text-xs sm:text-sm font-semibold border"
+                  className="rounded-xl text-xs font-semibold border"
                   style={{
-                    padding: '16px 20px',
+                    padding: '12px 16px',
                     background: '#FDECEC',
                     borderColor: 'rgba(214, 69, 69, 0.3)',
                     color: '#D64545',
-                    borderRadius: '16px',
                   }}
                 >
                   {createError}
@@ -319,38 +308,37 @@ function OfflineAuthorization() {
               )}
               {createSuccess && (
                 <div
-                  className="rounded-2xl text-xs sm:text-sm font-semibold flex items-center gap-3 border"
+                  className="rounded-xl text-xs font-semibold flex items-center gap-2.5 border"
                   style={{
-                    padding: '16px 20px',
+                    padding: '12px 16px',
                     background: '#E8F8F1',
                     borderColor: 'rgba(22, 166, 106, 0.3)',
                     color: '#16A66A',
-                    borderRadius: '16px',
                   }}
                 >
-                  <CheckCircle2 size={20} />
+                  <CheckCircle2 size={16} />
                   <span>Authorization committed successfully! Valid for 30 days of offline peer-to-peer spending.</span>
                 </div>
               )}
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   disabled={isOffline || !device || isCreating}
                   onClick={handleCreate}
-                  className="w-full font-bold text-sm sm:text-base text-white transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full font-bold text-xs sm:text-sm text-white transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    padding: '16px 28px',
-                    borderRadius: '16px',
+                    padding: '12px 20px',
+                    borderRadius: '12px',
                     background: 'linear-gradient(135deg, #172B75 0%, #3155B8 100%)',
                   }}
                 >
-                  <Shield size={18} />
+                  <Shield size={16} />
                   <span>{isOffline ? 'Must be Online to Authorize' : (authorization ? 'Update Offline Authorization' : 'Authorize Device Now')}</span>
                 </button>
               </div>
 
               {isOffline && (
-                <p className="text-xs text-center text-[#B57F00] font-medium pt-1">
+                <p className="text-[11px] text-center text-[#B57F00] font-medium pt-0.5">
                   ⚠ You must be online to request or adjust offline authorization tokens.
                 </p>
               )}
@@ -365,17 +353,16 @@ function OfflineAuthorization() {
 function InfoBox({ label, value, isDark }) {
   return (
     <div
-      className="border flex flex-col justify-between"
+      className="border rounded-xl flex flex-col justify-between"
       style={{
-        padding: '20px 22px',
-        background: isDark ? 'var(--bg-elevated)' : '#F8FAFF',
+        padding: '12px 14px',
+        background: isDark ? 'var(--bg-elevated)' : '#F8FAFD',
         borderColor: isDark ? 'var(--border-color)' : '#E2E8F0',
-        borderRadius: '16px',
-        minHeight: '86px',
+        minHeight: '64px',
       }}
     >
-      <p className="text-[11px] uppercase font-bold tracking-wider" style={{ color: 'var(--text-secondary)', marginBottom: '6px' }}>{label}</p>
-      <div className="text-xs sm:text-sm font-black" style={{ color: 'var(--text-primary)' }}>{value}</div>
+      <p className="text-[10px] uppercase font-bold tracking-wider text-[#8993A8] mb-1">{label}</p>
+      <div className="text-xs sm:text-[13px] font-bold text-[#172033]">{value}</div>
     </div>
   );
 }
