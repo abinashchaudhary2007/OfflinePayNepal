@@ -6,8 +6,12 @@ const THEME_STORAGE_KEY = 'offlinepay_theme';
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
-    // 1. Check local storage
+    // 1. Landing, login, and register pages default to light mode
     if (typeof window !== 'undefined') {
+      const publicLightPaths = ['/', '/login', '/register'];
+      if (publicLightPaths.includes(window.location.pathname)) {
+        return 'light';
+      }
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
       if (stored === 'dark' || stored === 'light') {
         return stored;

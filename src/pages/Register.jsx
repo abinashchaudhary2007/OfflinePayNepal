@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Phone, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/DemoAuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 
@@ -10,7 +11,15 @@ import Button from '../components/ui/Button';
  */
 function Register() {
   const { register, isLoading, error, clearError } = useAuth();
+  const { setTheme } = useTheme();
   const navigate = useNavigate();
+
+  // Enforce light mode on mount for the Register page
+  useEffect(() => {
+    if (setTheme) {
+      setTheme('light');
+    }
+  }, [setTheme]);
 
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '', confirmPassword: ''
@@ -105,6 +114,18 @@ function Register() {
       {/* ─── Right Panel ─── */}
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-12 overflow-y-auto">
         <div className="w-full max-w-md py-6 sm:py-8">
+          {/* Top Bar Navigation */}
+          <div className="flex items-center justify-between mb-5">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-xs font-bold transition-colors no-underline hover:underline"
+              style={{ color: '#3155B8' }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Home</span>
+            </Link>
+          </div>
+
           {/* Mobile logo */}
           <Link to="/" className="lg:hidden flex items-center gap-2.5 no-underline mb-6">
             <img

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Mail, Lock, ArrowRight, ShieldCheck, AlertCircle, AlertTriangle,
@@ -10,7 +10,6 @@ import { useOfflineSimulation } from '../hooks/useOfflineSimulation';
 import { useTheme } from '../context/ThemeContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import ThemeToggle from '../components/ui/ThemeToggle';
 
 /**
  * Login page — Modern, secure authentication with offline support,
@@ -19,9 +18,16 @@ import ThemeToggle from '../components/ui/ThemeToggle';
 function Login() {
   const { login, resendConfirmationEmail, isLoading, error, clearError } = useAuth();
   const { isOffline } = useOfflineSimulation();
-  const { isDark } = useTheme();
+  const { isDark, setTheme } = useTheme();
   const navigate = useNavigate();
   const passwordInputRef = useRef(null);
+
+  // Enforce light mode on mount for the Login page
+  useEffect(() => {
+    if (setTheme) {
+      setTheme('light');
+    }
+  }, [setTheme]);
 
   const [form, setForm] = useState({
     email: localStorage.getItem('offlinepay_remembered_email') || '',
@@ -229,7 +235,6 @@ function Login() {
             </Link>
 
             <div className="flex items-center gap-3">
-              <ThemeToggle size="sm" />
               {isOffline ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FFF6DD] text-[#8C6200] border border-[#F2A900]/40 animate-pulse">
                   <WifiOff size={13} className="text-[#8C6200]" /> Offline Mode Active

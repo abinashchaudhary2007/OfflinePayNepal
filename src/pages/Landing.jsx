@@ -9,10 +9,17 @@ import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
 function Landing() {
-  const { isDark } = useTheme();
+  const { isDark, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+
+  // Enforce light mode on mount for the Landing page
+  useEffect(() => {
+    if (setTheme) {
+      setTheme('light');
+    }
+  }, [setTheme]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
