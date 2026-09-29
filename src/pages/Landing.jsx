@@ -3,38 +3,13 @@ import {
   WifiOff, QrCode, Shield, RefreshCw, Lock,
   ArrowRight, Menu, X, Check, ChevronDown,
   ExternalLink, ShieldCheck, Key, Clock,
-  Smartphone, Zap, Globe, Users, Sun, Moon
+  Smartphone, Zap, Globe, Users
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-/* ─────────────────────────────────────────────────
-   Tiny inline ThemeToggle for the landing nav
-   (avoids any tailwind class dependency)
-───────────────────────────────────────────────── */
-function LandingThemeToggle({ isDark, onToggle }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 38, height: 38, borderRadius: 10, cursor: 'pointer',
-        border: isDark ? '1px solid rgba(49,85,184,0.4)' : '1px solid rgba(220,227,242,0.9)',
-        background: isDark ? 'rgba(16,27,59,0.9)' : 'rgba(234,240,255,0.9)',
-        color: isDark ? '#F2A900' : '#3155B8',
-        transition: 'all 0.2s ease',
-        flexShrink: 0,
-      }}
-    >
-      {isDark ? <Sun size={16} /> : <Moon size={16} />}
-    </button>
-  );
-}
-
 function Landing() {
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [scrolled, setScrolled] = useState(false);
@@ -177,9 +152,8 @@ function Landing() {
             ))}
           </nav>
 
-          {/* CTAs + Theme Toggle */}
+          {/* CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="hidden-mobile">
-            <LandingThemeToggle isDark={isDark} onToggle={toggleTheme} />
             <Link to="/login" style={{
               padding: '8px 18px', borderRadius: 8,
               border: `1px solid ${C.border}`,
@@ -200,9 +174,8 @@ function Landing() {
             >Get Started</Link>
           </div>
 
-          {/* Mobile right side: theme toggle + hamburger */}
+          {/* Mobile right side: hamburger */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="show-mobile">
-            <LandingThemeToggle isDark={isDark} onToggle={toggleTheme} />
             <button
               onClick={() => setMobileMenuOpen(o => !o)}
               style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', padding: 8 }}
