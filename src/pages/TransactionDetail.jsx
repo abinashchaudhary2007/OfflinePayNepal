@@ -626,42 +626,59 @@ function TransactionDetail() {
           </div>
         </div>
 
-        {/* ─── Collapsible Cryptographic Audit Section (Discreet for Evaluators) ─── */}
-        <div
-          className="no-print"
-          style={{
-            background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
-            border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
-            borderRadius: '20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            overflow: 'hidden',
-          }}
-        >
+        {/* ─── Discreet "View Technical Details" Option for Hackathon Demos ─── */}
+        <div style={{ textAlign: 'center', paddingTop: '4px' }} className="no-print">
           <button
             type="button"
             onClick={() => setShowTechnical(p => !p)}
             style={{
-              width: '100%',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '14px 20px',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '10px',
               fontSize: '0.75rem',
               fontWeight: 600,
               background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
               color: 'var(--text-secondary)',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Cpu size={14} className="text-[#3155B8]" />
+            <span>{showTechnical ? 'Hide Technical Details' : 'View Technical Details'}</span>
+            {showTechnical ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+        </div>
+
+        {/* ─── Cryptographic Audit Proof (Hidden by default, shown for demos) ─── */}
+        {showTechnical && (
+          <div
+            className="no-print animate-fade-in"
+            style={{
+              background: isDark ? 'var(--bg-surface)' : '#FFFFFF',
+              border: `1px solid ${isDark ? 'var(--border-color)' : '#DCE3F2'}`,
+              borderRadius: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '14px 20px',
+                borderBottom: `1px solid ${isDark ? 'var(--border-color)' : '#E2E8F0'}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+              }}
+            >
               <ShieldCheck size={16} className="text-[#3155B8]" />
               <span>Security & Cryptographic Audit Proof</span>
             </div>
-            {showTechnical ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-
-          {showTechnical && (
             <div
               style={{
                 padding: '20px',
@@ -792,8 +809,8 @@ function TransactionDetail() {
                 </pre>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
